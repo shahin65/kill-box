@@ -147,7 +147,7 @@ class LiveRoomAdmin(admin.ModelAdmin):
                     'is_active',
                     'sort_order',
                 ),
-                'description': 'لینک لایو را از آپارات یا یوتیوب بگذار. کارت در خانه و صفحه لایو از همین آیتم ساخته می‌شود.',
+                'description': 'لینک لایو را از آپارات یا یوتیوب بگذار (مثلاً youtube.com/live/xxxxx یا لینک watch). کارت در خانه و صفحه لایو از همین آیتم ساخته می‌شود.',
             },
         ),
     )
