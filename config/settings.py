@@ -22,6 +22,20 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+if not CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS = [
+        f'https://{host}'
+        for host in ALLOWED_HOSTS
+        if host not in {'127.0.0.1', 'localhost', 'testserver'}
+    ]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Production stays dark unless ENABLE_DEV_LAB is explicitly turned on.
 # In DEBUG, the lab is available by default so local work is unblocked.
 ENABLE_DEV_LAB = os.getenv('ENABLE_DEV_LAB', str(DEBUG)).lower() in {
@@ -41,10 +55,12 @@ INSTALLED_APPS = [
     'apps.core.apps.CoreConfig',
     'apps.lab.apps.LabConfig',
     'apps.sms.apps.SmsConfig',
+    'apps.social.apps.SocialConfig',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -95,6 +111,16 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+}
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 CACHES = {
     'default': {
@@ -109,6 +135,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/dev-lab/'
 LOGOUT_REDIRECT_URL = '/'
+
+# Bale bot — token stays in the environment file; never hardcode.
+BALE_BOT_TOKEN = os.getenv('BALE_BOT_TOKEN', '')
+BALE_BOT_USERNAME = os.getenv('BALE_BOT_USERNAME', '')
+BALE_WEBHOOK_SECRET = os.getenv('BALE_WEBHOOK_SECRET', '')
+BALE_WEBHOOK_URL = os.getenv('BALE_WEBHOOK_URL', '')
+
+# Telegram bot — token stays in the environment file; never hardcode.
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '')
+TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET', '')
+TELEGRAM_WEBHOOK_URL = os.getenv('TELEGRAM_WEBHOOK_URL', '')
 
 # Melipayamak Console OTP — dedicated URL only; never hardcode.
 MELIPAYAMAK_API_URL = os.getenv('MELIPAYAMAK_API_URL', '')

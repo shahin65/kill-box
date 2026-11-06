@@ -1,0 +1,48 @@
+{% extends "core/app_base.html" %}
+
+{% block title %}دعوت از دوستان · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card social-card" data-invite data-invite-url="{{ referral.share_url }}">
+  <p class="auth-kicker">پروفایل</p>
+  <h1 class="auth-title">دعوت از دوستان</h1>
+  <p class="profile-copy">لینک عضویت خودت را در شبکه‌های اجتماعی بفرست. کسانی که از این لینک وارد شوند و با شماره ثبت‌نام کنند اینجا گزارش می‌شوند.</p>
+  <label class="invite-link">
+    لینک دعوت
+    <input id="invite-url" type="text" dir="ltr" readonly value="{{ referral.share_url }}">
+  </label>
+  <div class="invite-actions">
+    <button class="auth-btn" type="button" data-copy-invite>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 7h10v14H8zm2 2v10h6V9zM6 3h9v2H8v13H6z"/></svg>
+      <span>کپی لینک</span>
+    </button>
+    <button class="auth-alt" type="button" data-share-invite>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 4h6v6h-2V7.4l-7.3 7.3-1.4-1.4L16.6 6H14zM5 7h7v2H7v10h10v-5h2v7H5z"/></svg>
+      <span>اشتراک‌گذاری</span>
+    </button>
+  </div>
+  <p class="auth-status" id="invite-status" hidden></p>
+  <p class="invite-count">تعداد دوستان عضو شده: <strong>{{ referral.count }}</strong></p>
+  <div class="invite-tiers">
+    <p class="profile-social__title">لیست جوایز</p>
+    {% for tier in referral.tiers %}
+    <div class="invite-tier{% if tier.reached %} is-reached{% endif %}">
+      <strong>{{ tier.count }} نفر</strong>
+      <span>{{ tier.prize }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="invite-people">
+    <p class="profile-social__title">دوستان دعوت‌شده</p>
+    {% for row in referral.invited %}
+    <div class="inbox-row">
+      <strong>{{ row.name }}</strong>
+      <small dir="ltr">{{ row.public_id }}</small>
+    </div>
+    {% empty %}
+    <p class="profile-copy">هنوز کسی از لینک تو عضو نشده است.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

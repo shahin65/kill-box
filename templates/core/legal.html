@@ -1,0 +1,16 @@
+{% extends "core/app_base.html" %}
+
+{% block title %}{{ legal_title }} · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card legal-card">
+  <p class="auth-kicker">منوی سایت</p>
+  <h1 class="auth-title">{{ legal_title }}</h1>
+  {% if legal_body %}
+  <div class="legal-body">{{ legal_body|safe }}</div>
+  {% else %}
+  <p class="profile-copy">متن این صفحه هنوز در تنظیمات سایت نوشته نشده است.</p>
+  {% endif %}
+</section>
+{% endblock %}

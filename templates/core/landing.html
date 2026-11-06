@@ -2,50 +2,154 @@
 {% load static %}
 
 {% block title %}KILLBOX{% endblock %}
-{% block body_class %}is-landing{% endblock %}
+{% block body_class %}is-landing{% if force_register %} is-docked is-auth is-welcome-gone{% endif %}{% endblock %}
+{% block body_attrs %}data-intro="{% if force_register %}0{% else %}1{% endif %}" data-admitted="{% if admitted %}1{% else %}0{% endif %}" data-home="{% url 'core:home' %}"{% endblock %}
 
-{% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=7">
-{% endblock %}
+{% block extra_css %}{% endblock %}
 
 {% block body %}
-  <div class="landing-scene" aria-hidden="true">
-    <div class="landing-bg"></div>
-    <canvas id="fog-back" class="landing-fog landing-fog--back"></canvas>
-    <div class="landing-flare"></div>
-    <div class="landing-character-aura"></div>
-    <img
-      class="landing-character"
-      src="{% static 'images/character.png' %}?v=5"
-      alt=""
-      width="1536"
-      height="1024"
-      draggable="false"
-    >
-    <canvas id="fog-front" class="landing-fog landing-fog--front"></canvas>
-    <div class="landing-vignette"></div>
+  <svg class="landing-filters" width="0" height="0" aria-hidden="true" focusable="false">
+    <filter id="kb-welcome-noise" x="-30%" y="-40%" width="160%" height="180%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="4" result="grain"/>
+      <feDisplacementMap in="SourceGraphic" in2="grain" scale="38" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
+  <header class="landing-topbar" id="landing-topbar"></header>
+
+  <div class="landing-brand" id="landing-brand">
+    <span class="landing-logo-glow"></span>
+    <span class="landing-logo-frame">
+      <img
+        class="landing-logo"
+        src="{% static 'images/logo2.png' %}?v=7"
+        alt="KILLBOX"
+        width="1024"
+        height="1024"
+      >
+      <span class="landing-logo-sheen"></span>
+    </span>
   </div>
+  <p class="landing-welcome" id="landing-welcome">
+    <span class="landing-welcome__text">سرباز، به منطقه عملیاتی کیل باکس خوش اومدی</span>
+    <span class="landing-welcome__scan" aria-hidden="true"></span>
+  </p>
 
-  <main class="landing-stage">
-    <div class="landing-brand">
-      <span class="landing-logo-glow"></span>
-      <span class="landing-logo-frame">
-        <img
-          class="landing-logo"
-          src="{% static 'images/logo2.png' %}?v=7"
-          alt="KILLBOX"
-          width="1024"
-          height="1024"
-        >
-        <span class="landing-logo-sheen"></span>
-      </span>
-    </div>
-    <span class="landing-rule" aria-hidden="true"></span>
-    <p class="landing-welcome">سرباز، به منطقه عملیاتی کیل‌باکس خوش آمدی.</p>
+  <main class="landing-stage" id="landing-stage">
+    <section
+      class="landing-auth"
+      id="auth-panel"
+      {% if not force_register %}hidden{% endif %}
+      data-otp-cooldown="{{ sms.cooldown }}"
+    >
+      {% csrf_token %}
+      {% if signup.phone %}
+      <form class="auth-card" id="auth-send-form" action="{% url 'core:otp_send' %}" novalidate>
+        {% csrf_token %}
+        <p class="auth-kicker">ثبت‌نام / ورود</p>
+        <h1 class="auth-title">ورود با پیامک</h1>
+        <label class="auth-label" for="auth-phone">شماره موبایل</label>
+        <div class="auth-row">
+          <span class="auth-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 3v12h10V5H7zm5 14.25A1.25 1.25 0 1 0 12 22a1.25 1.25 0 0 0 0-2.75z"/></svg>
+          </span>
+          <input
+            class="auth-input"
+            id="auth-phone"
+            name="phone"
+            type="tel"
+            inputmode="numeric"
+            maxlength="16"
+            autocomplete="tel"
+            placeholder="09121234567"
+            dir="ltr"
+            required
+          >
+        </div>
+        <button class="auth-btn" type="submit" id="auth-send-btn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4 3 10.3 15 12 3 13.7z"/></svg>
+          <span>ارسال کد تایید</span>
+        </button>
+      </form>
+
+      <form class="auth-card auth-card--code" id="auth-verify-form" action="{% url 'core:otp_verify' %}" hidden novalidate>
+        {% csrf_token %}
+        <label class="auth-label" for="auth-code">کد تایید</label>
+        <div class="auth-row">
+          <span class="auth-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l8 4v6c0 5-3.4 9.4-8 10.5C7.4 21.4 4 17 4 12V6l8-4zm0 6a3 3 0 0 0-3 3v1H8v6h8v-6h-1v-1a3 3 0 0 0-3-3zm0 2a1 1 0 0 1 1 1v1h-2v-1a1 1 0 0 1 1-1z"/></svg>
+          </span>
+          <input
+            class="auth-input"
+            id="auth-code"
+            name="code"
+            type="text"
+            inputmode="numeric"
+            maxlength="{{ sms.otp_length }}"
+            autocomplete="one-time-code"
+            placeholder="کد ۶ رقمی"
+            dir="ltr"
+            required
+          >
+        </div>
+        <button class="auth-btn" type="submit" id="auth-verify-btn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.2 16.2 5 12l1.4-1.4 2.8 2.8 8.4-8.4L19 6.4z"/></svg>
+          <span>تایید و ورود</span>
+        </button>
+      </form>
+      {% else %}
+      <div class="auth-card is-disabled">
+        <p class="auth-kicker">ثبت‌نام / ورود</p>
+        <h1 class="auth-title">ورود با پیامک</h1>
+        <p class="profile-copy">ثبت‌نام از طریق تلفن فعلاً توسط فرماندهی غیرفعال شده است.</p>
+      </div>
+      {% endif %}
+
+      <p class="auth-status" id="auth-status" hidden></p>
+
+      {% if bale.enabled %}
+      <button
+        class="auth-alt auth-alt--bale"
+        type="button"
+        id="auth-bale-btn"
+        data-start="{% url 'core:bale_start' %}"
+        data-status="{% url 'core:bale_status' %}"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 5v-5H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm3 4v2h10V8H7zm0 4v2h7v-2H7z"/></svg>
+        <span>ثبت‌نام از طریق اپلیکیشن بله</span>
+      </button>
+      {% else %}
+      <button class="auth-alt auth-alt--bale" type="button" disabled aria-disabled="true" title="ثبت‌نام بله غیرفعال است">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 5v-5H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm3 4v2h10V8H7zm0 4v2h7v-2H7z"/></svg>
+        <span>ثبت‌نام از طریق اپلیکیشن بله</span>
+      </button>
+      {% endif %}
+
+      {% if telegram.enabled %}
+      <button
+        class="auth-alt auth-alt--telegram"
+        type="button"
+        id="auth-telegram-btn"
+        data-start="{% url 'core:telegram_start' %}"
+        data-status="{% url 'core:telegram_status' %}"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4 3 10.3 15 12 3 13.7z"/></svg>
+        <span>ثبت‌نام از طریق تلگرام</span>
+      </button>
+      {% else %}
+      <button class="auth-alt auth-alt--telegram" type="button" disabled aria-disabled="true" title="ثبت‌نام تلگرام غیرفعال است">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4 3 10.3 15 12 3 13.7z"/></svg>
+        <span>ثبت‌نام از طریق تلگرام</span>
+      </button>
+      {% endif %}
+
+      <form class="auth-guest" method="post" action="{% url 'core:guest_enter' %}">
+        {% csrf_token %}
+        <button class="auth-alt auth-alt--guest" type="submit">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 11c4.4 0 8 2.2 8 4.8V21H4v-2.2C4 16.2 7.6 14 12 14z"/></svg>
+          <span>ورود به عنوان کاربر میهمان</span>
+        </button>
+      </form>
+    </section>
   </main>
-{% endblock %}
-
-{% block extra_js %}
-  <script src="{% static 'js/particles.js' %}?v=8" defer></script>
-  <script src="{% static 'js/landing.js' %}?v=7" defer></script>
 {% endblock %}

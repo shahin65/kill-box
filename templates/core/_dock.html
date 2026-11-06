@@ -1,0 +1,36 @@
+{% load static %}
+{% url 'core:home' as home_url %}
+{% url 'core:shop' as shop_url %}
+{% url 'core:team' as team_url %}
+<nav class="kb-dock" aria-label="ناوبری پایین">
+  <a
+    class="kb-dock__item{% if request.path == shop_url %} is-active{% endif %}"
+    href="{{ shop_url }}"
+    data-kb-nav
+  >
+    <span class="kb-dock__icon">
+      <img src="{% static 'images/icons/Shop.png' %}" alt="" width="512" height="512">
+    </span>
+    <span class="kb-dock__label">فروشگاه</span>
+  </a>
+  <a
+    class="kb-dock__item kb-dock__item--home{% if request.path == home_url %} is-active{% endif %}"
+    href="{{ home_url }}"
+    data-kb-nav
+  >
+    <span class="kb-dock__icon">
+      <img src="{% static 'images/icons/Home1.png' %}" alt="" width="512" height="512">
+    </span>
+    <span class="kb-dock__label">خانه</span>
+  </a>
+  <a
+    class="kb-dock__item{% if request.path == team_url %} is-active{% endif %}"
+    href="{{ team_url }}"
+    data-kb-nav
+  >
+    <span class="kb-dock__icon">
+      <img src="{% static 'images/icons/Clan.png' %}" alt="" width="512" height="512">
+    </span>
+    <span class="kb-dock__label">تیم من</span>
+  </a>
+</nav>

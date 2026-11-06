@@ -1,0 +1,25 @@
+<button
+  class="topbar-menu"
+  type="button"
+  data-menu-open
+  aria-haspopup="dialog"
+  aria-controls="site-menu-dialog"
+  title="منو"
+>
+  <span></span>
+  <span></span>
+  <span></span>
+</button>
+<dialog class="site-menu" id="site-menu-dialog">
+  <div class="site-menu__panel">
+    <header class="site-menu__head">
+      <strong>منو</strong>
+      <button class="site-menu__close" type="button" data-menu-close aria-label="بستن">×</button>
+    </header>
+    <nav class="site-menu__list">
+      <a href="{% url 'core:about' %}" data-kb-nav data-menu-close>درباره کیل‌باکس</a>
+      <a href="{% url 'core:privacy' %}" data-kb-nav data-menu-close>سیاست حفظ حریم خصوصی</a>
+      <a href="{% url 'core:terms' %}" data-kb-nav data-menu-close>شرایط استفاده از خدمات</a>
+    </nav>
+  </div>
+</dialog>

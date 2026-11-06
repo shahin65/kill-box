@@ -1,0 +1,25 @@
+{% extends "core/app_base.html" %}
+{% load static %}
+
+{% block title %}{{ people_title }} · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card social-card">
+  {% csrf_token %}
+  <p class="auth-kicker">پروفایل</p>
+  <h1 class="auth-title">{{ people_title }}</h1>
+  <div class="inbox-list">
+    {% for row in people %}
+    <div class="inbox-row people-row">
+      <a href="{% url 'social:thread' row.id %}" data-kb-nav><strong>{{ row.name }}</strong></a>
+      {% if not row.mine %}
+      <button type="button" data-follow="{{ row.id }}">{% if row.following %}لغو دنبال{% else %}دنبال کردن{% endif %}</button>
+      {% endif %}
+    </div>
+    {% empty %}
+    <p class="profile-copy">لیست خالی است.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

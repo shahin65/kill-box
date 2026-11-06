@@ -65,12 +65,19 @@ def interpret_otp_response(data) -> tuple[bool, str, str]:
     if not isinstance(data, dict):
         return False, 'پاسخ کنسول ملی‌پیامک نامعتبر است.', ''
 
-    if _looks_like_error(data):
-        return False, _public_error_message(data), ''
-
     code = _extract_code(data)
     if code:
         return True, 'کد تایید ارسال شد.', code
+
+    if _looks_like_error(data):
+        return False, _public_error_message(data), ''
+
+    status = data.get('status', data.get('Status'))
+    if isinstance(status, str):
+        status_text = _scrub(status).strip()
+        if status_text and status_text.lower() not in {'ok', 'success', '200'}:
+            return False, status_text[:180], ''
+
     return False, 'کنسول ملی‌پیامک کد تایید برنگرداند.', ''
 
 
@@ -100,7 +107,7 @@ def _post_otp(phone: str) -> dict:
         data=body,
         method='POST',
         headers={
-            'Content-Type': 'application/json; charset=utf-8',
+            'Content-Type': 'application/json',
             'Accept': 'application/json',
         },
     )
@@ -129,22 +136,31 @@ def _parse_body(raw: str):
 
 
 def _extract_code(data: dict) -> str:
+    lowered = {str(key).lower(): value for key, value in data.items()}
     candidates = [
-        data.get('code'),
-        data.get('otp'),
+        lowered.get('code'),
+        lowered.get('otp'),
+        lowered.get('pin'),
     ]
-    nested = data.get('data')
+    nested = lowered.get('data')
     if isinstance(nested, dict):
-        candidates.extend([nested.get('code'), nested.get('otp')])
-    inner = data.get('return')
+        nested_l = {str(key).lower(): value for key, value in nested.items()}
+        candidates.extend([nested_l.get('code'), nested_l.get('otp')])
+    inner = lowered.get('return')
     if isinstance(inner, dict):
-        candidates.extend([inner.get('code'), inner.get('otp')])
+        inner_l = {str(key).lower(): value for key, value in inner.items()}
+        candidates.extend([inner_l.get('code'), inner_l.get('otp')])
 
+    fallback = ''
     for item in candidates:
         digits = str(item or '').translate(_FA_DIGITS).strip()
-        if digits.isdigit() and len(digits) == OTP_LENGTH:
+        if not digits.isdigit():
+            continue
+        if len(digits) == OTP_LENGTH:
             return digits
-    return ''
+        if not fallback and 4 <= len(digits) <= 8:
+            fallback = digits
+    return fallback
 
 
 def _looks_like_error(data: dict) -> bool:

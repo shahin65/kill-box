@@ -1,0 +1,38 @@
+{% load static %}
+{% url 'core:profile' as profile_url %}
+<div class="topbar-hud">
+  {% if request.path == profile_url %}
+  <span class="topbar-profile is-current" title="پروفایل">
+  {% else %}
+  <a class="topbar-profile" href="{{ profile_url }}" data-kb-nav title="پروفایل">
+  {% endif %}
+    <img
+      class="{% if has_custom_avatar %}is-custom{% endif %}"
+      src="{% if avatar_url %}{{ avatar_url }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}"
+      alt="پروفایل"
+      width="512"
+      height="512"
+    >
+  {% if request.path == profile_url %}
+  </span>
+  {% else %}
+  </a>
+  {% endif %}
+  {% if is_member and rank %}
+  <button
+    class="topbar-rank"
+    type="button"
+    data-rank-open
+    aria-haspopup="dialog"
+    aria-controls="rank-dialog"
+    title="{{ rank.title }}"
+  >
+    <img
+      src="{% static rank.icon %}"
+      alt="{{ rank.title }}"
+      width="512"
+      height="512"
+    >
+  </button>
+  {% endif %}
+</div>

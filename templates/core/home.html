@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}خانه · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-docked is-feed{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block body %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_guest_banner.html" %}
+  {% if is_member %}{% include "core/_rank_dialog.html" %}{% endif %}
+  <a class="landing-brand" href="{% url 'core:home' %}" data-kb-nav>
+    <span class="landing-logo-glow"></span>
+    <span class="landing-logo-frame">
+      <img
+        class="landing-logo"
+        src="{% static 'images/logo2.png' %}?v=7"
+        alt="KILLBOX"
+        width="1024"
+        height="1024"
+      >
+      <span class="landing-logo-sheen"></span>
+    </span>
+  </a>
+
+  <main class="landing-stage home-stage">
+    {% csrf_token %}
+    <section class="feed-card home-feed home-feed--arena" data-kb-swipe>
+      <div class="feed-head">
+        <h2>پخش زنده</h2>
+        <a class="feed-more" href="{% url 'core:live' %}" data-kb-nav>ورود به لایو</a>
+      </div>
+      <div class="home-swipe is-pair">
+        <button class="home-swipe__nav is-prev" type="button" data-post-prev title="قبلی">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.8 5.2 8 12l6.8 6.8 1.4-1.4L10.8 12l5.4-5.4z"/></svg>
+        </button>
+        <div class="home-swipe__track">
+          {% for card in home_lives %}
+          <div class="home-swipe__slide">{% include "core/_event_card.html" %}</div>
+          {% endfor %}
+        </div>
+        <button class="home-swipe__nav is-next" type="button" data-post-next title="بعدی">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m9.2 5.2-1.4 1.4L13.2 12l-5.4 5.4 1.4 1.4L16 12z"/></svg>
+        </button>
+      </div>
+      <div class="home-swipe__pager">
+        <div class="home-swipe__dots" aria-hidden="true"></div>
+        <p class="home-swipe__count"><span data-post-pos>1</span> / {{ home_lives|length }}</p>
+      </div>
+    </section>
+    <section class="feed-card home-feed home-feed--arena">
+      <div class="feed-head">
+        <h2>آخرین استوری‌ها</h2>
+        <a class="feed-more" href="{% url 'social:explore' %}" data-kb-nav>بیشتر</a>
+      </div>
+      <div class="story-tray">
+        {% for group in story_groups %}
+        <button class="story-ring{% if group.unseen %} is-unseen{% else %} is-seen{% endif %}{% if group.friend %} is-friend{% endif %}" type="button" data-story-open="{{ forloop.counter0 }}">
+          <img src="{% if group.avatar %}{{ group.avatar }}{% elif group.cover %}{{ group.cover }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}" alt="">
+          <span>{{ group.name }}</span>
+        </button>
+        {% empty %}
+        <p class="profile-copy">هنوز استوری زنده‌ای نیست.</p>
+        {% endfor %}
+      </div>
+    </section>
+    <section class="feed-card home-feed home-feed--arena" data-kb-swipe>
+      <div class="feed-head">
+        <h2>تورنومنت</h2>
+        <span class="feed-more is-demo">نمایشی</span>
+      </div>
+      <div class="home-swipe is-pair">
+        <button class="home-swipe__nav is-prev" type="button" data-post-prev title="قبلی">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.8 5.2 8 12l6.8 6.8 1.4-1.4L10.8 12l5.4-5.4z"/></svg>
+        </button>
+        <div class="home-swipe__track">
+          {% for card in home_tournaments %}
+          <div class="home-swipe__slide">{% include "core/_event_card.html" %}</div>
+          {% endfor %}
+        </div>
+        <button class="home-swipe__nav is-next" type="button" data-post-next title="بعدی">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m9.2 5.2-1.4 1.4L13.2 12l-5.4 5.4 1.4 1.4L16 12z"/></svg>
+        </button>
+      </div>
+      <div class="home-swipe__pager">
+        <div class="home-swipe__dots" aria-hidden="true"></div>
+        <p class="home-swipe__count"><span data-post-pos>1</span> / {{ home_tournaments|length }}</p>
+      </div>
+    </section>
+    <section class="feed-card home-feed home-feed--arena home-feed--posts" data-post-swipe>
+      <div class="feed-head">
+        <h2>آخرین پست‌ها</h2>
+        <a class="feed-more" href="{% url 'social:explore' %}" data-kb-nav>بیشتر</a>
+      </div>
+      {% if home_posts %}
+      <div class="home-swipe is-pair">
+        <button class="home-swipe__nav is-prev" type="button" data-post-prev title="پست قبلی">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.8 5.2 8 12l6.8 6.8 1.4-1.4L10.8 12l5.4-5.4z"/></svg>
+        </button>
+        <div class="home-swipe__track">
+          {% for post in home_posts %}
+          <article class="home-swipe__slide">
+            <div class="home-swipe__user">
+              <img class="home-swipe__avatar" src="{{ post.avatar }}" alt="" width="64" height="64" draggable="false">
+              <strong>{{ post.name }}</strong>
+            </div>
+            {% if post.url %}
+              {% if post.kind == 'video' %}
+              <video class="home-swipe__media" src="{{ post.url }}" muted playsinline></video>
+              {% else %}
+              <img class="home-swipe__media" src="{{ post.url }}" alt="" draggable="false">
+              {% endif %}
+            {% elif post.caption %}
+            <p class="home-swipe__text">{{ post.caption }}</p>
+            {% endif %}
+            {% if post.url and post.caption %}
+            <p class="home-swipe__caption">{{ post.caption }}</p>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        <button class="home-swipe__nav is-next" type="button" data-post-next title="پست بعدی">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m9.2 5.2-1.4 1.4L13.2 12l-5.4 5.4 1.4 1.4L16 12z"/></svg>
+        </button>
+      </div>
+      <div class="home-swipe__pager">
+        <div class="home-swipe__dots" aria-hidden="true"></div>
+        <p class="home-swipe__count"><span data-post-pos>1</span> / {{ home_posts|length }}</p>
+      </div>
+      {% else %}
+      <p class="profile-copy">هنوز پستی نیست.</p>
+      {% endif %}
+    </section>
+    {% include "social/_story_viewer.html" %}
+  </main>
+  {% if xp_toast or rank_toast %}
+  <div
+    class="home-toast"
+    id="home-toast"
+    hidden
+    data-xp="{% if xp_toast %}{{ xp_toast }}{% endif %}"
+    data-xp-icon="{% static 'images/icons/xp.webp' %}"
+    data-rank-icon="{% if rank_toast %}{% static rank_toast.icon %}{% endif %}"
+    data-rank-title="{% if rank_toast %}{{ rank_toast.title }}{% endif %}"
+  ></div>
+  {% endif %}
+  {% include "core/_dock.html" %}
+{% endblock %}

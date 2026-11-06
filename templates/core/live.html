@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ room.name }} · لایو · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-docked is-live{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block body %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_guest_banner.html" %}
+  {% if is_member %}{% include "core/_rank_dialog.html" %}{% endif %}
+  <a class="landing-brand" href="{% url 'core:home' %}" data-kb-nav>
+    <span class="landing-logo-glow"></span>
+    <span class="landing-logo-frame">
+      <img class="landing-logo" src="{% static 'images/logo2.png' %}?v=7" alt="KILLBOX" width="1024" height="1024">
+      <span class="landing-logo-sheen"></span>
+    </span>
+  </a>
+  <main class="landing-stage home-stage kb-live" data-live-room="{{ room.slug }}" data-live-actor="{{ live_actor }}">
+    {% csrf_token %}
+    <section class="feed-card home-feed kb-live__head">
+      <div class="feed-head">
+        <h2>{{ room.name }}</h2>
+        <a class="feed-more" href="{% url 'core:home' %}" data-kb-nav>خانه</a>
+      </div>
+      <p class="kb-live__meta">
+        <span class="event-card__live-dot{% if room.live %} is-on{% endif %}" aria-hidden="true"></span>
+        {{ room.status }} · {{ room.date_label }} · {{ room.time_label }}
+      </p>
+    </section>
+    <section class="kb-live__player" aria-label="پخش زنده">
+      <span class="kb-live__notch kb-live__notch--tl" aria-hidden="true"></span>
+      <span class="kb-live__notch kb-live__notch--tr" aria-hidden="true"></span>
+      <span class="kb-live__notch kb-live__notch--bl" aria-hidden="true"></span>
+      <span class="kb-live__notch kb-live__notch--br" aria-hidden="true"></span>
+      <div class="kb-live__screen" id="live-screen" data-stream-url="{{ room.stream_url }}">
+        <div class="kb-live__idle" id="live-idle">
+          <strong>سیگنال زنده کیل‌باکس</strong>
+          <small>{% if room.stream_url %}در حال اتصال به پخش{% else %}تماشا · چت · دونیت{% endif %}</small>
+        </div>
+      </div>
+    </section>
+    <div class="kb-live__cols">
+      <section class="feed-card home-feed kb-live__chat">
+        <div class="feed-head">
+          <h2>چت زنده</h2>
+        </div>
+        <div class="kb-live__log" id="live-chat-log" aria-live="polite">
+          {% for row in live_messages %}
+          <article class="kb-live__item{% if row.donate %} is-donate{% endif %}">
+            <strong>{{ row.name }}</strong>
+            <p>{{ row.text }}</p>
+          </article>
+          {% empty %}
+          <p class="profile-copy" data-live-empty>هنوز پیامی نیست. اول شما بگو.</p>
+          {% endfor %}
+        </div>
+        <form class="kb-live__composer" id="live-chat-form">
+          <input id="live-chat-input" type="text" maxlength="160" autocomplete="off" placeholder="پیام خود را بنویسید">
+          <button class="auth-btn" type="submit">ارسال</button>
+        </form>
+      </section>
+      <section class="feed-card home-feed kb-live__donate">
+        <div class="feed-head">
+          <h2>دونیت</h2>
+        </div>
+        <form id="live-donate-form">
+          <p class="kb-live__label">مبلغ سریع</p>
+          <div class="kb-live__chips" role="group">
+            <button type="button" class="kb-live__chip is-active" data-donate-amount="50000" aria-pressed="true">۵۰ هزار</button>
+            <button type="button" class="kb-live__chip" data-donate-amount="100000" aria-pressed="false">۱۰۰ هزار</button>
+            <button type="button" class="kb-live__chip" data-donate-amount="200000" aria-pressed="false">۲۰۰ هزار</button>
+          </div>
+          <label class="kb-live__label" for="live-donate-custom">مبلغ دلخواه (تومان)</label>
+          <input id="live-donate-custom" type="text" inputmode="numeric" maxlength="12" placeholder="مثلاً ۱۵۰۰۰۰">
+          <label class="kb-live__label" for="live-donate-note">پیام کوتاه</label>
+          <input id="live-donate-note" type="text" maxlength="80" placeholder="گلادیاتورها پیروز می‌شوند">
+          <button class="auth-btn" type="submit">پرداخت</button>
+          <p class="auth-status" id="live-donate-status" hidden></p>
+        </form>
+      </section>
+    </div>
+  </main>
+  {% include "core/_dock.html" %}
+{% endblock %}

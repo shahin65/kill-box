@@ -1,0 +1,6 @@
+{% if is_guest %}
+<p class="guest-banner">
+  <span>برای استفاده از امکانات سایت باید حسابت را ثبت‌نام کنی.</span>
+  <a class="guest-banner__link" href="{% url 'core:landing' %}?register=1" data-kb-nav>ثبت‌نام حساب</a>
+</p>
+{% endif %}

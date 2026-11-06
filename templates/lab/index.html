@@ -5,25 +5,32 @@
 {% block body_class %}is-lab lab-theme-classic{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=7">
-  <link rel="stylesheet" href="{% static 'css/lab.css' %}?v=20">
+  <link rel="stylesheet" href="{% static 'css/lab.css' %}?v=28">
 {% endblock %}
+
+{% block scene %}{% endblock %}
 
 {% block body %}
   <div class="landing-scene" aria-hidden="true">
-    <div class="landing-bg"></div>
-    <canvas id="fog-back" class="landing-fog landing-fog--back"></canvas>
-    <div class="landing-flare"></div>
-    <div class="landing-character-aura"></div>
-    <img
-      class="landing-character"
-      src="{% static 'images/character.png' %}?v=5"
-      alt=""
-      width="1536"
-      height="1024"
-      draggable="false"
-    >
-    <canvas id="fog-front" class="landing-fog landing-fog--front"></canvas>
+    <div class="landing-rig">
+      <div class="landing-bg" data-scene="{% static 'images/background1.png' %}"></div>
+      <canvas id="fog-back" class="landing-fog landing-fog--back"></canvas>
+      <canvas id="smoke-back" class="landing-smoke landing-smoke--back" data-sprite="{% static 'images/smoke.png' %}"></canvas>
+      <canvas id="ash-back" class="landing-ash landing-ash--back" data-sprite="{% static 'images/ash.png' %}"></canvas>
+      <div class="landing-flare"></div>
+      <div class="landing-character-aura"></div>
+      <img
+        class="landing-character"
+        src="{% static 'images/character.png' %}?v=6"
+        alt=""
+        width="1536"
+        height="1024"
+        draggable="false"
+      >
+      <canvas id="fog-front" class="landing-fog landing-fog--front"></canvas>
+      <canvas id="smoke-front" class="landing-smoke landing-smoke--front" data-sprite="{% static 'images/smoke.png' %}"></canvas>
+      <canvas id="ash-front" class="landing-ash landing-ash--front" data-sprite="{% static 'images/ash.png' %}"></canvas>
+    </div>
     <div class="landing-vignette"></div>
   </div>
 
@@ -35,7 +42,7 @@
     <p class="lab-bar__meta">
       محیط ایزوله · فقط Staff · {{ user.get_username }}
     </p>
-    <a class="lab-bar__link" href="{% url 'core:landing' %}">بازگشت به لندینگ</a>
+    <a class="lab-bar__link" href="{% url 'core:landing' %}" data-kb-nav>بازگشت به لندینگ</a>
   </header>
 
   <main class="lab-wrap lab-chrome">
@@ -390,6 +397,323 @@
       </article>
     </section>
 
+    <section class="lab-card lab-card--frame" id="bench-frame">
+      <header class="lab-card__head">
+        <p class="lab-kicker">MODULE 05</p>
+        <h1>ساخت و نمایش فریم رویداد</h1>
+        <p>فریم و کاراکتر را جدا انتخاب کنید. سر از کادر بیرون می‌زند، گلو طلایی هر ۱۰ ثانیه روی کاراکتر می‌آید، و شیشه‌ها نام، تاریخ، ظرفیت، جایزه و دکمه ورود را نشان می‌دهند.</p>
+      </header>
+
+      <div class="event-lab">
+        <div class="event-lab__preview">
+          <article class="event-card" id="event-card" data-frame="1" data-char="1" data-registered="0">
+            <div class="event-card__stage">
+              <div class="event-card__art">
+                <img
+                  class="event-card__frame"
+                  id="event-card-frame"
+                  src="{% static 'images/frame1.png' %}?v=1"
+                  alt=""
+                  width="960"
+                  height="519"
+                  draggable="false"
+                >
+                <p class="event-card__status" id="event-view-status" dir="ltr">
+                  <span class="event-card__live-dot" aria-hidden="true"></span>
+                  <span id="event-view-status-label">در حال عضو گیری</span>
+                </p>
+                <p class="event-card__timer" id="event-view-timer">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="currentColor" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm1 5h-2v6l4.5 2.7 1-1.7-3.5-2V7z"/>
+                  </svg>
+                  <span id="event-view-timer-text" dir="ltr">۰۰:۰۰:۰۰</span>
+                </p>
+                <div class="event-card__hud">
+                  <p class="event-glass event-glass--name">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="currentColor" d="M12 2a1 1 0 0 1 1 1v2.06A7 7 0 0 1 18.94 11H21a1 1 0 1 1 0 2h-2.06A7 7 0 0 1 13 18.94V21a1 1 0 1 1-2 0v-2.06A7 7 0 0 1 5.06 13H3a1 1 0 1 1 0-2h2.06A7 7 0 0 1 11 5.06V3a1 1 0 0 1 1-1zm0 6a4 4 0 1 0 .01 8A4 4 0 0 0 12 8zm0 2.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/>
+                    </svg>
+                    <span id="event-view-name">نبرد کیل‌باکس</span>
+                  </p>
+                  <p class="event-glass event-glass--date">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="currentColor" d="M8 2a1 1 0 0 1 1 1v1h6V3a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1V3a1 1 0 0 1 1-1zm11 8H5v9h14V10zM8 12h2.2v2.2H8V12zm4 0h2.2v2.2H12V12z"/>
+                    </svg>
+                    <span id="event-view-date">—</span>
+                  </p>
+                  <p class="event-glass event-glass--cap">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="currentColor" d="M8.5 7a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zm8 1a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 18.2C3 15.9 6.1 14 8.5 14s5.5 1.9 5.5 4.2V20H3v-1.8zM14 18.2c0-.7.1-1.4.4-2 1 .6 2.2 1 3.6 1 1.7 0 3.2-.5 4 1.2V20h-8v-1.8z"/>
+                    </svg>
+                    <span id="event-view-capacity" dir="ltr">۴۰/۰</span>
+                  </p>
+                  <div class="event-card__pay">
+                    <p class="event-glass event-glass--prize">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="currentColor" d="M7 3h10v2h3a2 2 0 0 1 2 2c0 3.2-2.1 5.8-5.1 6.6A5 5 0 0 1 13 16.9V18h3v2H8v-2h3v-1.1A5 5 0 0 1 7.1 13.6C4.1 12.8 2 10.2 2 7a2 2 0 0 1 2-2h3V3zM4 7c0 2.1 1.3 3.9 3.2 4.5A5 5 0 0 1 7 10V7H4zm13 0v3c0 .3 0 .5-.2.8C18.7 10.9 20 9.1 20 7h-3z"/>
+                      </svg>
+                      <span id="event-view-prize">جایزه ۵٬۰۰۰٬۰۰۰ تومان</span>
+                    </p>
+                    <button class="event-fee-btn" id="event-view-fee" type="button" aria-label="پرداخت مبلغ ورودی">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="currentColor" d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 1 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 1 0 0-4V6zm5 1v10h2V7H9zm4 2h4v2h-4V9z"/>
+                      </svg>
+                      <span id="event-view-fee-text">۵۰٬۰۰۰ تومان</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="event-card__char-stack" id="event-char-stack">
+                  <div class="event-card__char-breath">
+                    <span class="event-card__char-glow" aria-hidden="true"></span>
+                    <div class="event-card__char-figure">
+                      <img
+                        class="event-card__char"
+                        id="event-card-char"
+                        src="{% static 'images/char1.png' %}?v=1"
+                        alt=""
+                        width="720"
+                        height="772"
+                        draggable="false"
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <form class="event-lab__form" id="event-frame-form" autocomplete="off">
+          <p class="lab-lookup__label" id="event-frame-label">فریم پس‌زمینه</p>
+          <div class="event-lab__frames" role="radiogroup" aria-labelledby="event-frame-label">
+            <button
+              type="button"
+              class="event-lab__pick is-active"
+              data-frame="1"
+              data-src="{% static 'images/frame1.png' %}?v=1"
+              aria-pressed="true"
+            >
+              <img src="{% static 'images/frame1.png' %}?v=1" alt="" width="960" height="519" draggable="false">
+              <strong>فریم ۱</strong>
+            </button>
+            <button
+              type="button"
+              class="event-lab__pick"
+              data-frame="2"
+              data-src="{% static 'images/frame2.png' %}?v=1"
+              aria-pressed="false"
+            >
+              <img src="{% static 'images/frame2.png' %}?v=1" alt="" width="960" height="540" draggable="false">
+              <strong>فریم ۲</strong>
+            </button>
+          </div>
+
+          <p class="lab-lookup__label" id="event-char-label">کاراکتر</p>
+          <div class="event-lab__frames event-lab__chars" role="radiogroup" aria-labelledby="event-char-label">
+            <button
+              type="button"
+              class="event-lab__pick event-lab__pick--char is-active"
+              data-char="1"
+              data-src="{% static 'images/char1.png' %}?v=1"
+              aria-pressed="true"
+            >
+              <img class="event-lab__pick-char" src="{% static 'images/char1.png' %}?v=1" alt="" width="720" height="772" draggable="false">
+              <strong>کاراکتر ۱</strong>
+            </button>
+            <button
+              type="button"
+              class="event-lab__pick event-lab__pick--char"
+              data-char="2"
+              data-src="{% static 'images/char2.png' %}?v=1"
+              aria-pressed="false"
+            >
+              <img class="event-lab__pick-char" src="{% static 'images/char2.png' %}?v=1" alt="" width="780" height="843" draggable="false">
+              <strong>کاراکتر ۲</strong>
+            </button>
+          </div>
+
+          <label class="lab-lookup__label" for="event-name">نام آیتم</label>
+          <input class="lab-lookup__input" id="event-name" name="name" type="text" maxlength="48" value="نبرد کیل‌باکس" placeholder="مثلاً نبرد آلفا">
+
+          <p class="lab-lookup__label" id="event-date-label">تاریخ شروع</p>
+          <div class="event-lab__jalali" role="group" aria-labelledby="event-date-label">
+            <label class="event-lab__jalali-item" for="event-j-year">
+              <span>سال</span>
+              <select class="lab-lookup__input" id="event-j-year" name="jyear"></select>
+            </label>
+            <label class="event-lab__jalali-item" for="event-j-month">
+              <span>ماه</span>
+              <select class="lab-lookup__input" id="event-j-month" name="jmonth"></select>
+            </label>
+            <label class="event-lab__jalali-item" for="event-j-day">
+              <span>روز</span>
+              <select class="lab-lookup__input" id="event-j-day" name="jday"></select>
+            </label>
+          </div>
+          <input id="event-date" name="date" type="hidden">
+
+          <label class="lab-lookup__label" for="event-time">ساعت شروع</label>
+          <input class="lab-lookup__input" id="event-time" name="time" type="time" value="18:00">
+
+          <label class="lab-lookup__label" for="event-capacity">ظرفیت کل</label>
+          <input class="lab-lookup__input" id="event-capacity" name="capacity" type="number" inputmode="numeric" min="0" max="9999" value="40">
+
+          <label class="lab-lookup__label" for="event-prize">جایزه</label>
+          <input class="lab-lookup__input" id="event-prize" name="prize" type="text" maxlength="40" value="5000000" placeholder="مبلغ یا متن جایزه">
+
+          <label class="lab-lookup__label" for="event-fee">مبلغ ورودی</label>
+          <input class="lab-lookup__input" id="event-fee" name="fee" type="text" maxlength="40" value="50000" placeholder="مبلغ ورودی">
+        </form>
+      </div>
+    </section>
+
+    <section class="lab-card lab-card--frame" id="bench-live-frame">
+      <header class="lab-card__head">
+        <p class="lab-kicker">MODULE 06</p>
+        <h1>ساخت و نمایش فریم پخش زنده</h1>
+        <p>فریم و کاراکتر لایو را جدا انتخاب کنید. گلو طلایی و نفس‌کشیدن آیدل با فریم رویداد یکی است؛ وضعیت و آیتم‌های روی کارت مخصوص پخش زنده‌اند.</p>
+      </header>
+
+      <div class="event-lab">
+        <div class="event-lab__preview">
+          <article class="event-card" id="live-card" data-frame="3" data-char="3">
+            <div class="event-card__stage">
+              <div class="event-card__art">
+                <img
+                  class="event-card__frame"
+                  id="live-card-frame"
+                  src="{% static 'images/frame3.png' %}?v=1"
+                  alt=""
+                  width="960"
+                  height="511"
+                  draggable="false"
+                >
+                <p class="event-card__status" id="live-view-status" dir="ltr">
+                  <span class="event-card__live-dot" aria-hidden="true"></span>
+                  <span id="live-view-status-label">در انتظار پخش</span>
+                </p>
+                <p class="event-card__timer" id="live-view-timer">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="currentColor" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm1 5h-2v6l4.5 2.7 1-1.7-3.5-2V7z"/>
+                  </svg>
+                  <span id="live-view-timer-text" dir="ltr">۰۰:۰۰:۰۰</span>
+                </p>
+                <div class="event-card__hud">
+                  <p class="event-glass event-glass--name">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="currentColor" d="M12 3a9 9 0 0 1 6.36 15.36l-1.41-1.41A7 7 0 1 0 7.05 16.95l-1.41 1.41A9 9 0 0 1 12 3zm0 4a5 5 0 0 1 3.54 8.54l-1.42-1.42A3 3 0 1 0 9.88 14.12L8.46 15.54A5 5 0 0 1 12 7zm-1.5 6.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0z"/>
+                    </svg>
+                    <span id="live-view-name">پخش زنده کیل‌باکس</span>
+                  </p>
+                  <p class="event-glass event-glass--date">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="currentColor" d="M8 2a1 1 0 0 1 1 1v1h6V3a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1V3a1 1 0 0 1 1-1zm11 8H5v9h14V10zM8 12h2.2v2.2H8V12zm4 0h2.2v2.2H12V12z"/>
+                    </svg>
+                    <span id="live-view-date">—</span>
+                  </p>
+                  <p class="event-glass event-glass--time">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path fill="currentColor" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm1 5h-2v6l4.5 2.7 1-1.7-3.5-2V7z"/>
+                    </svg>
+                    <span id="live-view-time" dir="ltr">۱۸:۰۰</span>
+                  </p>
+                </div>
+                <div class="event-card__char-stack" id="live-char-stack">
+                  <div class="event-card__char-breath">
+                    <span class="event-card__char-glow" aria-hidden="true"></span>
+                    <div class="event-card__char-figure">
+                      <img
+                        class="event-card__char"
+                        id="live-card-char"
+                        src="{% static 'images/char3.png' %}?v=2"
+                        alt=""
+                        width="780"
+                        height="984"
+                        draggable="false"
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <form class="event-lab__form" id="live-frame-form" autocomplete="off">
+          <p class="lab-lookup__label" id="live-frame-label">فریم پس‌زمینه</p>
+          <div class="event-lab__frames" role="radiogroup" aria-labelledby="live-frame-label">
+            <button
+              type="button"
+              class="event-lab__pick is-active"
+              data-frame="3"
+              data-src="{% static 'images/frame3.png' %}?v=1"
+              aria-pressed="true"
+            >
+              <img src="{% static 'images/frame3.png' %}?v=1" alt="" width="960" height="511" draggable="false">
+              <strong>فریم ۳</strong>
+            </button>
+            <button
+              type="button"
+              class="event-lab__pick"
+              data-frame="4"
+              data-src="{% static 'images/frame4.png' %}?v=1"
+              aria-pressed="false"
+            >
+              <img src="{% static 'images/frame4.png' %}?v=1" alt="" width="960" height="513" draggable="false">
+              <strong>فریم ۴</strong>
+            </button>
+          </div>
+
+          <p class="lab-lookup__label" id="live-char-label">کاراکتر</p>
+          <div class="event-lab__frames event-lab__chars" role="radiogroup" aria-labelledby="live-char-label">
+            <button
+              type="button"
+              class="event-lab__pick event-lab__pick--char is-active"
+              data-char="3"
+              data-src="{% static 'images/char3.png' %}?v=2"
+              aria-pressed="true"
+            >
+              <img class="event-lab__pick-char" src="{% static 'images/char3.png' %}?v=2" alt="" width="780" height="984" draggable="false">
+              <strong>کاراکتر ۳</strong>
+            </button>
+            <button
+              type="button"
+              class="event-lab__pick event-lab__pick--char"
+              data-char="4"
+              data-src="{% static 'images/char4.png' %}?v=2"
+              aria-pressed="false"
+            >
+              <img class="event-lab__pick-char" src="{% static 'images/char4.png' %}?v=2" alt="" width="779" height="1024" draggable="false">
+              <strong>کاراکتر ۴</strong>
+            </button>
+          </div>
+
+          <label class="lab-lookup__label" for="live-name">نام آیتم</label>
+          <input class="lab-lookup__input" id="live-name" name="name" type="text" maxlength="48" value="پخش زنده کیل‌باکس" placeholder="مثلاً لایو شب">
+
+          <p class="lab-lookup__label" id="live-date-label">تاریخ شروع</p>
+          <div class="event-lab__jalali" role="group" aria-labelledby="live-date-label">
+            <label class="event-lab__jalali-item" for="live-j-year">
+              <span>سال</span>
+              <select class="lab-lookup__input" id="live-j-year" name="jyear"></select>
+            </label>
+            <label class="event-lab__jalali-item" for="live-j-month">
+              <span>ماه</span>
+              <select class="lab-lookup__input" id="live-j-month" name="jmonth"></select>
+            </label>
+            <label class="event-lab__jalali-item" for="live-j-day">
+              <span>روز</span>
+              <select class="lab-lookup__input" id="live-j-day" name="jday"></select>
+            </label>
+          </div>
+          <input id="live-date" name="date" type="hidden">
+
+          <label class="lab-lookup__label" for="live-time">ساعت شروع</label>
+          <input class="lab-lookup__input" id="live-time" name="time" type="time" value="18:00">
+        </form>
+      </div>
+    </section>
+
     <section class="lab-card" id="bench-tokens">
       <header class="lab-card__head">
         <h1>توکن‌های تم تاکتیکال</h1>
@@ -408,6 +732,6 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'js/particles.js' %}?v=8" defer></script>
-  <script src="{% static 'js/lab.js' %}?v=20" defer></script>
+  <script src="{% static 'js/particles.js' %}?v=14" defer></script>
+  <script src="{% static 'js/lab.js' %}?v=24" defer></script>
 {% endblock %}

@@ -1,0 +1,78 @@
+{% extends "core/app_base.html" %}
+
+{% block title %}درخواست دوستی · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card social-card" data-friends>
+  {% csrf_token %}
+  <p class="auth-kicker">پروفایل</p>
+  <h1 class="auth-title">درخواست دوستی</h1>
+  <form class="friend-search" method="get" action="{% url 'social:friend_requests' %}">
+    <label>
+      جستجو با آی‌دی یکتا
+      <input name="q" type="text" dir="ltr" maxlength="12" value="{{ search_query }}" placeholder="KBXXXXXXXX">
+    </label>
+    <button class="auth-btn" type="submit">جستجو</button>
+  </form>
+  {% if found.missing %}
+  <p class="profile-copy">کاربری با این آی‌دی پیدا نشد.</p>
+  {% elif found %}
+  <div class="inbox-row people-row">
+    <div class="people-main">
+      <img class="people-avatar" src="{{ found.avatar }}" alt="" width="64" height="64">
+      <div>
+        <strong>{{ found.name }}</strong>
+        <small dir="ltr">{{ found.public_id }}</small>
+      </div>
+    </div>
+    {% if found.incoming %}
+    <button type="button" data-friend-accept="{{ found.id }}">تایید</button>
+    <button type="button" data-friend-reject="{{ found.id }}">رد</button>
+    {% elif found.status == 'accepted' %}
+    <span>دوست هستید</span>
+    {% elif found.status == 'pending' %}
+    <span>در انتظار</span>
+    {% elif found.can_request %}
+    <button type="button" data-friend-request="{{ found.id }}">ارسال درخواست</button>
+    {% endif %}
+  </div>
+  {% endif %}
+  <p class="profile-social__title">درخواست‌های دریافتی</p>
+  <div class="inbox-list">
+    {% for row in incoming %}
+    <div class="inbox-row people-row">
+      <div class="people-main">
+        <img class="people-avatar" src="{{ row.avatar }}" alt="" width="64" height="64">
+        <div>
+          <strong>{{ row.name }}</strong>
+          <small dir="ltr">{{ row.public_id }}</small>
+        </div>
+      </div>
+      <button type="button" data-friend-accept="{{ row.id }}">تایید</button>
+      <button type="button" data-friend-reject="{{ row.id }}">رد</button>
+    </div>
+    {% empty %}
+    <p class="profile-copy">درخواست دوستی جدیدی نداری.</p>
+    {% endfor %}
+  </div>
+  <p class="profile-social__title">پیشنهاد امروز</p>
+  <div class="inbox-list">
+    {% for row in suggested %}
+    <div class="inbox-row people-row">
+      <div class="people-main">
+        <img class="people-avatar" src="{{ row.avatar }}" alt="" width="64" height="64">
+        <div>
+          <strong>{{ row.name }}</strong>
+          <small dir="ltr">{{ row.public_id }}</small>
+        </div>
+      </div>
+      <button type="button" data-friend-request="{{ row.id }}">ارسال درخواست</button>
+    </div>
+    {% empty %}
+    <p class="profile-copy">پیشنهاد تازه‌ای برای امروز نیست.</p>
+    {% endfor %}
+  </div>
+  <p class="auth-status" id="friend-status" hidden></p>
+</section>
+{% endblock %}

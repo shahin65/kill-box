@@ -9,6 +9,11 @@
   --kb-mist: #d5d8c8;
   --kb-fog: #8a8f78;
   --kb-font: "Vazirmatn", "Tahoma", "Segoe UI", sans-serif;
+  --kb-scroll-thumb: #b08a3a;
+  --kb-scroll-track: rgba(8, 10, 8, 0.92);
+  --kb-scroll-thumb-image: linear-gradient(180deg, #e4c57a 0%, #b08a3a 48%, #6e5218 100%);
+  --kb-scroll-track-image: linear-gradient(180deg, #1a1610 0%, #0c0d0b 100%);
+  --kb-scroll-border: rgba(196, 165, 116, 0.22);
   color-scheme: dark;
 }
 

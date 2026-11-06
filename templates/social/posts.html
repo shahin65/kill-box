@@ -1,0 +1,48 @@
+{% extends "core/app_base.html" %}
+{% load static %}
+
+{% block title %}پست · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card social-card" data-post-create="{% url 'social:post_create' %}" data-post-count="{{ post_count }}" data-post-cap="{{ post_cap }}">
+  {% csrf_token %}
+  <p class="auth-kicker">شبکه‌های اجتماعی</p>
+  <h1 class="auth-title">پست</h1>
+  <p class="profile-copy">عکس یا فیلم حداکثر یک دقیقه. {{ post_count }} از {{ post_cap }} پست استفاده شده.</p>
+  <form class="composer" id="post-form">
+    <label class="composer-file">
+      <input id="post-file" type="file" accept="image/*,video/mp4,video/webm" required>
+      <span>انتخاب عکس یا فیلم</span>
+    </label>
+    <textarea id="post-caption" maxlength="2200" placeholder="کپشن پست"></textarea>
+    <button class="auth-btn" type="submit">انتشار پست</button>
+  </form>
+  <p class="auth-status" id="post-status" hidden></p>
+  <div class="post-feed">
+    {% for post in posts %}
+    <article class="post-card" data-post-id="{{ post.id }}">
+      <header class="post-card__head">
+        <a href="{% url 'social:thread' post.author_id %}" data-kb-nav>{{ post.name }}</a>
+        {% if not post.mine %}
+        <button type="button" data-follow="{{ post.author_id }}">دنبال کردن</button>
+        {% endif %}
+      </header>
+      {% if post.kind == 'video' %}
+      <video class="post-card__media" src="{{ post.url }}" controls playsinline></video>
+      {% else %}
+      <img class="post-card__media" src="{{ post.url }}" alt="">
+      {% endif %}
+      {% if post.caption %}<p class="post-card__caption">{{ post.caption }}</p>{% endif %}
+      <div class="post-card__bar">
+        <button type="button" data-like-post="{{ post.id }}">لایک {{ post.likes }}</button>
+        <a href="{% url 'social:post_detail' post.id %}" data-kb-nav>کامنت {{ post.comments }}</a>
+        <button type="button" data-share="{{ post.share_url }}">اشتراک</button>
+      </div>
+    </article>
+    {% empty %}
+    <p class="profile-copy">هنوز پستی نیست.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

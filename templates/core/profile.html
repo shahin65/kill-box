@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}پروفایل · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block body %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_guest_banner.html" %}
+  {% if is_member %}{% include "core/_rank_dialog.html" %}{% endif %}
+  <a class="landing-brand" href="{% url 'core:home' %}" data-kb-nav>
+    <span class="landing-logo-glow"></span>
+    <span class="landing-logo-frame">
+      <img
+        class="landing-logo"
+        src="{% static 'images/logo2.png' %}?v=7"
+        alt="KILLBOX"
+        width="1024"
+        height="1024"
+      >
+      <span class="landing-logo-sheen"></span>
+    </span>
+  </a>
+
+  <main class="landing-stage profile-stage">
+    {% if not is_member %}
+    <section class="profile-card">
+      <p class="auth-kicker">پروفایل</p>
+      <h1 class="auth-title">حساب ثبت نشده</h1>
+      <p class="profile-copy">سرباز میهمان هستی. برای استفاده از امکانات سایت باید حسابت را ثبت‌نام کنی.</p>
+      <a class="auth-btn" href="{% url 'core:landing' %}?register=1" data-kb-nav>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 11c4.4 0 8 2.2 8 4.8V21H4v-2.2C4 16.2 7.6 14 12 14z"/></svg>
+        <span>رفتن به ثبت‌نام</span>
+      </a>
+    </section>
+    {% else %}
+    <section class="profile-card" data-avatar-upload="{% url 'core:avatar_upload' %}" data-name-url="{% url 'core:profile_name' %}" data-bio-url="{% url 'core:profile_bio' %}">
+      {% csrf_token %}
+      <p class="auth-kicker">پروفایل کاربری</p>
+      <div class="profile-uid">
+        <span>آی‌دی یکتا</span>
+        <code id="profile-uid" dir="ltr">{{ public_id }}</code>
+        <button class="profile-uid__copy" type="button" data-copy-uid title="کپی آی‌دی">کپی</button>
+      </div>
+      <div class="profile-identity">
+        <input
+          id="avatar-file"
+          class="profile-avatar-file"
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          tabindex="-1"
+        >
+        <div class="profile-avatar-stack">
+          <img
+            class="profile-avatar{% if has_custom_avatar %} is-custom{% endif %}"
+            id="profile-avatar-img"
+            src="{% if avatar_url %}{{ avatar_url }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}"
+            alt=""
+            width="512"
+            height="512"
+          >
+          <label
+            class="profile-avatar-edit"
+            for="avatar-file"
+            title="ویرایش آواتار"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.5 16.9 15.2 6.2a1.4 1.4 0 0 1 2 0l.7.7a1.4 1.4 0 0 1 0 2L7.2 19.6H4.5zM15.9 7.5 16.6 8.2 17.8 7 17.1 6.3z"/></svg>
+            <span class="visually-hidden">ویرایش آواتار</span>
+          </label>
+        </div>
+        <div class="profile-identity__meta">
+          <div class="profile-name-row">
+            <h1 class="auth-title" id="profile-display-name">{{ display_name }}</h1>
+            <button class="profile-name-edit" type="button" data-name-open title="ویرایش نام نمایشی">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.5 16.9 15.2 6.2a1.4 1.4 0 0 1 2 0l.7.7a1.4 1.4 0 0 1 0 2L7.2 19.6H4.5zM15.9 7.5 16.6 8.2 17.8 7 17.1 6.3z"/></svg>
+              <span class="visually-hidden">ویرایش نام</span>
+            </button>
+          </div>
+          {% if masked_phone %}
+          <p class="profile-phone" dir="ltr">{{ masked_phone }}</p>
+          {% endif %}
+        </div>
+        <label class="profile-avatar-upload" for="avatar-file">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6h3.2L9 4h6l1.8 2H20v13H4zm8 2.4A4.1 4.1 0 1 0 16.1 12.5 4.1 4.1 0 0 0 12 8.4z"/></svg>
+          <span>آپلود آواتار دلخواه</span>
+        </label>
+      </div>
+      <div class="profile-follows">
+        <a class="profile-follow" href="{% url 'social:followers' %}" data-kb-nav>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm6.5 1a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5zM9 11c3.4 0 6 1.7 6 3.8V17H3v-2.2C3 12.7 5.6 11 9 11zm7 1.1c2.4.4 4 1.7 4 3.2V17h-4v-2.2c0-1-.3-1.9-.9-2.7z"/></svg>
+          <strong>{{ followers }}</strong>
+          <small>دنبال‌کننده</small>
+        </a>
+        <a class="profile-follow" href="{% url 'social:following' %}" data-kb-nav>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm-7 13.2C5 13.8 8.1 12 12 12s7 1.8 7 4.2V20H5zm14.2-8.7h2.3V10h-2.3v2.3h-1.4V10H15.5V8.5h2.3V6.2h1.4z"/></svg>
+          <strong>{{ following }}</strong>
+          <small>دنبال‌شونده</small>
+        </a>
+      </div>
+      <p class="auth-status" id="avatar-status" hidden></p>
+      <div class="xp-bar" aria-label="پیشرفت ایکس‌پی">
+        <div class="xp-bar__row">
+          <img src="{% static 'images/icons/xp.webp' %}" alt="XP" width="512" height="512">
+          <div class="xp-track" style="--xp: {{ xp.percent }}%">
+            <span class="xp-fill"></span>
+            <span class="xp-value">{{ xp.total }} XP</span>
+          </div>
+        </div>
+        <div class="xp-score">
+          <span>امتیاز شما</span>
+          <strong id="profile-score">{{ score }}</strong>
+        </div>
+      </div>
+      <div class="profile-bio{% if bio %} is-saved{% else %} is-editing{% endif %}" data-saved-bio="{{ bio }}">
+        <p class="profile-bio__label">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h9.5L20 7.5V21H6zm9 1.8V8h3.2zM8 11h8v1.5H8zm0 3.2h8V16H8zm0 3.2h5.5V19H8z"/></svg>
+          <span>بیوگرافی</span>
+        </p>
+        <div class="profile-bio__display">
+          <p id="bio-text">{{ bio }}</p>
+          <button class="profile-name-edit" type="button" id="bio-edit" title="ویرایش بیو">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.5 16.9 15.2 6.2a1.4 1.4 0 0 1 2 0l.7.7a1.4 1.4 0 0 1 0 2L7.2 19.6H4.5zM15.9 7.5 16.6 8.2 17.8 7 17.1 6.3z"/></svg>
+            <span class="visually-hidden">ویرایش بیو</span>
+          </button>
+        </div>
+        <div class="profile-bio__editor">
+          <textarea id="profile-bio" maxlength="200" rows="3" placeholder="چند خط درباره خودت بنویس…">{{ bio }}</textarea>
+          <div class="profile-bio__meta">
+            <small><span id="bio-count">0</span>/۲۰۰</small>
+            <button class="bio-save" type="button" id="bio-save" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.2 16.6 4.8 12.2l1.4-1.4 3 3 8.6-8.6 1.4 1.4z"/></svg>
+              <span>ذخیره بیو</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      {% if rank %}
+      <button class="profile-rank" type="button" data-rank-open aria-haspopup="dialog" aria-controls="rank-dialog">
+        <img src="{% static rank.icon %}" alt="{{ rank.title }}" width="512" height="512">
+        <span>
+          <strong>رنک {{ rank.level }}: {{ rank.title }}</strong>
+          <em>{{ rank.en }}</em>
+          <small>{{ rank.blurb }}</small>
+        </span>
+      </button>
+      {% endif %}
+      <div class="profile-balances">
+        <div class="profile-balance">
+          <img src="{% static 'images/icons/gem.webp' %}" alt="" width="512" height="512">
+          <span>
+            <strong>{{ gems }}</strong>
+            <small>جم</small>
+          </span>
+        </div>
+        <div class="profile-balance">
+          <img src="{% static 'images/icons/wallet.webp' %}" alt="" width="512" height="512">
+          <span>
+            <strong>{{ wallet }}</strong>
+            <small>کیف پول</small>
+          </span>
+        </div>
+      </div>
+      <div class="profile-social">
+        <p class="profile-social__title">شبکه‌های اجتماعی</p>
+        <div class="profile-social__grid">
+          <a class="profile-social__item" href="{% url 'social:stories' %}" data-kb-nav>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.4A8.6 8.6 0 1 1 3.4 12 8.6 8.6 0 0 1 12 3.4m0-1.9A10.5 10.5 0 1 0 22.5 12 10.5 10.5 0 0 0 12 1.5zM12 7a5 5 0 1 1-5 5 5 5 0 0 1 5-5z"/></svg>
+            <span>استوری</span>
+            {% if notices.stories %}<b class="notice-dot">{{ notices.stories }}</b>{% endif %}
+          </a>
+          <a class="profile-social__item" href="{% url 'social:posts' %}" data-kb-nav>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z"/></svg>
+            <span>پست</span>
+            {% if notices.posts %}<b class="notice-dot">{{ notices.posts }}</b>{% endif %}
+          </a>
+          <a class="profile-social__item" href="{% url 'social:inbox' %}" data-kb-nav>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 5h16v12H8l-4 4z"/></svg>
+            <span>پیام خصوصی</span>
+            {% if notices.inbox %}<b class="notice-dot">{{ notices.inbox }}</b>{% endif %}
+          </a>
+        </div>
+      </div>
+      <div class="profile-extras">
+        <button class="profile-extra" type="button" disabled>
+          <img src="{% static 'images/icons/Gift.png' %}" alt="" width="512" height="512">
+          <span>هدایای دریافتی</span>
+        </button>
+        <button class="profile-extra" type="button" disabled>
+          <img src="{% static 'images/icons/Medal.png' %}" alt="" width="512" height="512">
+          <span>مدال‌ها</span>
+        </button>
+      </div>
+      <a class="profile-action" href="{% url 'core:invite' %}" data-kb-nav>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 9a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm8.2.6a2.4 2.4 0 1 0-2.4-2.4 2.4 2.4 0 0 0 2.4 2.4zM8 12c3 0 5.4 1.5 5.4 3.3V18H2.6v-2.7C2.6 13.5 5 12 8 12zm7.6 1h2.1v2.1H20v1.6h-2.3V19h-1.6v-2.3h-2.1v-1.6h2.1z"/></svg>
+        <span>دعوت از دوستان</span>
+      </a>
+      <div class="profile-friends">
+        <a class="profile-action" href="{% url 'social:friend_requests' %}" data-kb-nav>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 8a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm7.5 1.2a2.4 2.4 0 1 0-2.4-2.4 2.4 2.4 0 0 0 2.4 2.4zM9 11c3 0 5.5 1.5 5.5 3.3V17H3.5v-2.7C3.5 12.5 6 11 9 11zm8.2.8h2.2V14h2.1v2.2h-2.1V18h-2.2v-1.8h-2.1V14h2.1z"/></svg>
+          <span>درخواست دوستی</span>
+        </a>
+        <a class="profile-action" href="{% url 'social:friends' %}" data-kb-nav>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.5 9a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm7 1a2.5 2.5 0 1 0-2.5-2.5A2.5 2.5 0 0 0 15.5 10zM8.5 12c3.2 0 5.7 1.6 5.7 3.5V18H2.8v-2.5C2.8 13.6 5.3 12 8.5 12zm7 1.2c2.5 0 4.7 1.2 4.7 2.8V18h-5.2v-2.3c0-1-.4-1.8-1-2.5  .5 0 .9 0 1.5.2z"/></svg>
+          <span>لیست دوستان</span>
+        </a>
+      </div>
+      <a class="profile-settings" href="{% url 'core:settings' %}" data-kb-nav>
+        <img src="{% static 'images/icons/setting.webp' %}" alt="" width="512" height="512">
+        <span>تنظیمات</span>
+      </a>
+      <form action="{% url 'core:logout' %}" method="post">
+        {% csrf_token %}
+        <button class="profile-logout" type="submit">خروج</button>
+      </form>
+    </section>
+    {% endif %}
+  </main>
+  {% include "core/_dock.html" %}
+  {% if is_member %}
+  <dialog class="name-dialog" id="name-dialog">
+    <div class="name-dialog__panel">
+      <h2>نام نمایشی</h2>
+      <p>حداکثر ۲۴ کاراکتر.</p>
+      <input id="name-input" type="text" maxlength="24" value="{{ display_name }}">
+      <div class="name-dialog__actions">
+        <button class="auth-alt" type="button" data-name-close>انصراف</button>
+        <button class="auth-btn" type="button" id="name-save">ذخیره</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog class="avatar-crop" id="avatar-crop-dialog">
+    <div class="avatar-crop__panel">
+      <header class="avatar-crop__head">
+        <h2>کراپ تصویر آواتار</h2>
+        <p>تصویر مربع نیست؛ محدوده مربعی را تنظیم کن.</p>
+      </header>
+      <div class="avatar-crop__stage" id="avatar-crop-stage">
+        <img id="avatar-crop-image" alt="">
+        <span class="avatar-crop__frame" aria-hidden="true"></span>
+      </div>
+      <label class="avatar-crop__zoom">
+        بزرگنمایی
+        <input id="avatar-crop-zoom" type="range" min="100" max="280" value="100">
+      </label>
+      <div class="avatar-crop__actions">
+        <button class="auth-alt" type="button" id="avatar-crop-cancel">انصراف</button>
+        <button class="auth-btn" type="button" id="avatar-crop-apply">تایید کراپ</button>
+      </div>
+    </div>
+  </dialog>
+  {% endif %}
+{% endblock %}

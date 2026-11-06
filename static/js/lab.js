@@ -3,7 +3,18 @@ document.addEventListener('DOMContentLoaded', function () {
   var previewFx = null;
   var back = document.getElementById('fog-back');
   var front = document.getElementById('fog-front');
-  if (back && front && window.KillBoxParticles && window.KillBoxParticles.mountParallax) {
+  if (window.KillBoxParticles && window.KillBoxParticles.mountScene) {
+    sceneFx = window.KillBoxParticles.mountScene({
+      fogBack: back,
+      fogFront: front,
+      smokeBack: document.getElementById('smoke-back'),
+      smokeFront: document.getElementById('smoke-front'),
+      ashBack: document.getElementById('ash-back'),
+      ashFront: document.getElementById('ash-front') || document.getElementById('ash-field'),
+      sceneUrl: (document.querySelector('.landing-bg') &&
+        document.querySelector('.landing-bg').getAttribute('data-scene')) || '',
+    });
+  } else if (back && front && window.KillBoxParticles && window.KillBoxParticles.mountParallax) {
     sceneFx = window.KillBoxParticles.mountParallax(back, front);
   } else if (back && window.KillBoxParticles) {
     sceneFx = window.KillBoxParticles.mount(back, { layer: 'back' });
@@ -21,6 +32,8 @@ document.addEventListener('DOMContentLoaded', function () {
   bindDonateBox();
   bindLiveChat();
   bindOtpAuth();
+  bindEventFrame();
+  bindLiveFrame();
 
   var form = document.getElementById('uid-lookup-form');
   if (form) {
@@ -1024,6 +1037,510 @@ function showHubStatus(node, message, isError) {
   node.hidden = false;
   node.textContent = message;
   node.classList.toggle('is-error', !!isError);
+}
+
+function bindEventFrame() {
+  bindFrameCard('event', {
+    storageKey: 'killbox-lab-event-frame',
+    waitingLabel: 'در حال عضو گیری',
+    liveLabel: 'در حال برگزاری',
+    extras: true,
+    dateIncludesTime: true,
+  });
+}
+
+function bindLiveFrame() {
+  bindFrameCard('live', {
+    storageKey: 'killbox-lab-live-frame',
+    waitingLabel: 'در انتظار پخش',
+    liveLabel: 'در حال پخش زنده',
+    extras: false,
+    dateIncludesTime: false,
+  });
+}
+
+function bindFrameCard(prefix, options) {
+  options = options || {};
+  var form = document.getElementById(prefix + '-frame-form');
+  var card = document.getElementById(prefix + '-card');
+  var frameImg = document.getElementById(prefix + '-card-frame');
+  var charImg = document.getElementById(prefix + '-card-char');
+  var charStack = document.getElementById(prefix + '-char-stack');
+  var nameInput = document.getElementById(prefix + '-name');
+  var dateInput = document.getElementById(prefix + '-date');
+  var yearSelect = document.getElementById(prefix + '-j-year');
+  var monthSelect = document.getElementById(prefix + '-j-month');
+  var daySelect = document.getElementById(prefix + '-j-day');
+  var timeInput = document.getElementById(prefix + '-time');
+  var capInput = document.getElementById(prefix + '-capacity');
+  var prizeInput = document.getElementById(prefix + '-prize');
+  var feeInput = document.getElementById(prefix + '-fee');
+  var nameView = document.getElementById(prefix + '-view-name');
+  var dateView = document.getElementById(prefix + '-view-date');
+  var timeView = document.getElementById(prefix + '-view-time');
+  var capView = document.getElementById(prefix + '-view-capacity');
+  var prizeView = document.getElementById(prefix + '-view-prize');
+  var feeView = document.getElementById(prefix + '-view-fee-text');
+  var statusLabel = document.getElementById(prefix + '-view-status-label');
+  var timerView = document.getElementById(prefix + '-view-timer-text');
+  var framePicks = form ? form.querySelectorAll('.event-lab__pick[data-frame]') : [];
+  var charPicks = form ? form.querySelectorAll('.event-lab__pick[data-char]') : [];
+  if (!form || !card || !frameImg) {
+    return;
+  }
+
+  var stored = null;
+  try {
+    stored = JSON.parse(window.localStorage.getItem(options.storageKey) || 'null');
+  } catch (error) {
+    stored = null;
+  }
+  if (stored && typeof stored === 'object') {
+    if (stored.name && nameInput) {
+      nameInput.value = stored.name;
+    }
+    if (stored.time && timeInput) {
+      timeInput.value = stored.time;
+    }
+    if (stored.capacity != null && capInput) {
+      capInput.value = String(stored.capacity);
+    }
+    if (stored.prize != null && prizeInput) {
+      prizeInput.value = String(stored.prize);
+    }
+    if (stored.fee != null && feeInput) {
+      feeInput.value = String(stored.fee);
+    }
+    if (stored.frame) {
+      applyChoice(framePicks, 'data-frame', String(stored.frame), frameImg, 'data-frame');
+    }
+    if (stored.char) {
+      applyChoice(charPicks, 'data-char', String(stored.char), charImg, 'data-char');
+    }
+  }
+  if (timeInput && !timeInput.value) {
+    timeInput.value = '18:00';
+  }
+  initJalaliDate((stored && stored.date) || defaultEventDate());
+  if (charImg) {
+    charImg.addEventListener('load', syncCharMask);
+  }
+
+  Array.prototype.forEach.call(framePicks, function (pick) {
+    pick.addEventListener('click', function () {
+      applyChoice(framePicks, 'data-frame', pick.getAttribute('data-frame'), frameImg, 'data-frame');
+      render();
+    });
+  });
+  Array.prototype.forEach.call(charPicks, function (pick) {
+    pick.addEventListener('click', function () {
+      applyChoice(charPicks, 'data-char', pick.getAttribute('data-char'), charImg, 'data-char');
+      render();
+    });
+  });
+  if (yearSelect) {
+    yearSelect.addEventListener('change', onJalaliMonthYearChange);
+  }
+  if (monthSelect) {
+    monthSelect.addEventListener('change', onJalaliMonthYearChange);
+  }
+  if (daySelect) {
+    daySelect.addEventListener('change', onJalaliDayChange);
+  }
+  form.addEventListener('input', render);
+  form.addEventListener('change', render);
+  if (feeView) {
+    var feeBtn = document.getElementById('event-view-fee');
+    if (feeBtn) {
+      feeBtn.addEventListener('click', function () {
+        /* payment gateway will hook here */
+      });
+    }
+  }
+  render();
+  window.setInterval(tickTimer, 1000);
+
+  function initJalaliDate(iso) {
+    var gregorian = parseIsoDate(iso) || parseIsoDate(defaultEventDate());
+    var jalali = gregorianToJalali(gregorian[0], gregorian[1], gregorian[2]);
+    fillJalaliSelects(jalali[0], jalali[1], jalali[2]);
+    writeGregorianDate();
+  }
+
+  function onJalaliMonthYearChange() {
+    var year = Number(yearSelect && yearSelect.value);
+    var month = Number(monthSelect && monthSelect.value);
+    var day = Number(daySelect && daySelect.value);
+    fillJalaliDays(year, month, day);
+    writeGregorianDate();
+    render();
+  }
+
+  function onJalaliDayChange() {
+    writeGregorianDate();
+    render();
+  }
+
+  function fillJalaliSelects(year, month, day) {
+    if (!yearSelect || !monthSelect || !daySelect) {
+      return;
+    }
+    var today = new Date();
+    var nowJalali = gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    yearSelect.innerHTML = '';
+    for (var y = nowJalali[0] - 1; y <= nowJalali[0] + 3; y++) {
+      yearSelect.appendChild(jalaliOption(y, toFaDigits(y), y === year));
+    }
+    monthSelect.innerHTML = '';
+    for (var m = 1; m <= 12; m++) {
+      monthSelect.appendChild(jalaliOption(m, JALALI_MONTHS[m - 1], m === month));
+    }
+    fillJalaliDays(year, month, day);
+  }
+
+  function fillJalaliDays(year, month, selectedDay) {
+    if (!daySelect) {
+      return;
+    }
+    var days = jalaliMonthLength(year, month);
+    var keep = Math.min(Math.max(1, selectedDay || 1), days);
+    daySelect.innerHTML = '';
+    for (var d = 1; d <= days; d++) {
+      daySelect.appendChild(jalaliOption(d, toFaDigits(d), d === keep));
+    }
+  }
+
+  function jalaliOption(value, label, selected) {
+    var option = document.createElement('option');
+    option.value = String(value);
+    option.textContent = label;
+    option.selected = !!selected;
+    return option;
+  }
+
+  function writeGregorianDate() {
+    if (!dateInput || !yearSelect || !monthSelect || !daySelect) {
+      return;
+    }
+    var g = jalaliToGregorian(
+      Number(yearSelect.value),
+      Number(monthSelect.value),
+      Number(daySelect.value)
+    );
+    dateInput.value = g[0] + '-' + padIso(g[1]) + '-' + padIso(g[2]);
+  }
+
+  function applyChoice(buttons, attr, id, image, cardAttr) {
+    var pick = null;
+    Array.prototype.forEach.call(buttons, function (button) {
+      var on = button.getAttribute(attr) === String(id);
+      button.classList.toggle('is-active', on);
+      button.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (on) {
+        pick = button;
+      }
+    });
+    if (!pick) {
+      return;
+    }
+    card.setAttribute(cardAttr, pick.getAttribute(attr) || '1');
+    if (image) {
+      image.src = pick.getAttribute('data-src') || image.src;
+    }
+    if (attr === 'data-char') {
+      syncCharMask();
+    }
+  }
+
+  function syncCharMask() {
+    if (!charStack || !charImg) {
+      return;
+    }
+    charStack.style.setProperty('--event-char-mask', 'url("' + charImg.src + '")');
+  }
+
+  function render() {
+    var name = ((nameInput && nameInput.value) || '').trim() || 'بدون نام';
+    var capacity = Math.max(0, parseInt(String((capInput && capInput.value) || '0'), 10) || 0);
+    var registered = Math.max(0, parseInt(card.getAttribute('data-registered') || '0', 10) || 0);
+    var remaining = Math.max(0, capacity - registered);
+    if (nameView) {
+      nameView.textContent = name;
+    }
+    if (dateView) {
+      dateView.textContent = formatEventDate(
+        dateInput && dateInput.value,
+        timeInput && timeInput.value,
+        !options.dateIncludesTime
+      );
+    }
+    if (timeView) {
+      timeView.textContent = formatEventTime(timeInput && timeInput.value);
+    }
+    if (capView) {
+      capView.textContent = formatToman(remaining) + '/' + formatToman(registered);
+    }
+    if (prizeView) {
+      prizeView.textContent = 'جایزه ' + formatMoneyLabel((prizeInput && prizeInput.value) || '');
+    }
+    if (feeView) {
+      feeView.textContent = formatMoneyLabel((feeInput && feeInput.value) || '');
+    }
+    syncCharMask();
+    tickTimer();
+    try {
+      window.localStorage.setItem(
+        options.storageKey,
+        JSON.stringify({
+          frame: card.getAttribute('data-frame') || '1',
+          char: card.getAttribute('data-char') || '1',
+          name: (nameInput && nameInput.value) || '',
+          date: (dateInput && dateInput.value) || '',
+          time: (timeInput && timeInput.value) || '',
+          capacity: capacity,
+          prize: (prizeInput && prizeInput.value) || '',
+          fee: (feeInput && feeInput.value) || '',
+        })
+      );
+    } catch (error) {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function eventStartMs() {
+    var dateValue = dateInput && dateInput.value;
+    if (!dateValue) {
+      return 0;
+    }
+    var parts = String(dateValue).split('-');
+    if (parts.length !== 3) {
+      return 0;
+    }
+    var clock = String((timeInput && timeInput.value) || '00:00').split(':');
+    var hours = Number(clock[0] || 0);
+    var minutes = Number(clock[1] || 0);
+    var stamp = new Date(
+      Number(parts[0]),
+      Number(parts[1]) - 1,
+      Number(parts[2]),
+      hours,
+      minutes,
+      0
+    );
+    return stamp.getTime();
+  }
+
+  function tickTimer() {
+    var start = eventStartMs();
+    var remain = start ? start - Date.now() : 0;
+    var live = !start || remain <= 0;
+    card.classList.toggle('is-live', live);
+    if (statusLabel) {
+      statusLabel.textContent = live ? options.liveLabel : options.waitingLabel;
+    }
+    if (timerView) {
+      timerView.textContent = formatCountdown(live ? 0 : remain);
+    }
+  }
+
+  function formatCountdown(ms) {
+    var total = Math.max(0, Math.floor(ms / 1000));
+    var seconds = total % 60;
+    var minutes = Math.floor(total / 60) % 60;
+    var hours = Math.floor(total / 3600) % 24;
+    var days = Math.floor(total / 86400);
+    var clock = padFa(hours) + ':' + padFa(minutes) + ':' + padFa(seconds);
+    if (days > 0) {
+      return padFa(days) + ':' + clock;
+    }
+    return clock;
+  }
+
+  function padFa(value) {
+    return toFaDigits(String(value).padStart(2, '0'));
+  }
+
+  function toFaDigits(value) {
+    return String(value).replace(/\d/g, function (digit) {
+      return '۰۱۲۳۴۵۶۷۸۹'[digit];
+    });
+  }
+
+  function defaultEventDate() {
+    var next = new Date();
+    next.setDate(next.getDate() + 7);
+    var month = String(next.getMonth() + 1).padStart(2, '0');
+    var day = String(next.getDate()).padStart(2, '0');
+    return next.getFullYear() + '-' + month + '-' + day;
+  }
+
+  function formatEventDate(value, timeValue, dateOnly) {
+    if (!value) {
+      return 'تاریخ تعیین نشده';
+    }
+    var parts = String(value).split('-');
+    if (parts.length !== 3) {
+      return String(value);
+    }
+    var clock = String(timeValue || '00:00').split(':');
+    var stamp = new Date(
+      Number(parts[0]),
+      Number(parts[1]) - 1,
+      Number(parts[2]),
+      Number(clock[0] || 0),
+      Number(clock[1] || 0)
+    );
+    if (isNaN(stamp.getTime())) {
+      return String(value);
+    }
+    var opts = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    };
+    if (!dateOnly) {
+      opts.hour = '2-digit';
+      opts.minute = '2-digit';
+    }
+    try {
+      return stamp.toLocaleString('fa-IR', opts);
+    } catch (error) {
+      return String(value);
+    }
+  }
+
+  function formatEventTime(timeValue) {
+    if (!timeValue) {
+      return 'ساعت تعیین نشده';
+    }
+    var clock = String(timeValue).split(':');
+    return padFa(Number(clock[0] || 0)) + ':' + padFa(Number(clock[1] || 0));
+  }
+
+  function formatMoneyLabel(raw) {
+    var text = String(raw || '').trim() || '—';
+    var digits = text.replace(/[۰-۹]/g, function (digit) {
+      return String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit));
+    });
+    if (/^\d+$/.test(digits.replace(/[^\d]/g, '')) && !/[^\d۰-۹,\s]/.test(text)) {
+      var amount = parseToman(text);
+      if (amount) {
+        return formatToman(amount) + ' تومان';
+      }
+    }
+    return text;
+  }
+}
+
+var JALALI_MONTHS = [
+  'فروردین',
+  'اردیبهشت',
+  'خرداد',
+  'تیر',
+  'مرداد',
+  'شهریور',
+  'مهر',
+  'آبان',
+  'آذر',
+  'دی',
+  'بهمن',
+  'اسفند',
+];
+
+function padIso(value) {
+  return String(value).padStart(2, '0');
+}
+
+function parseIsoDate(value) {
+  var parts = String(value || '').split('-');
+  if (parts.length !== 3) {
+    return null;
+  }
+  var year = Number(parts[0]);
+  var month = Number(parts[1]);
+  var day = Number(parts[2]);
+  if (!year || !month || !day) {
+    return null;
+  }
+  return [year, month, day];
+}
+
+function jalaliMonthLength(year, month) {
+  if (month <= 6) {
+    return 31;
+  }
+  if (month <= 11) {
+    return 30;
+  }
+  var probe = jalaliToGregorian(year, 12, 30);
+  var back = gregorianToJalali(probe[0], probe[1], probe[2]);
+  return back[0] === year && back[1] === 12 && back[2] === 30 ? 30 : 29;
+}
+
+function gregorianToJalali(gy, gm, gd) {
+  var g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+  var gy2 = gm > 2 ? gy + 1 : gy;
+  var days =
+    355666 +
+    365 * gy +
+    Math.floor((gy2 + 3) / 4) -
+    Math.floor((gy2 + 99) / 100) +
+    Math.floor((gy2 + 399) / 400) +
+    gd +
+    g_d_m[gm - 1];
+  var jy = -1595 + 33 * Math.floor(days / 12053);
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) {
+    jy += Math.floor((days - 1) / 365);
+    days = (days - 1) % 365;
+  }
+  var jm;
+  var jd;
+  if (days < 186) {
+    jm = 1 + Math.floor(days / 31);
+    jd = 1 + (days % 31);
+  } else {
+    jm = 7 + Math.floor((days - 186) / 30);
+    jd = 1 + ((days - 186) % 30);
+  }
+  return [jy, jm, jd];
+}
+
+function jalaliToGregorian(jy, jm, jd) {
+  jy += 1595;
+  var days =
+    -355668 +
+    365 * jy +
+    Math.floor(jy / 33) * 8 +
+    Math.floor(((jy % 33) + 3) / 4) +
+    jd +
+    (jm < 7 ? (jm - 1) * 31 : (jm - 7) * 30 + 186);
+  var gy = 400 * Math.floor(days / 146097);
+  days %= 146097;
+  if (days > 36524) {
+    gy += 100 * Math.floor(--days / 36524);
+    days %= 36524;
+    if (days >= 365) {
+      days += 1;
+    }
+  }
+  gy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) {
+    gy += Math.floor((days - 1) / 365);
+    days = (days - 1) % 365;
+  }
+  var gd = days + 1;
+  var leap = (gy % 4 === 0 && gy % 100 !== 0) || gy % 400 === 0;
+  var sal = [0, 31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  var gm = 1;
+  while (gm < 13 && gd > sal[gm]) {
+    gd -= sal[gm];
+    gm += 1;
+  }
+  return [gy, gm, gd];
 }
 
 function parseToman(value) {

@@ -1,0 +1,48 @@
+{% extends "core/app_base.html" %}
+{% load static %}
+
+{% block title %}چت · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card social-card" data-thread="{{ peer_id }}">
+  {% csrf_token %}
+  <header class="thread-head">
+    <div>
+      <p class="auth-kicker">پیام خصوصی</p>
+      <h1 class="auth-title">{{ peer_name }}</h1>
+    </div>
+    <div class="thread-tools">
+      <button type="button" data-follow="{{ peer_id }}">{% if following_peer %}لغو دنبال{% else %}دنبال کردن{% endif %}</button>
+      <button type="button" data-block="{{ peer_id }}">{% if i_block %}آنبلاک{% else %}بلاک{% endif %}</button>
+    </div>
+  </header>
+  {% if incoming %}
+  <div class="thread-request">
+    <p>این کاربر درخواست گفتگو داده است.</p>
+    <button class="auth-btn" type="button" data-accept="{{ peer_id }}">تایید</button>
+    <button class="auth-alt" type="button" data-reject="{{ peer_id }}">رد</button>
+  </div>
+  {% endif %}
+  {% if waiting %}
+  <p class="profile-copy">تا تایید طرف مقابل نمی‌توانی پیام دیگری بفرستی.</p>
+  {% endif %}
+  {% if rejected %}
+  <p class="profile-copy">درخواستت رد شده و امکان ارسال مجدد نیست.</p>
+  {% endif %}
+  {% if blocked %}
+  <p class="profile-copy">این گفتگو به‌خاطر بلاک مسدود است.</p>
+  {% endif %}
+  <div class="chat-log" id="chat-log">
+    {% for msg in messages %}
+    <p class="chat-bubble{% if msg.mine %} is-mine{% endif %}">{{ msg.text }}</p>
+    {% endfor %}
+  </div>
+  {% if can_send %}
+  <form class="composer" id="chat-form">
+    <input id="chat-text" type="text" maxlength="1000" placeholder="پیام…" required>
+    <button class="auth-btn" type="submit">ارسال</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

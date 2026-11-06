@@ -1,0 +1,22 @@
+.ck.ck-editor {
+  color: #111111;
+}
+
+.ck.ck-editor__main > .ck-editor__editable {
+  min-height: 16rem;
+  background: #f4ecd9 !important;
+  color: #111111 !important;
+  direction: rtl;
+  text-align: right;
+  border-radius: 0 0 0.7rem 0.7rem;
+}
+
+.ck.ck-toolbar {
+  background: #e8dcc4 !important;
+  border-color: rgba(107, 78, 50, 0.28) !important;
+}
+
+.ck.ck-button,
+.ck.ck-button .ck-button__label {
+  color: #111111 !important;
+}

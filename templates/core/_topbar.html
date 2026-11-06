@@ -1,0 +1,14 @@
+{% load static %}
+<header class="landing-topbar">
+  {% include "core/_hud.html" %}
+  <div class="topbar-xp" id="topbar-xp" hidden>
+    <div class="topbar-xp__inner">
+      <img src="{% static 'images/icons/xp.webp' %}" alt="XP" width="64" height="64">
+      <div class="xp-track" style="--xp: {{ xp.percent }}%">
+        <span class="xp-fill"></span>
+        <span class="xp-value">{{ xp.total }} XP</span>
+      </div>
+    </div>
+  </div>
+  {% include "core/_hamburger.html" %}
+</header>

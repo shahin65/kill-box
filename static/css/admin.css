@@ -1,0 +1,283 @@
+:root,
+html,
+html[data-theme],
+html[data-theme="dark"],
+html[data-theme="auto"],
+html[data-theme="light"] {
+  color-scheme: light !important;
+  --kb-gray: #c5c1b8;
+  --kb-gray-deep: #b7b2a8;
+  --kb-cream: #f4ecd9;
+  --kb-cream-deep: #e8dcc4;
+  --kb-brown: #6b4e32;
+  --kb-brown-soft: #8a6844;
+  --kb-ink: #111111;
+  --primary: #6b4e32;
+  --secondary: #c5c1b8;
+  --accent: #8a6844;
+  --primary-fg: #111111;
+  --body-fg: #111111;
+  --body-quiet-color: #2a2118;
+  --body-medium-color: #111111;
+  --body-bg: #c5c1b8;
+  --darkened-bg: #e8dcc4;
+  --selected-bg: #f4ecd9;
+  --selected-row: #efe4cc;
+  --header-color: #6b4e32;
+  --header-bg: #d8d3c9;
+  --breadcrumbs-fg: #111111;
+  --breadcrumbs-bg: #d8d3c9;
+  --link-fg: #6b4e32;
+  --link-hover-color: #8a6844;
+  --hairline-color: rgba(107, 78, 50, 0.22);
+  --border-color: rgba(107, 78, 50, 0.28);
+  --close-button-bg: #8a6844;
+  --close-button-hover-bg: #6b4e32;
+}
+
+body,
+#container,
+#main,
+.main,
+#content,
+#content-main,
+.dashboard #content {
+  background: var(--kb-gray) !important;
+  color: var(--kb-ink) !important;
+  font-family: "Vazirmatn", Tahoma, "Segoe UI", sans-serif !important;
+}
+
+#header {
+  background: #d8d3c9 !important;
+  border-bottom: 1px solid rgba(107, 78, 50, 0.28);
+  color: var(--kb-brown) !important;
+}
+
+#branding h1,
+#site-name,
+#site-name a,
+#user-tools,
+#user-tools strong,
+#user-tools a {
+  color: var(--kb-brown) !important;
+  font-weight: 800;
+}
+
+#site-name a:hover,
+#user-tools a:hover {
+  color: var(--kb-brown-soft) !important;
+}
+
+div.breadcrumbs {
+  background: #d8d3c9 !important;
+  color: var(--kb-ink) !important;
+  border-bottom: 1px solid rgba(107, 78, 50, 0.18);
+}
+
+div.breadcrumbs a {
+  color: var(--kb-brown) !important;
+}
+
+#nav-sidebar,
+#nav-filter,
+.toggle-nav-sidebar,
+#nav-sidebar .module,
+#nav-sidebar table,
+#nav-sidebar caption,
+#nav-sidebar tr,
+#nav-sidebar th,
+#nav-sidebar td,
+#nav-sidebar a,
+.sticky {
+  background: var(--kb-cream-deep) !important;
+  color: var(--kb-ink) !important;
+  border-color: rgba(107, 78, 50, 0.2) !important;
+}
+
+#nav-sidebar .current-app,
+#nav-sidebar .current-model,
+#nav-sidebar .selected {
+  background: var(--kb-cream) !important;
+  color: var(--kb-ink) !important;
+}
+
+#content h1,
+#content h2,
+#content h3,
+.module caption,
+.module h2,
+.inline-group h2,
+#recent-actions-module h2,
+#content-related h2,
+#content-related h3,
+.app-sitesettings .module caption,
+.dashboard .module caption {
+  color: var(--kb-brown) !important;
+  background: transparent !important;
+  font-weight: 800;
+}
+
+p,
+li,
+dt,
+dd,
+td,
+th,
+.quiet,
+.description,
+.mini,
+.tiny {
+  color: var(--kb-ink);
+}
+
+.module,
+#content-related,
+#recent-actions-module,
+#recent-actions-module table,
+#changelist-form .results,
+#result_list,
+.results table {
+  background: var(--kb-cream) !important;
+  color: var(--kb-ink) !important;
+  border: 1px solid rgba(107, 78, 50, 0.22) !important;
+  border-radius: 0.85rem;
+}
+
+#recent-actions-module h2,
+#content-related h2,
+#content-related h3,
+.app-sitesettings .module caption,
+.dashboard .module caption {
+  background: var(--kb-cream-deep) !important;
+  color: var(--kb-brown) !important;
+  border-bottom: 1px solid rgba(107, 78, 50, 0.2);
+}
+
+.module th,
+.module td,
+fieldset,
+.aligned,
+form .form-row,
+.form-row,
+#result_list td,
+#result_list th,
+#recent-actions-module tr,
+#recent-actions-module th,
+#recent-actions-module td {
+  background: var(--kb-cream) !important;
+  color: var(--kb-ink) !important;
+  border-color: rgba(107, 78, 50, 0.16) !important;
+}
+
+a:link,
+a:visited,
+.addlink,
+.changelink,
+.deletelink,
+.viewlink,
+td a,
+th a,
+.module a {
+  color: var(--kb-ink) !important;
+}
+
+a:hover,
+.addlink:hover,
+.changelink:hover,
+.module a:hover {
+  color: #000000 !important;
+}
+
+#branding h1 a,
+#site-name a,
+#content h1,
+#content h2,
+#content h3,
+.module caption a {
+  color: var(--kb-brown) !important;
+}
+
+input,
+select,
+textarea {
+  background: var(--kb-cream) !important;
+  color: var(--kb-ink) !important;
+  border: 1px solid rgba(107, 78, 50, 0.28) !important;
+  border-radius: 0.45rem;
+}
+
+.button,
+input[type='submit'],
+input[type='button'],
+.submit-row input,
+a.button {
+  background: linear-gradient(180deg, #8a6844 0%, #5c422c 100%) !important;
+  border: 1px solid #6b4e32 !important;
+  color: #f4ecd9 !important;
+  border-radius: 0.55rem;
+  font-family: inherit;
+  font-weight: 800;
+}
+
+.button:hover,
+input[type='submit']:hover,
+.submit-row input:hover {
+  filter: brightness(1.06);
+}
+
+.submit-row {
+  background: var(--kb-cream-deep) !important;
+  border-top: 1px solid rgba(107, 78, 50, 0.22) !important;
+}
+
+.login .submit-row {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+#login-form,
+.login #container {
+  background: var(--kb-gray) !important;
+}
+
+.login #header {
+  background: transparent !important;
+}
+
+.errornote,
+.messagelist li.error {
+  background: #f0d4c4 !important;
+  color: #4a2014 !important;
+}
+
+.messagelist li.success {
+  background: var(--kb-cream-deep) !important;
+  color: var(--kb-ink) !important;
+}
+
+.object-tools a {
+  background: var(--kb-brown) !important;
+  color: var(--kb-cream) !important;
+}
+
+.help,
+.helptext {
+  color: #4a3a2c !important;
+}
+
+form .aligned label,
+label {
+  color: var(--kb-ink) !important;
+}
+
+.checkbox-row {
+  color: var(--kb-ink);
+}
+
+.paginator,
+.paginator a,
+.paginator span {
+  background: transparent !important;
+  color: var(--kb-ink) !important;
+}

@@ -1,0 +1,12 @@
+{% extends "core/app_base.html" %}
+
+{% block title %}فروشگاه · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card">
+  <p class="auth-kicker">فروشگاه</p>
+  <h1 class="auth-title">فروشگاه کیل‌باکس</h1>
+  <p class="profile-copy">فعلا آیتمی برای خرید وجود ندارد</p>
+</section>
+{% endblock %}

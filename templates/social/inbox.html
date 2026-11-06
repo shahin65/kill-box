@@ -1,0 +1,25 @@
+{% extends "core/app_base.html" %}
+{% load static %}
+
+{% block title %}پیام خصوصی · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card social-card">
+  <p class="auth-kicker">شبکه‌های اجتماعی</p>
+  <h1 class="auth-title">پیام خصوصی</h1>
+  <p class="profile-copy">حداکثر ۳۰ گفتگو در سابقه می‌ماند. تا تایید طرف مقابل پیام بعدی ارسال نمی‌شود.</p>
+  <div class="inbox-list">
+    {% for row in threads %}
+    <a class="inbox-row" href="{% url 'social:thread' row.peer_id %}" data-kb-nav>
+      <strong>{{ row.name }}</strong>
+      <small>
+        {% if row.incoming_pending %}در انتظار تایید تو{% elif row.outgoing_pending %}در انتظار تایید{% elif row.status == 'rejected' %}رد شده{% else %}{{ row.preview }}{% endif %}
+      </small>
+    </a>
+    {% empty %}
+    <p class="profile-copy">پیام خصوصی‌ای نیست. از روی پست یا استوری می‌توانی گفتگو را شروع کنی.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

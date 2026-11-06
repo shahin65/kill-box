@@ -1,0 +1,36 @@
+{% extends "core/app_base.html" %}
+{% load static %}
+
+{% block title %}پست · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<article class="profile-card social-card post-card" data-post-id="{{ item.id }}">
+  {% csrf_token %}
+  <header class="post-card__head">
+    <strong>{{ item.name }}</strong>
+    <button type="button" data-follow="{{ item.author_id }}">دنبال کردن</button>
+  </header>
+  {% if item.kind == 'video' %}
+  <video class="post-card__media" src="{{ item.url }}" controls playsinline></video>
+  {% else %}
+  <img class="post-card__media" src="{{ item.url }}" alt="">
+  {% endif %}
+  {% if item.caption %}<p class="post-card__caption">{{ item.caption }}</p>{% endif %}
+  <div class="post-card__bar">
+    <button type="button" data-like-post="{{ item.id }}">لایک {{ item.likes }}</button>
+    <button type="button" data-share="{{ item.share_url }}">اشتراک</button>
+  </div>
+  <ul class="comment-list">
+    {% for row in item.comments %}
+    <li><strong>{{ row.name }}</strong> {{ row.text }}</li>
+    {% empty %}
+    <li>کامنتی نیست.</li>
+    {% endfor %}
+  </ul>
+  <form class="composer" data-comment-post="{{ item.id }}">
+    <input type="text" maxlength="280" placeholder="کامنت…">
+    <button class="auth-btn" type="submit">ارسال کامنت</button>
+  </form>
+</article>
+{% endblock %}

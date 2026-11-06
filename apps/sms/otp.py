@@ -84,7 +84,7 @@ def send_verification_code(phone: str, *, ip: str = '') -> dict:
     code = str(gateway.get('code') or '')
     if gateway.get('dry_run'):
         code = f'{secrets.randbelow(10 ** OTP_LENGTH):0{OTP_LENGTH}d}'
-    if not (code.isdigit() and len(code) == OTP_LENGTH):
+    if not (code.isdigit() and 4 <= len(code) <= 8):
         return _fail('کد تایید از سرویس ملی‌پیامک دریافت نشد.', 502)
 
     _store_challenge(normalized, code)
@@ -111,7 +111,7 @@ def verify_code(phone: str, code: str) -> dict:
         return _fail('شماره موبایل معتبر وارد کنید.', 400)
 
     otp = str(code or '').translate(_FA_DIGITS).strip()
-    if not otp.isdigit() or len(otp) != OTP_LENGTH:
+    if not otp.isdigit() or not (4 <= len(otp) <= 8):
         return _fail(f'کد تایید باید {OTP_LENGTH} رقم باشد.', 400)
 
     cache_key = f'sms:otp:code:{normalized}'

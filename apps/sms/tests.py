@@ -42,6 +42,14 @@ class ConsoleOtpResponseTests(SimpleTestCase):
         self.assertEqual(code, '')
         self.assertIn('نامعتبر', message)
 
+    def test_surfaces_console_status_error(self):
+        ok, message, code = interpret_otp_response(
+            {'code': '', 'status': 'اعتبار کافی نمی باشد'}
+        )
+        self.assertFalse(ok)
+        self.assertEqual(code, '')
+        self.assertIn('اعتبار', message)
+
 
 class OtpFlowTests(SimpleTestCase):
     def setUp(self):

@@ -1,0 +1,61 @@
+{% extends "core/app_base.html" %}
+{% load static %}
+
+{% block title %}اکسپلور · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card social-card explore-card">
+  {% csrf_token %}
+  <p class="auth-kicker">خانه</p>
+  <h1 class="auth-title">اکسپلور</h1>
+  <div class="feed-head">
+    <h2>استوری‌ها</h2>
+  </div>
+  <div class="story-tray">
+    {% for group in story_groups %}
+    <button class="story-ring{% if group.unseen %} is-unseen{% else %} is-seen{% endif %}{% if group.friend %} is-friend{% endif %}" type="button" data-story-open="{{ forloop.counter0 }}">
+      <img src="{% if group.avatar %}{{ group.avatar }}{% elif group.cover %}{{ group.cover }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}" alt="">
+      <span>{{ group.name }}</span>
+    </button>
+    {% empty %}
+    <p class="profile-copy">هنوز استوری زنده‌ای نیست.</p>
+    {% endfor %}
+  </div>
+  <div class="feed-head">
+    <h2>پست‌ها</h2>
+  </div>
+  <div class="explore-grid">
+    {% for post in posts %}
+    <button class="explore-tile" type="button" data-post-open="{{ forloop.counter0 }}">
+      {% if post.url %}
+        {% if post.kind == 'video' %}
+        <video src="{{ post.url }}" muted playsinline></video>
+        {% else %}
+        <img src="{{ post.url }}" alt="">
+        {% endif %}
+      {% else %}
+      <span>{{ post.caption|truncatechars:48 }}</span>
+      {% endif %}
+    </button>
+    {% empty %}
+    <p class="profile-copy">هنوز پستی نیست.</p>
+    {% endfor %}
+  </div>
+  {{ posts|json_script:"post-reader-data" }}
+  {% include "social/_story_viewer.html" %}
+</section>
+<dialog class="post-reader" id="post-reader">
+  <div class="post-reader__stage" id="post-reader-stage"></div>
+  <p class="post-reader__hint">برای پست بعدی به بالا بکش یا صفحه را لمس کن</p>
+  <div class="post-reader__nav">
+    <button class="story-act" type="button" data-post-reader-prev title="پست قبلی">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 7-7 7h14z"/></svg>
+    </button>
+    <button class="post-reader__close" type="button" data-post-close>بستن</button>
+    <button class="story-act" type="button" data-post-reader-next title="پست بعدی">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 17 7-7H5z"/></svg>
+    </button>
+  </div>
+</dialog>
+{% endblock %}

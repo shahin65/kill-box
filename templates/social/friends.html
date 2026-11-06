@@ -1,0 +1,25 @@
+{% extends "core/app_base.html" %}
+
+{% block title %}لیست دوستان · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card social-card">
+  <p class="auth-kicker">پروفایل</p>
+  <h1 class="auth-title">لیست دوستان</h1>
+  <p class="profile-copy">دوستان آنلاین بالای لیست می‌آیند. از همین‌جا می‌توانی پیام بفرستی؛ گفتگو در پیام خصوصی می‌ماند.</p>
+  <div class="inbox-list">
+    {% for row in friends %}
+    <div class="inbox-row people-row">
+      <div>
+        <strong>{{ row.name }}{% if row.online %} <em class="is-online">آنلاین</em>{% endif %}</strong>
+        <small dir="ltr">{{ row.public_id }}</small>
+      </div>
+      <a class="auth-btn" href="{% url 'social:thread' row.id %}" data-kb-nav>پیام</a>
+    </div>
+    {% empty %}
+    <p class="profile-copy">هنوز دوستی نداری. از درخواست دوستی شروع کن.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

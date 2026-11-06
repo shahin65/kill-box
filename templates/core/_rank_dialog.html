@@ -1,0 +1,28 @@
+{% load static %}
+<dialog class="rank-dialog" id="rank-dialog">
+  <div class="rank-dialog__panel">
+    <header class="rank-dialog__head">
+      <p class="rank-dialog__kicker">KILBOX RANKS</p>
+      <h2 class="rank-dialog__title">رنک‌های نظامی کیل‌باکس</h2>
+      <button class="rank-dialog__close" type="button" data-rank-close aria-label="بستن">×</button>
+    </header>
+    <ul class="rank-dialog__list">
+      {% for item in ranks %}
+      <li class="rank-dialog__item{% if rank and rank.level == item.level %} is-current{% endif %}">
+        <img
+          class="rank-dialog__badge"
+          src="{% static item.icon %}"
+          alt=""
+          width="512"
+          height="512"
+        >
+        <div class="rank-dialog__copy">
+          <p class="rank-dialog__name">رنک {{ item.level }}: {{ item.title }}</p>
+          <p class="rank-dialog__en">{{ item.en }}</p>
+          <p class="rank-dialog__blurb">{{ item.blurb }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</dialog>

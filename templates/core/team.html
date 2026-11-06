@@ -1,0 +1,12 @@
+{% extends "core/app_base.html" %}
+
+{% block title %}تیم من · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card">
+  <p class="auth-kicker">تیم من</p>
+  <h1 class="auth-title">هنوز تیمی نداری</h1>
+  <p class="profile-copy">شما عضو تیمی نیستید</p>
+</section>
+{% endblock %}

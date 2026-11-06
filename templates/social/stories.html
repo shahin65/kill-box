@@ -1,0 +1,34 @@
+{% extends "core/app_base.html" %}
+{% load static %}
+
+{% block title %}استوری · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card social-card" data-story-create="{% url 'social:story_create' %}">
+  {% csrf_token %}
+  <p class="auth-kicker">شبکه‌های اجتماعی</p>
+  <h1 class="auth-title">استوری</h1>
+  <p class="profile-copy">عکس یا فیلم حداکثر ۳۰ ثانیه. امروز {{ stories_left }} استوری باقی مانده. استوری‌ها بعد از ۲۴ ساعت حذف می‌شوند.</p>
+  <form class="composer" id="story-form">
+    <label class="composer-file">
+      <input id="story-file" type="file" accept="image/*,video/mp4,video/webm" required>
+      <span>انتخاب عکس یا فیلم</span>
+    </label>
+    <input id="story-overlay" type="text" maxlength="80" placeholder="متن روی استوری">
+    <button class="auth-btn" type="submit">ارسال استوری</button>
+  </form>
+  <p class="auth-status" id="story-status" hidden></p>
+  <div class="story-tray">
+    {% for group in story_groups %}
+    <button class="story-ring{% if group.unseen %} is-unseen{% else %} is-seen{% endif %}" type="button" data-story-open="{{ forloop.counter0 }}">
+      <img src="{% if group.avatar %}{{ group.avatar }}{% elif group.cover %}{{ group.cover }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}" alt="">
+      <span>{{ group.name }}</span>
+    </button>
+    {% empty %}
+    <p class="profile-copy">هنوز استوری زنده‌ای نیست.</p>
+    {% endfor %}
+  </div>
+  {% include "social/_story_viewer.html" %}
+</section>
+{% endblock %}
