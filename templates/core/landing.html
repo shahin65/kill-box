@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}KILLBOX{% endblock %}
+{% block body_class %}is-landing{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=7">
+{% endblock %}
+
+{% block body %}
+  <div class="landing-scene" aria-hidden="true">
+    <div class="landing-bg"></div>
+    <canvas id="fog-back" class="landing-fog landing-fog--back"></canvas>
+    <div class="landing-flare"></div>
+    <div class="landing-character-aura"></div>
+    <img
+      class="landing-character"
+      src="{% static 'images/character.png' %}?v=5"
+      alt=""
+      width="1536"
+      height="1024"
+      draggable="false"
+    >
+    <canvas id="fog-front" class="landing-fog landing-fog--front"></canvas>
+    <div class="landing-vignette"></div>
+  </div>
+
+  <main class="landing-stage">
+    <div class="landing-brand">
+      <span class="landing-logo-glow"></span>
+      <span class="landing-logo-frame">
+        <img
+          class="landing-logo"
+          src="{% static 'images/logo2.png' %}?v=7"
+          alt="KILLBOX"
+          width="1024"
+          height="1024"
+        >
+        <span class="landing-logo-sheen"></span>
+      </span>
+    </div>
+    <span class="landing-rule" aria-hidden="true"></span>
+    <p class="landing-welcome">سرباز، به منطقه عملیاتی کیل‌باکس خوش آمدی.</p>
+  </main>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/particles.js' %}?v=8" defer></script>
+  <script src="{% static 'js/landing.js' %}?v=7" defer></script>
+{% endblock %}

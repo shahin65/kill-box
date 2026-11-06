@@ -1,0 +1,55 @@
+:root {
+  --kb-night: #070a07;
+  --kb-void: #0c110c;
+  --kb-field: #1c2a1a;
+  --kb-canopy: #2f4a2c;
+  --kb-neon: #39ff14;
+  --kb-neon-dim: rgba(57, 255, 20, 0.35);
+  --kb-steel: #c8c8c8;
+  --kb-mist: #d5d8c8;
+  --kb-fog: #8a8f78;
+  --kb-font: "Vazirmatn", "Tahoma", "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--kb-night);
+  color: var(--kb-mist);
+  font-family: var(--kb-font);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--kb-neon);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

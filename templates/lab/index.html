@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}DEV-LAB · KILLBOX{% endblock %}
+{% block body_class %}is-lab lab-theme-classic{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=7">
+  <link rel="stylesheet" href="{% static 'css/lab.css' %}?v=20">
+{% endblock %}
+
+{% block body %}
+  <div class="landing-scene" aria-hidden="true">
+    <div class="landing-bg"></div>
+    <canvas id="fog-back" class="landing-fog landing-fog--back"></canvas>
+    <div class="landing-flare"></div>
+    <div class="landing-character-aura"></div>
+    <img
+      class="landing-character"
+      src="{% static 'images/character.png' %}?v=5"
+      alt=""
+      width="1536"
+      height="1024"
+      draggable="false"
+    >
+    <canvas id="fog-front" class="landing-fog landing-fog--front"></canvas>
+    <div class="landing-vignette"></div>
+  </div>
+
+  <header class="lab-bar lab-chrome">
+    <div class="lab-bar__brand">
+      <img src="{% static 'images/logo2.png' %}?v=7" alt="" width="36" height="36">
+      <span>DEV-LAB</span>
+    </div>
+    <p class="lab-bar__meta">
+      محیط ایزوله · فقط Staff · {{ user.get_username }}
+    </p>
+    <a class="lab-bar__link" href="{% url 'core:landing' %}">بازگشت به لندینگ</a>
+  </header>
+
+  <main class="lab-wrap lab-chrome">
+    <section class="lab-card" id="bench-theme">
+      <header class="lab-card__head">
+        <p class="lab-kicker">MODULE 00</p>
+        <h1>Theme Selector &amp; UI Styles</h1>
+        <p>ظاهر کارت‌ها، منو و کنترل‌ها را زنده عوض کنید تا UI/UX را روی همین صفحه ارزیابی کنیم.</p>
+      </header>
+      <div class="lab-theme-grid" role="radiogroup" aria-label="انتخاب تم رابط">
+        <button type="button" class="lab-theme-swatch is-active" data-theme="classic" aria-pressed="true">
+          <span class="lab-theme-swatch__preview lab-theme-swatch__preview--classic"></span>
+          <strong>Classic Tactical</strong>
+          <small>حاشیه سبز تیره و پس‌زمینه کدر</small>
+        </button>
+        <button type="button" class="lab-theme-swatch" data-theme="glass" aria-pressed="false">
+          <span class="lab-theme-swatch__preview lab-theme-swatch__preview--glass"></span>
+          <strong>Frosted Glass</strong>
+          <small>بلور شدید و شیشه نیمه‌شفاف</small>
+        </button>
+        <button type="button" class="lab-theme-swatch" data-theme="neon" aria-pressed="false">
+          <span class="lab-theme-swatch__preview lab-theme-swatch__preview--neon"></span>
+          <strong>Neon Glow</strong>
+          <small>خطوط نئون سبز/آبی و درخشش</small>
+        </button>
+        <button type="button" class="lab-theme-swatch" data-theme="carbon" aria-pressed="false">
+          <span class="lab-theme-swatch__preview lab-theme-swatch__preview--carbon"></span>
+          <strong>Stealth Carbon</strong>
+          <small>مات فولادی، خطوط نازک خاکستری</small>
+        </button>
+      </div>
+    </section>
+
+    <section class="lab-card" id="bench-uid-lookup">
+      <header class="lab-card__head">
+        <p class="lab-kicker">MODULE 01</p>
+        <h1>استعلام اطلاعات اکانت کال‌آف‌دیوتی (UID Lookup)</h1>
+        <p>UID عددی داخل بازی را وارد کنید. استعلام زنده از وب‌استور CODM انجام می‌شود.</p>
+      </header>
+
+      <form class="lab-lookup" id="uid-lookup-form" action="{% url 'lab:uid_lookup' %}" method="post">
+        {% csrf_token %}
+        <label class="lab-lookup__label" for="cod-uid">UID</label>
+        <div class="lab-lookup__row">
+          <input
+            class="lab-lookup__input"
+            id="cod-uid"
+            name="uid"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="24"
+            autocomplete="off"
+            placeholder="UID عددی داخل بازی"
+            required
+          >
+          <button class="lab-lookup__btn" type="submit" id="uid-lookup-submit">
+            استعلام
+          </button>
+        </div>
+        <p class="lab-lookup__status" id="uid-lookup-status" hidden></p>
+      </form>
+
+      <article class="lab-result" id="uid-lookup-result" hidden>
+        <p class="lab-kicker">PROFILE</p>
+        <dl class="lab-result__grid">
+          <div>
+            <dt>نام کاربری (Username)</dt>
+            <dd id="uid-result-username">—</dd>
+          </div>
+          <div>
+            <dt>لول (Level)</dt>
+            <dd id="uid-result-level">—</dd>
+          </div>
+          <div>
+            <dt>UID</dt>
+            <dd id="uid-result-uid">—</dd>
+          </div>
+        </dl>
+      </article>
+
+      <form class="lab-fallback" id="uid-fallback-form" hidden>
+        <p class="lab-kicker">FALLBACK</p>
+        <p class="lab-fallback__copy" id="uid-fallback-message">
+          استعلام خودکار در دسترس نیست. لطفاً نام را دستی وارد کنید.
+        </p>
+        <label class="lab-lookup__label" for="cod-nickname">نام کاربری داخل بازی</label>
+        <div class="lab-lookup__row">
+          <input
+            class="lab-lookup__input"
+            id="cod-nickname"
+            name="nickname"
+            type="text"
+            maxlength="32"
+            autocomplete="off"
+            placeholder="مثلاً Ghost_IR"
+            required
+          >
+          <button class="lab-lookup__btn" type="submit" id="uid-fallback-submit">
+            تأیید نام
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="lab-card" id="bench-particles">
+      <header class="lab-card__head">
+        <p class="lab-kicker">MODULE 02</p>
+        <h1>ذرات گرد و غبار / مه</h1>
+        <p>غلظت مه و شدت نور را زنده روی کل صحنه Dev-Lab تست کنید.</p>
+      </header>
+      <div class="lab-atmos" id="lab-atmos-controls">
+        <label class="lab-atmos__row" for="lab-fog-density">
+          <span>غلظت مه</span>
+          <input id="lab-fog-density" type="range" min="0" max="160" value="100" step="1">
+          <output id="lab-fog-density-out" for="lab-fog-density">100%</output>
+        </label>
+        <label class="lab-atmos__row" for="lab-light-intensity">
+          <span>شدت نور / لنزفلر</span>
+          <input id="lab-light-intensity" type="range" min="0" max="160" value="100" step="1">
+          <output id="lab-light-intensity-out" for="lab-light-intensity">100%</output>
+        </label>
+      </div>
+      <div class="lab-stage">
+        <div class="lab-stage__bg" aria-hidden="true"></div>
+        <canvas id="lab-dust-field" class="lab-stage__canvas" aria-hidden="true"></canvas>
+      </div>
+    </section>
+
+    <section class="lab-card" id="bench-hub">
+      <header class="lab-card__head">
+        <p class="lab-kicker">MODULE 03</p>
+        <h1>Live Stream, Donation &amp; Chat Hub</h1>
+        <p>هاب لایو، دونیت و چت جامعه را روی همین تم تاکتیکی ارزیابی کنید.</p>
+      </header>
+
+      <div class="lab-hub">
+        <article class="lab-pane" id="stream-hub">
+          <header class="lab-pane__head">
+            <p class="lab-kicker">STREAM HUB</p>
+            <h2>بخش لایو استریم</h2>
+          </header>
+          <div class="lab-stream__providers" role="radiogroup" aria-label="انتخاب پلیر">
+            <button type="button" class="lab-chip is-active" data-stream-provider="aparat" aria-pressed="true">
+              آپارات (Aparat)
+            </button>
+            <button type="button" class="lab-chip" data-stream-provider="youtube" aria-pressed="false">
+              یوتیوب (YouTube)
+            </button>
+          </div>
+          <form class="lab-stream__form" id="stream-embed-form">
+            <label class="lab-lookup__label" for="stream-embed-input">لینک یا کد Embed</label>
+            <div class="lab-lookup__row">
+              <input
+                class="lab-lookup__input"
+                id="stream-embed-input"
+                name="embed"
+                type="text"
+                maxlength="500"
+                autocomplete="off"
+                placeholder="لینک یا embed آپارات"
+              >
+              <button class="lab-lookup__btn" type="submit" id="stream-embed-submit">نمایش</button>
+            </div>
+            <p class="lab-lookup__status" id="stream-embed-status" hidden></p>
+          </form>
+          <div class="lab-stream__frame" id="stream-stage">
+            <span class="lab-stream__notch lab-stream__notch--tl" aria-hidden="true"></span>
+            <span class="lab-stream__notch lab-stream__notch--tr" aria-hidden="true"></span>
+            <span class="lab-stream__notch lab-stream__notch--bl" aria-hidden="true"></span>
+            <span class="lab-stream__notch lab-stream__notch--br" aria-hidden="true"></span>
+            <div class="lab-stream__screen" id="stream-screen">
+              <div class="lab-stream__idle" id="stream-idle">
+                <span>منتظر لینک لایو</span>
+                <small>پلیر را انتخاب کنید و لینک یا embed را بزنید</small>
+              </div>
+            </div>
+            <button type="button" class="lab-stream__fs" id="stream-fs-btn" aria-pressed="false" title="تمام‌صفحه">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M4 9V4h5v2H6v3H4zm10-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm16 0v5h-5v-2h3v-3h2z"/>
+              </svg>
+              <span>تمام‌صفحه</span>
+            </button>
+            <div class="lab-stream__hud" id="stream-hud">
+              <button type="button" class="lab-hud__fab lab-hud__fab--donate" id="hud-donate-btn" aria-label="دونیت‌ها" aria-expanded="false" aria-controls="hud-donate-panel" title="دونیت‌ها">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M20 7h-2.18A3 3 0 0 0 15 3c-1.2 0-2.2.7-2.7 1.7A3.1 3.1 0 0 0 9 3a3 3 0 0 0-2.82 4H4a1 1 0 0 0-1 1v3h9V8h2v3h9V8a1 1 0 0 0-1-1zM9 5a1 1 0 1 1 0 2H8a1 1 0 0 1 1-2zm6 0a1 1 0 0 1 1 2h-1a1 1 0 1 1 0-2zM3 13v7a1 1 0 0 0 1 1h7v-8H3zm10 8h7a1 1 0 0 0 1-1v-7h-8v8z"/>
+                </svg>
+                <span class="lab-hud__badge lab-hud__badge--amount" id="hud-donate-badge" hidden></span>
+              </button>
+              <section class="lab-hud__panel lab-hud__panel--donate" id="hud-donate-panel" hidden>
+                <header class="lab-hud__head">
+                  <strong>دونیت‌ها</strong>
+                  <button type="button" class="lab-hud__collapse" data-hud-collapse="donate" aria-label="جمع کردن">−</button>
+                </header>
+                <div class="lab-hud__feed" id="hud-donate-list">
+                  <p class="lab-hud__empty">هنوز دونیتی ثبت نشده.</p>
+                </div>
+              </section>
+
+              <button type="button" class="lab-hud__fab lab-hud__fab--chat" id="hud-chat-btn" aria-label="چت زنده" aria-expanded="false" aria-controls="hud-chat-panel" title="چت زنده">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 5v-5H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
+                </svg>
+                <span class="lab-hud__badge" id="hud-chat-badge" hidden></span>
+              </button>
+              <section class="lab-hud__panel lab-hud__panel--chat" id="hud-chat-panel" hidden>
+                <header class="lab-hud__head">
+                  <strong>چت زنده</strong>
+                  <button type="button" class="lab-hud__collapse" data-hud-collapse="chat" aria-label="جمع کردن">−</button>
+                </header>
+                <div class="lab-chat__log lab-hud__log" id="hud-chat-log"></div>
+              </section>
+            </div>
+          </div>
+        </article>
+
+        <article class="lab-pane" id="donate-box">
+          <header class="lab-pane__head">
+            <p class="lab-kicker">TIP &amp; DONATION</p>
+            <h2>دونیت اختصاصی</h2>
+          </header>
+          <form id="donate-form">
+            <p class="lab-lookup__label" id="donate-amounts-label">مبلغ سریع</p>
+            <div class="lab-donate__amounts" role="group" aria-labelledby="donate-amounts-label">
+              <button type="button" class="lab-chip is-active" data-donate-amount="50000" aria-pressed="true">۵۰ هزار</button>
+              <button type="button" class="lab-chip" data-donate-amount="100000" aria-pressed="false">۱۰۰ هزار</button>
+              <button type="button" class="lab-chip" data-donate-amount="200000" aria-pressed="false">۲۰۰ هزار</button>
+            </div>
+            <label class="lab-lookup__label" for="donate-custom">مبلغ دلخواه (تومان)</label>
+            <input
+              class="lab-lookup__input"
+              id="donate-custom"
+              name="amount"
+              type="text"
+              inputmode="numeric"
+              maxlength="12"
+              autocomplete="off"
+              placeholder="مثلاً ۱۵۰۰۰۰"
+            >
+            <label class="lab-lookup__label" for="donate-message">پیام کوتاه / شعار تیمی</label>
+            <input
+              class="lab-lookup__input"
+              id="donate-message"
+              name="message"
+              type="text"
+              maxlength="80"
+              autocomplete="off"
+              placeholder="گلادیاتورها پیروز می‌شوند"
+            >
+            <button class="lab-donate__pay" type="submit" id="donate-submit">پرداخت</button>
+            <p class="lab-lookup__status" id="donate-status" hidden></p>
+          </form>
+        </article>
+
+        <article class="lab-pane" id="live-chat">
+          <header class="lab-pane__head">
+            <p class="lab-kicker">LIVE CHAT</p>
+            <h2>چت زنده و جامعه</h2>
+          </header>
+          <p class="lab-chat__note" role="note">
+            (نظارت و فیلترینگ چت توسط ادمین کیل‌باکس انجام می‌شود)
+          </p>
+          <div class="lab-chat__log" id="chat-log" aria-live="polite"></div>
+          <form class="lab-chat__composer" id="chat-form">
+            <label class="lab-lookup__label" for="chat-input">پیام جدید</label>
+            <div class="lab-lookup__row">
+              <input
+                class="lab-lookup__input"
+                id="chat-input"
+                name="message"
+                type="text"
+                maxlength="160"
+                autocomplete="off"
+                placeholder="پیام خود را بنویسید"
+                data-chat-user="{{ user.get_username }}"
+              >
+              <button class="lab-lookup__btn" type="submit" id="chat-submit">ارسال</button>
+            </div>
+          </form>
+        </article>
+      </div>
+    </section>
+
+    <section
+      class="lab-card"
+      id="bench-otp"
+      data-otp-length="{{ sms.otp_length }}"
+      data-otp-cooldown="{{ sms.cooldown }}"
+    >
+      <header class="lab-card__head">
+        <p class="lab-kicker">MODULE 04</p>
+        <h1>ورود / ثبت‌نام با شماره موبایل</h1>
+        <p>ارسال کد تایید از کنسول OTP ملی‌پیامک. آدرس اختصاصی فقط از فایل محیط خوانده می‌شود.</p>
+      </header>
+      <p class="lab-otp__meta" id="otp-meta">
+        {% if sms.configured %}
+          آدرس اختصاصی کنسول OTP تنظیم شده
+        {% else %}
+          <code>MELIPAYAMAK_API_URL</code> در <code>.env</code> تنظیم نشده
+        {% endif %}
+        {% if sms.dry_run %} · حالت آزمایشی (ارسال واقعی خاموش){% endif %}
+      </p>
+
+      <form class="lab-otp__form" id="otp-send-form" action="{% url 'lab:otp_send' %}" novalidate>
+        {% csrf_token %}
+        <label class="lab-lookup__label" for="otp-phone">شماره موبایل</label>
+        <div class="lab-lookup__row">
+          <input
+            class="lab-lookup__input lab-otp__input"
+            id="otp-phone"
+            name="phone"
+            type="tel"
+            inputmode="numeric"
+            maxlength="16"
+            autocomplete="tel"
+            placeholder="09121234567"
+            required
+          >
+          <button class="lab-lookup__btn" type="submit" id="otp-send-btn">ارسال کد تایید</button>
+        </div>
+      </form>
+
+      <form class="lab-otp__form" id="otp-verify-form" action="{% url 'lab:otp_verify' %}" hidden novalidate>
+        {% csrf_token %}
+        <label class="lab-lookup__label" for="otp-code">کد تایید</label>
+        <div class="lab-lookup__row">
+          <input
+            class="lab-lookup__input lab-otp__input lab-otp__code"
+            id="otp-code"
+            name="code"
+            type="text"
+            inputmode="numeric"
+            maxlength="{{ sms.otp_length }}"
+            autocomplete="one-time-code"
+            placeholder="مثلاً ۱۲۳۴۵۶"
+            required
+          >
+          <button class="lab-lookup__btn" type="submit" id="otp-verify-btn">تایید شماره</button>
+        </div>
+      </form>
+      <p class="lab-lookup__status" id="otp-status" hidden></p>
+
+      <article class="lab-result" id="otp-verified" hidden>
+        <p class="lab-kicker">VERIFIED</p>
+        <dl class="lab-result__grid">
+          <div>
+            <dt>شماره تاییدشده</dt>
+            <dd id="otp-verified-phone">—</dd>
+          </div>
+        </dl>
+      </article>
+    </section>
+
+    <section class="lab-card" id="bench-tokens">
+      <header class="lab-card__head">
+        <h1>توکن‌های تم تاکتیکال</h1>
+        <p>پالت پایه برای تست کامپوننت‌های بعدی قبل از ادغام در صفحات اصلی.</p>
+      </header>
+      <ul class="lab-swatches">
+        <li style="--swatch:#070a07"><span>night</span></li>
+        <li style="--swatch:#12180f"><span>olive-void</span></li>
+        <li style="--swatch:#1c2a1a"><span>field</span></li>
+        <li style="--swatch:#2f4a2c"><span>canopy</span></li>
+        <li style="--swatch:#39ff14"><span>neon</span></li>
+        <li style="--swatch:#c8c8c8"><span>steel</span></li>
+      </ul>
+    </section>
+  </main>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'js/particles.js' %}?v=8" defer></script>
+  <script src="{% static 'js/lab.js' %}?v=20" defer></script>
+{% endblock %}

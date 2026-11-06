@@ -1,0 +1,354 @@
+.is-landing {
+  overflow: hidden;
+  --kb-z-bg: 1;
+  --kb-z-flare: 2;
+  --kb-z-fog-back: 2;
+  --kb-z-character: 3;
+  --kb-z-fog-front: 4;
+  --kb-z-vignette: 5;
+  --kb-z-ui: 10;
+  --kb-scene-pos: 50% 62%;
+}
+
+.landing-scene {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.landing-bg,
+.landing-character,
+.landing-character-aura {
+  position: fixed;
+  top: -14%;
+  left: -14%;
+  width: 128%;
+  height: 128%;
+  transform-origin: 48% 56%;
+  animation: tactical-drift 42s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.landing-bg {
+  z-index: var(--kb-z-bg);
+  background-color: var(--kb-night);
+  background-image: url("../images/background1.png");
+  background-position: var(--kb-scene-pos);
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.landing-flare {
+  position: fixed;
+  inset: -8%;
+  z-index: var(--kb-z-flare);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.85;
+  background:
+    radial-gradient(circle at 24% 46%, rgba(255, 176, 82, 0.42) 0%, rgba(255, 140, 60, 0.16) 7%, transparent 16%),
+    radial-gradient(ellipse 48% 5% at 24% 46%, rgba(255, 214, 150, 0.38) 0%, rgba(255, 180, 90, 0.12) 42%, transparent 74%),
+    radial-gradient(circle at 78% 30%, rgba(186, 230, 120, 0.2) 0%, transparent 11%),
+    radial-gradient(ellipse 28% 3% at 78% 30%, rgba(210, 255, 170, 0.18) 0%, transparent 70%);
+  animation: flare-drift 18s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+.landing-character-aura {
+  z-index: var(--kb-z-character);
+  background: radial-gradient(
+    ellipse 18% 46% at 52% 58%,
+    rgba(196, 112, 52, 0.46) 0%,
+    rgba(168, 72, 42, 0.22) 36%,
+    rgba(120, 110, 80, 0.1) 58%,
+    transparent 74%
+  );
+  filter: blur(16px);
+}
+
+.landing-character {
+  z-index: var(--kb-z-character);
+  max-width: none;
+  object-fit: cover;
+  object-position: var(--kb-scene-pos);
+  background: transparent;
+  filter:
+    drop-shadow(-14px 8px 18px rgba(176, 92, 42, 0.28))
+    drop-shadow(8px 10px 22px rgba(150, 58, 40, 0.16));
+}
+
+.landing-fog {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.landing-fog--back {
+  z-index: var(--kb-z-fog-back);
+}
+
+.landing-fog--front {
+  z-index: var(--kb-z-fog-front);
+}
+
+.landing-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: var(--kb-z-vignette);
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 46%, rgba(8, 12, 8, 0.04) 0%, rgba(5, 8, 5, 0.28) 72%, rgba(3, 5, 3, 0.7) 100%),
+    linear-gradient(180deg, rgba(4, 7, 4, 0.3) 0%, transparent 28%, rgba(4, 7, 4, 0.42) 100%);
+}
+
+.landing-stage {
+  position: relative;
+  z-index: var(--kb-z-ui);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: clamp(1.5rem, 6vw, 3rem) 1.25rem calc(2rem + env(safe-area-inset-bottom));
+  text-align: center;
+  pointer-events: none;
+}
+
+.landing-stage a,
+.landing-stage button {
+  pointer-events: auto;
+}
+
+.landing-brand {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  animation: logo-fade 1.4s ease-out both;
+}
+
+.landing-logo-glow {
+  position: absolute;
+  inset: -6% -4%;
+  z-index: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(57, 255, 20, 0.55) 0%,
+    rgba(57, 255, 20, 0.18) 38%,
+    transparent 68%
+  );
+  opacity: 0;
+  transform: scale(0.78);
+  animation: logo-glow 10s ease-in-out 1.6s infinite;
+  pointer-events: none;
+}
+
+.landing-logo-frame {
+  position: relative;
+  z-index: 1;
+  display: block;
+  overflow: hidden;
+}
+
+.landing-logo {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: min(62vw, 260px);
+  background: transparent;
+  mix-blend-mode: normal;
+  box-shadow: none;
+}
+
+.landing-logo-sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-image: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(210, 255, 190, 0.05) 38%,
+    rgba(235, 255, 225, 0.7) 50%,
+    rgba(210, 255, 190, 0.05) 62%,
+    transparent 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 55% 140%;
+  background-position: -80% 50%;
+  mix-blend-mode: screen;
+  -webkit-mask-image: url("../images/logo2.png");
+  mask-image: url("../images/logo2.png");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  animation: logo-sheen 10s linear infinite;
+}
+
+.landing-rule {
+  display: block;
+  width: 3.5rem;
+  height: 1px;
+  margin: 1.15rem 0 0.95rem;
+  background: linear-gradient(90deg, transparent, var(--kb-neon-dim), var(--kb-neon), var(--kb-neon-dim), transparent);
+  animation: logo-rise 1.6s ease-out both;
+}
+
+.landing-welcome {
+  margin: 0;
+  max-width: 28rem;
+  color: #e9ebdc;
+  font-family: "Vazirmatn", Tahoma, sans-serif;
+  font-size: clamp(1.05rem, 3vw, 1.28rem);
+  font-weight: 500;
+  letter-spacing: normal;
+  word-spacing: 0.18em;
+  line-height: 2;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.92), 0 0 22px rgba(0, 0, 0, 0.7);
+  animation: logo-rise 1.8s ease-out both;
+}
+
+@keyframes tactical-drift {
+  0% {
+    transform: scale(1.05) translate3d(-3.4%, -1.6%, 0);
+  }
+  40% {
+    transform: scale(1.11) translate3d(1.8%, 0.4%, 0);
+  }
+  70% {
+    transform: scale(1.08) translate3d(3.2%, 1.8%, 0);
+  }
+  100% {
+    transform: scale(1.16) translate3d(-1.2%, 1.4%, 0);
+  }
+}
+
+@keyframes flare-drift {
+  0% {
+    transform: translate3d(-8%, 5%, 0) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate3d(4%, -3%, 0) scale(1.08);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate3d(12%, -7%, 0) scale(1.14);
+    opacity: 0.7;
+  }
+}
+
+@keyframes logo-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes logo-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes logo-glow {
+  0%,
+  76% {
+    opacity: 0;
+    transform: scale(0.78);
+  }
+  82% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  90% {
+    opacity: 0.28;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+}
+
+@keyframes logo-sheen {
+  0%,
+  68% {
+    background-position: -80% 50%;
+    opacity: 0;
+  }
+  72% {
+    opacity: 1;
+  }
+  86% {
+    background-position: 160% 50%;
+    opacity: 1;
+  }
+  90%,
+  100% {
+    background-position: 160% 50%;
+    opacity: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .landing-logo {
+    width: min(40vw, 300px);
+  }
+}
+
+@media (min-width: 1200px) {
+  .landing-logo {
+    width: 300px;
+  }
+}
+
+@media (max-width: 767px) {
+  .landing-bg,
+  .landing-character,
+  .landing-character-aura {
+    top: -10%;
+    left: -10%;
+    width: 120%;
+    height: 120%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-bg,
+  .landing-character,
+  .landing-character-aura,
+  .landing-flare,
+  .landing-brand,
+  .landing-logo-glow,
+  .landing-logo-sheen,
+  .landing-rule,
+  .landing-welcome {
+    animation: none;
+  }
+
+  .landing-bg,
+  .landing-character,
+  .landing-character-aura {
+    transform: scale(1.08);
+  }
+
+  .landing-logo-glow,
+  .landing-logo-sheen {
+    display: none;
+  }
+}
