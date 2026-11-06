@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function bindPage() {
+  try {
+    mountLandingScene();
+  } catch (err) {
+    /* keep page bindings even if particles fail */
+  }
   bindLandingAuth();
   bindMessengerAuth('auth-bale-btn', 'بله');
   bindMessengerAuth('auth-telegram-btn', 'تلگرام');

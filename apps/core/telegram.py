@@ -119,10 +119,11 @@ def start_poller() -> None:
             return
         if not getattr(settings, 'TELEGRAM_BOT_TOKEN', ''):
             return
-        if getattr(settings, 'TELEGRAM_WEBHOOK_URL', ''):
-            return
+        using_webhook = bool(getattr(settings, 'TELEGRAM_WEBHOOK_URL', ''))
         _poller_started = True
     configure_bot()
+    if using_webhook:
+        return
     thread = threading.Thread(target=_poll_loop, name='telegram-poller', daemon=True)
     thread.start()
 

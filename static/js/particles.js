@@ -737,8 +737,11 @@
       cfg = cfg || {};
       if (global.KillBoxParticles.last && global.KillBoxParticles.last.running) {
         var live = cfg.smokeBack || cfg.fogBack;
-        if (live && live.isConnected) {
+        if (live && live.isConnected && global.KillBoxParticles.last.fields && global.KillBoxParticles.last.fields.length) {
           return global.KillBoxParticles.last;
+        }
+        if (typeof global.KillBoxParticles.last.destroy === 'function') {
+          global.KillBoxParticles.last.destroy();
         }
       }
       var director = new FogDirector();
@@ -769,6 +772,11 @@
           ashFront: cfg.ashFront || cfg.ash,
           smokeSprites: smokeSprites,
           ashSprite: sprites[1],
+        }, wind);
+      }).catch(function () {
+        mountFields(director, {
+          fogBack: cfg.fogBack,
+          fogFront: cfg.fogFront,
         }, wind);
       });
       return director;

@@ -119,10 +119,11 @@ def start_poller() -> None:
             return
         if not getattr(settings, 'BALE_BOT_TOKEN', ''):
             return
-        if getattr(settings, 'BALE_WEBHOOK_URL', ''):
-            return
+        using_webhook = bool(getattr(settings, 'BALE_WEBHOOK_URL', ''))
         _poller_started = True
     configure_bot()
+    if using_webhook:
+        return
     thread = threading.Thread(target=_poll_loop, name='bale-poller', daemon=True)
     thread.start()
 

@@ -51,6 +51,7 @@ body.is-docked::-webkit-scrollbar-thumb:hover {
   position: fixed;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
 }
 
 .landing-rig {
@@ -2085,14 +2086,27 @@ dialog:not([open]) {
 @media (min-aspect-ratio: 16/9) {
   .is-landing,
   .is-lab {
-    --kb-scene-pos: 50% 80%;
+    --kb-scene-pos: 50% 72%;
+  }
+
+  .landing-rig {
+    inset: -2% -5% -7% -5%;
+    width: 110%;
+    height: 109%;
+  }
+}
+
+@media (min-width: 1440px) and (min-aspect-ratio: 16/9) {
+  .is-landing,
+  .is-lab {
+    --kb-scene-pos: 50% 68%;
   }
 }
 
 @media (min-aspect-ratio: 21/9) {
   .is-landing,
   .is-lab {
-    --kb-scene-pos: 50% 86%;
+    --kb-scene-pos: 50% 78%;
   }
 }
 
