@@ -1,5 +1,9 @@
 document.addEventListener('DOMContentLoaded', function () {
-  mountLandingScene();
+  try {
+    mountLandingScene();
+  } catch (err) {
+    /* intro must still run if particles fail */
+  }
   runLandingIntro();
   bindPage();
 });
