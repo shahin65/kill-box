@@ -122,13 +122,24 @@ STORAGES = {
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'killbox-lab',
-        'TIMEOUT': 60 * 60 * 12,
+if DEBUG:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'killbox-lab',
+            'TIMEOUT': 60 * 60 * 12,
+        }
     }
-}
+else:
+    _cache_dir = BASE_DIR / 'tmp' / 'django-cache'
+    _cache_dir.mkdir(parents=True, exist_ok=True)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': str(_cache_dir),
+            'TIMEOUT': 60 * 60 * 12,
+        }
+    }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
