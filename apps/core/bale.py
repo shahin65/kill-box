@@ -147,8 +147,7 @@ def _poll_loop() -> None:
 
 
 def _on_start(chat_id, text: str) -> None:
-    parts = text.split(maxsplit=1)
-    payload = parts[1].strip() if len(parts) > 1 else ''
+    payload = _start_payload(text)
     state = ticket_state(payload)
     if state and state.get('status') == 'pending':
         state['chat_id'] = chat_id
@@ -160,7 +159,7 @@ def _on_start(chat_id, text: str) -> None:
     if ticket and ticket_state(str(ticket)):
         _ask_contact(chat_id, START_TEXT)
         return
-    _ask_contact(chat_id, NEED_SITE)
+    _tell_need_site(chat_id)
 
 
 def _on_contact(chat_id, from_id, contact: dict) -> None:
@@ -189,7 +188,7 @@ def _on_contact(chat_id, from_id, contact: dict) -> None:
     ticket = cache.get(_chat_key(chat_id))
     state = ticket_state(str(ticket or ''))
     if not state:
-        api('sendMessage', {'chat_id': chat_id, 'text': NEED_SITE})
+        _tell_need_site(chat_id)
         return
     state.update(
         {
@@ -205,6 +204,27 @@ def _on_contact(chat_id, from_id, contact: dict) -> None:
         {
             'chat_id': chat_id,
             'text': DONE_TEXT,
+            'reply_markup': {'remove_keyboard': True},
+        },
+    )
+
+
+def _start_payload(text: str) -> str:
+    raw = str(text or '').strip()
+    if not raw.lower().startswith('/start'):
+        return ''
+    parts = raw.split(maxsplit=1)
+    if len(parts) < 2:
+        return ''
+    return parts[1].strip()
+
+
+def _tell_need_site(chat_id) -> None:
+    api(
+        'sendMessage',
+        {
+            'chat_id': chat_id,
+            'text': NEED_SITE,
             'reply_markup': {'remove_keyboard': True},
         },
     )

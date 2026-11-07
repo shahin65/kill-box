@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Neon Aurora Preview</title>
+  <link rel="stylesheet" href="{% static 'css/neon-bg.css' %}?v=2">
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    html {
+      background: var(--neon-void);
+    }
+  </style>
+</head>
+<body>
+  <div class="neon-bg-container" aria-hidden="true">
+    <div class="neon-blob neon-blob--1"></div>
+    <div class="neon-blob neon-blob--2"></div>
+    <div class="neon-blob neon-blob--3"></div>
+  </div>
+</body>
+</html>

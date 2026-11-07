@@ -215,7 +215,8 @@ def serialize_post(post, request) -> dict:
     likes = list(post.likes.all()) if hasattr(post, '_prefetched_objects_cache') and 'likes' in getattr(post, '_prefetched_objects_cache', {}) else None
     comments = list(post.comments.all()) if hasattr(post, '_prefetched_objects_cache') and 'comments' in getattr(post, '_prefetched_objects_cache', {}) else None
     like_count = len(likes) if likes is not None else post.likes.count()
-    comment_count = len(comments) if comments is not None else post.comments.count()
+    comment_rows = comments if comments is not None else list(post.comments.select_related('user'))
+    comment_count = len(comment_rows)
     liked = False
     if viewer:
         if likes is not None:
@@ -232,16 +233,20 @@ def serialize_post(post, request) -> dict:
         'caption': post.caption or '',
         'likes': like_count,
         'comments': comment_count,
+        'comment_list': [
+            {'name': display_name(row.user), 'text': row.text} for row in comment_rows
+        ],
         'liked': liked,
         'mine': bool(viewer and post.author_id == viewer.pk),
         'share_url': request.build_absolute_uri(f'/social/posts/{post.pk}/'),
+        'detail_url': f'/social/posts/{post.pk}/',
     }
 
 
 def latest_posts(request, limit=10):
     feed = (
         Post.objects.select_related('author', 'author__member_profile')
-        .prefetch_related('likes', 'comments')[:limit]
+        .prefetch_related('likes', 'comments__user')[:limit]
     )
     return [serialize_post(post, request) for post in feed]
 

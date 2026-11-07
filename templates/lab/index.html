@@ -2,41 +2,17 @@
 {% load static %}
 
 {% block title %}DEV-LAB · KILLBOX{% endblock %}
-{% block body_class %}is-lab lab-theme-classic{% endblock %}
+{% block body_class %}is-lab{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/lab.css' %}?v=28">
+  <link rel="stylesheet" href="{% static 'css/lab.css' %}?v=31">
+  <link rel="stylesheet" href="{% static 'css/kb-glass-card.css' %}?v=1">
 {% endblock %}
 
-{% block scene %}{% endblock %}
-
 {% block body %}
-  <div class="landing-scene" aria-hidden="true">
-    <div class="landing-rig">
-      <div class="landing-bg" data-scene="{% static 'images/background1.png' %}"></div>
-      <canvas id="fog-back" class="landing-fog landing-fog--back"></canvas>
-      <canvas id="smoke-back" class="landing-smoke landing-smoke--back" data-sprite="{% static 'images/smoke.png' %}"></canvas>
-      <canvas id="ash-back" class="landing-ash landing-ash--back" data-sprite="{% static 'images/ash.png' %}"></canvas>
-      <div class="landing-flare"></div>
-      <div class="landing-character-aura"></div>
-      <img
-        class="landing-character"
-        src="{% static 'images/character.png' %}?v=6"
-        alt=""
-        width="1536"
-        height="1024"
-        draggable="false"
-      >
-      <canvas id="fog-front" class="landing-fog landing-fog--front"></canvas>
-      <canvas id="smoke-front" class="landing-smoke landing-smoke--front" data-sprite="{% static 'images/smoke.png' %}"></canvas>
-      <canvas id="ash-front" class="landing-ash landing-ash--front" data-sprite="{% static 'images/ash.png' %}"></canvas>
-    </div>
-    <div class="landing-vignette"></div>
-  </div>
-
   <header class="lab-bar lab-chrome">
     <div class="lab-bar__brand">
-      <img src="{% static 'images/logo2.png' %}?v=7" alt="" width="36" height="36">
+      <img src="{% static 'images/logo.webp' %}?v=1" alt="" width="36" height="36">
       <span>DEV-LAB</span>
     </div>
     <p class="lab-bar__meta">
@@ -46,33 +22,15 @@
   </header>
 
   <main class="lab-wrap lab-chrome">
-    <section class="lab-card" id="bench-theme">
-      <header class="lab-card__head">
-        <p class="lab-kicker">MODULE 00</p>
-        <h1>Theme Selector &amp; UI Styles</h1>
-        <p>ظاهر کارت‌ها، منو و کنترل‌ها را زنده عوض کنید تا UI/UX را روی همین صفحه ارزیابی کنیم.</p>
-      </header>
-      <div class="lab-theme-grid" role="radiogroup" aria-label="انتخاب تم رابط">
-        <button type="button" class="lab-theme-swatch is-active" data-theme="classic" aria-pressed="true">
-          <span class="lab-theme-swatch__preview lab-theme-swatch__preview--classic"></span>
-          <strong>Classic Tactical</strong>
-          <small>حاشیه سبز تیره و پس‌زمینه کدر</small>
-        </button>
-        <button type="button" class="lab-theme-swatch" data-theme="glass" aria-pressed="false">
-          <span class="lab-theme-swatch__preview lab-theme-swatch__preview--glass"></span>
-          <strong>Frosted Glass</strong>
-          <small>بلور شدید و شیشه نیمه‌شفاف</small>
-        </button>
-        <button type="button" class="lab-theme-swatch" data-theme="neon" aria-pressed="false">
-          <span class="lab-theme-swatch__preview lab-theme-swatch__preview--neon"></span>
-          <strong>Neon Glow</strong>
-          <small>خطوط نئون سبز/آبی و درخشش</small>
-        </button>
-        <button type="button" class="lab-theme-swatch" data-theme="carbon" aria-pressed="false">
-          <span class="lab-theme-swatch__preview lab-theme-swatch__preview--carbon"></span>
-          <strong>Stealth Carbon</strong>
-          <small>مات فولادی، خطوط نازک خاکستری</small>
-        </button>
+    <section class="kb-glass-card" id="bench-glass">
+      {% include "lab/_glass_card_fx.html" %}
+      <div class="kb-glass-card__body">
+        <p class="kb-glass-card__kicker">MODULE GLASS</p>
+        <h1>کارت شیشه‌ای تاکتیکی</h1>
+        <p>فریم مات با بلور ۱۲ پیکسل و الکترون‌های دنباله‌دار روی لایه GPU. لمس و کلیک باید بدون تأخیر به این کنترل‌ها برسد.</p>
+        <label for="glass-demo-input">ورودی آزمایشی</label>
+        <input id="glass-demo-input" type="text" name="glass-demo" maxlength="40" autocomplete="off" placeholder="تست لمس و فوکوس">
+        <button type="button">اقدام</button>
       </div>
     </section>
 
@@ -146,30 +104,6 @@
           </button>
         </div>
       </form>
-    </section>
-
-    <section class="lab-card" id="bench-particles">
-      <header class="lab-card__head">
-        <p class="lab-kicker">MODULE 02</p>
-        <h1>ذرات گرد و غبار / مه</h1>
-        <p>غلظت مه و شدت نور را زنده روی کل صحنه Dev-Lab تست کنید.</p>
-      </header>
-      <div class="lab-atmos" id="lab-atmos-controls">
-        <label class="lab-atmos__row" for="lab-fog-density">
-          <span>غلظت مه</span>
-          <input id="lab-fog-density" type="range" min="0" max="160" value="100" step="1">
-          <output id="lab-fog-density-out" for="lab-fog-density">100%</output>
-        </label>
-        <label class="lab-atmos__row" for="lab-light-intensity">
-          <span>شدت نور / لنزفلر</span>
-          <input id="lab-light-intensity" type="range" min="0" max="160" value="100" step="1">
-          <output id="lab-light-intensity-out" for="lab-light-intensity">100%</output>
-        </label>
-      </div>
-      <div class="lab-stage">
-        <div class="lab-stage__bg" aria-hidden="true"></div>
-        <canvas id="lab-dust-field" class="lab-stage__canvas" aria-hidden="true"></canvas>
-      </div>
     </section>
 
     <section class="lab-card" id="bench-hub">
@@ -732,6 +666,5 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'js/particles.js' %}?v=14" defer></script>
-  <script src="{% static 'js/lab.js' %}?v=24" defer></script>
+  <script src="{% static 'js/lab.js' %}?v=28" defer></script>
 {% endblock %}

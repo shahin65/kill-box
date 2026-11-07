@@ -7,31 +7,18 @@
   <meta name="theme-color" content="#070a07">
   <meta name="color-scheme" content="dark">
   <title>{% block title %}KILLBOX{% endblock %}</title>
-  <link rel="icon" href="{% static 'images/favicon.ico' %}?v=1" sizes="any">
-  <link rel="icon" type="image/png" href="{% static 'images/favicon-32.png' %}?v=1" sizes="32x32">
-  <link rel="apple-touch-icon" href="{% static 'images/apple-touch-icon.png' %}?v=1">
+  <link rel="icon" href="{% static 'images/favicon.ico' %}?v=2" sizes="any">
+  <link rel="icon" type="image/png" href="{% static 'images/favicon-32.png' %}?v=2" sizes="32x32">
+  <link rel="apple-touch-icon" href="{% static 'images/apple-touch-icon.png' %}?v=2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=5">
-  <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=55">
-  <link rel="stylesheet" href="{% static 'css/social.css' %}?v=19">
-  <link rel="stylesheet" href="{% static 'css/arena.css' %}?v=7">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}?v=9">
+  <link rel="stylesheet" href="{% static 'css/neon-bg.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=70">
+  <link rel="stylesheet" href="{% static 'css/social.css' %}?v=23">
+  <link rel="stylesheet" href="{% static 'css/arena.css' %}?v=11">
   {% block extra_css %}{% endblock %}
-  <script>
-  (function () {
-    var allowed = { classic: 1, glass: 1, neon: 1, carbon: 1 };
-    var art = '';
-    try {
-      art = localStorage.getItem('killbox-art-style') || '';
-    } catch (err) {
-      art = '';
-    }
-    if (allowed[art]) {
-      document.documentElement.setAttribute('data-art', art);
-    }
-  })();
-  </script>
 </head>
 <body class="{% block body_class %}{% endblock %}" {% block body_attrs %}{% endblock %}>
   <div id="google_translate_element" hidden></div>
@@ -137,10 +124,10 @@
           if (!res.ok) {
             throw new Error('nav');
           }
-          return res.text();
-        })
-        .then(function (html) {
-          applyShell(html, url, push);
+          var finalUrl = absUrl(res.url) || url;
+          return res.text().then(function (html) {
+            applyShell(html, finalUrl, push);
+          });
         })
         .catch(function () {
           hardGo(url);
@@ -245,16 +232,13 @@
     doc.addEventListener('click', onActivate, true);
   })(window, document);
   </script>
-  {% block scene %}
-    {% include "core/_scene.html" %}
-  {% endblock %}
+  {% include "core/_neon_bg.html" %}
   <div id="kb-shell">
     {% block body %}{% endblock %}
   </div>
   {% block extra_js %}
-  <script src="{% static 'js/particles.js' %}?v=17" defer></script>
-  <script src="{% static 'js/landing.js' %}?v=41" defer></script>
-  <script src="{% static 'js/social.js' %}?v=8" defer></script>
+  <script src="{% static 'js/landing.js' %}?v=47" defer></script>
+  <script src="{% static 'js/social.js' %}?v=10" defer></script>
   <script src="{% static 'js/live.js' %}?v=3" defer></script>
   {% endblock %}
   <script src="{% static 'js/translate.js' %}?v=2" defer></script>

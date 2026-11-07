@@ -48,6 +48,10 @@ from apps.sms.otp import (
 )
 
 
+def neon_bg_preview(request):
+    return render(request, 'core/neon_bg_preview.html')
+
+
 def landing(request):
     capture_referral(request)
     force_register = str(request.GET.get('register') or '').lower() in {
@@ -262,6 +266,77 @@ def profile_bio(request):
     profile.bio = bio
     profile.save(update_fields=['bio'])
     return JsonResponse({'success': True, 'bio': bio, 'message': 'بیو ذخیره شد.'})
+
+
+@require_POST
+def profile_codm(request):
+    if not is_member(request):
+        return JsonResponse(
+            {'success': False, 'message': 'برای اتصال اکانت بازی باید ثبت‌نام کرده باشی.'},
+            status=403,
+        )
+    uid = str(request.POST.get('uid') or '').strip()
+    nickname = str(request.POST.get('nickname') or '').strip()[:32]
+    if not uid.isdigit() or len(uid) > 24:
+        return JsonResponse(
+            {'success': False, 'message': 'UID باید یک عدد معتبر باشد.'},
+            status=400,
+        )
+    profile = ensure_member_profile(request.user)
+    if nickname:
+        profile.codm_uid = uid
+        profile.codm_nickname = nickname
+        if not profile.codm_level:
+            profile.codm_level = None
+        profile.save(update_fields=['codm_uid', 'codm_nickname', 'codm_level'])
+        return JsonResponse(
+            {
+                'success': True,
+                'uid': uid,
+                'nickname': nickname,
+                'level': profile.codm_level or '—',
+                'message': 'اکانت بازی متصل شد.',
+            }
+        )
+    from apps.lab.services.codm_lookup import get_codm_player_info
+
+    try:
+        result = get_codm_player_info(uid)
+    except Exception:
+        result = {
+            'success': False,
+            'source': 'fallback',
+            'message': 'استعلام خودکار در دسترس نیست. لطفاً نام را دستی وارد کنید.',
+        }
+    if not isinstance(result, dict) or not result.get('success'):
+        message = 'استعلام خودکار در دسترس نیست. لطفاً نام را دستی وارد کنید.'
+        if isinstance(result, dict):
+            message = result.get('message') or message
+        return JsonResponse(
+            {
+                'success': False,
+                'source': 'fallback',
+                'message': message,
+            }
+        )
+    level = result.get('level')
+    try:
+        stored_level = int(level)
+    except (TypeError, ValueError):
+        stored_level = None
+    profile.codm_uid = uid
+    profile.codm_nickname = str(result.get('nickname') or '')[:32]
+    profile.codm_level = stored_level
+    profile.save(update_fields=['codm_uid', 'codm_nickname', 'codm_level'])
+    return JsonResponse(
+        {
+            'success': True,
+            'uid': uid,
+            'nickname': profile.codm_nickname,
+            'level': stored_level if stored_level is not None else '—',
+            'message': 'اکانت بازی متصل شد.',
+        }
+    )
 
 
 def _legal_page(request, kind):

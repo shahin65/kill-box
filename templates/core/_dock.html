@@ -2,26 +2,80 @@
 {% url 'core:home' as home_url %}
 {% url 'core:shop' as shop_url %}
 {% url 'core:team' as team_url %}
+{% url 'core:live' as live_url %}
+{% url 'social:explore' as explore_url %}
 <nav class="kb-dock" aria-label="ناوبری پایین">
+  <svg class="kb-dock__sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <symbol id="dock-shop" viewBox="0 0 24 24">
+      <path d="M7.2 8.2V7a4.8 4.8 0 0 1 9.6 0v1.2"/>
+      <path d="M6.2 8.2h11.6l-.85 11.1a1.7 1.7 0 0 1-1.7 1.55H8.75a1.7 1.7 0 0 1-1.7-1.55Z"/>
+    </symbol>
+    <symbol id="dock-live" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="2.05"/>
+      <path d="M8.05 8.2a5.6 5.6 0 0 0 0 7.6"/>
+      <path d="M15.95 8.2a5.6 5.6 0 0 1 0 7.6"/>
+      <path d="M5.4 5.7a9.2 9.2 0 0 0 0 12.6"/>
+      <path d="M18.6 5.7a9.2 9.2 0 0 1 0 12.6"/>
+    </symbol>
+    <symbol id="dock-play" viewBox="0 0 24 24">
+      <rect x="4.2" y="11.2" width="15.6" height="8.4" rx="4.2"/>
+      <path d="M12 11.2V7.1"/>
+      <circle cx="12" cy="5.6" r="1.85"/>
+      <circle cx="8.35" cy="15.35" r="1.45"/>
+      <circle cx="15.4" cy="14.35" r=".85"/>
+      <circle cx="17.15" cy="16.15" r=".85"/>
+    </symbol>
+    <symbol id="dock-explore" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.2"/>
+      <path d="m14.85 9.15-1.55 5.15-5.15 1.55 1.55-5.15Z"/>
+    </symbol>
+    <symbol id="dock-alliance" viewBox="0 0 24 24">
+      <circle cx="9" cy="8.1" r="2.15"/>
+      <circle cx="15.2" cy="8.1" r="2.15"/>
+      <path d="M5.4 16.7c.35-2.55 2.15-4 3.7-4 1.2 0 2.15.7 3.05 1.7"/>
+      <path d="M18.7 16.7c-.35-2.55-2.15-4-3.7-4-1.15 0-2.1.65-3 .6"/>
+    </symbol>
+  </svg>
+
   <a
     class="kb-dock__item{% if request.path == shop_url %} is-active{% endif %}"
     href="{{ shop_url }}"
     data-kb-nav
   >
     <span class="kb-dock__icon">
-      <img src="{% static 'images/icons/Shop.png' %}" alt="" width="512" height="512">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#dock-shop"></use></svg>
     </span>
     <span class="kb-dock__label">فروشگاه</span>
   </a>
   <a
-    class="kb-dock__item kb-dock__item--home{% if request.path == home_url %} is-active{% endif %}"
+    class="kb-dock__item{% if request.path == live_url or '/live/' in request.path %} is-active{% endif %}"
+    href="{{ live_url }}"
+    data-kb-nav
+  >
+    <span class="kb-dock__icon">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#dock-live"></use></svg>
+    </span>
+    <span class="kb-dock__label">لایو</span>
+  </a>
+  <a
+    class="kb-dock__item kb-dock__item--play{% if request.path == home_url %} is-active{% endif %}"
     href="{{ home_url }}"
     data-kb-nav
   >
     <span class="kb-dock__icon">
-      <img src="{% static 'images/icons/Home1.png' %}" alt="" width="512" height="512">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#dock-play"></use></svg>
     </span>
-    <span class="kb-dock__label">خانه</span>
+    <span class="kb-dock__label">تورنومنت</span>
+  </a>
+  <a
+    class="kb-dock__item{% if request.path == explore_url %} is-active{% endif %}"
+    href="{{ explore_url }}"
+    data-kb-nav
+  >
+    <span class="kb-dock__icon">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#dock-explore"></use></svg>
+    </span>
+    <span class="kb-dock__label">اکسپلور</span>
   </a>
   <a
     class="kb-dock__item{% if request.path == team_url %} is-active{% endif %}"
@@ -29,8 +83,8 @@
     data-kb-nav
   >
     <span class="kb-dock__icon">
-      <img src="{% static 'images/icons/Clan.png' %}" alt="" width="512" height="512">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#dock-alliance"></use></svg>
     </span>
-    <span class="kb-dock__label">تیم من</span>
+    <span class="kb-dock__label">اتحاد</span>
   </a>
 </nav>

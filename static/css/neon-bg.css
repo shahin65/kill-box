@@ -1,0 +1,101 @@
+:root {
+  --neon-color-1: #00f3ff;
+  --neon-color-2: #8a2be2;
+  --neon-color-3: #ff007f;
+  --neon-void: #05060c;
+}
+
+html {
+  background: var(--neon-void);
+}
+
+body {
+  background: transparent;
+}
+
+#kb-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.neon-bg-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: paint;
+}
+
+.neon-blob {
+  position: absolute;
+  width: min(46vw, 28rem);
+  height: min(46vw, 28rem);
+  border-radius: 50%;
+  filter: blur(70px);
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.neon-blob--1 {
+  top: -18%;
+  left: -12%;
+  background: radial-gradient(circle at 50% 50%, var(--neon-color-1) 0%, transparent 68%);
+  animation: neon-drift-1 22s ease-in-out infinite alternate;
+}
+
+.neon-blob--2 {
+  right: -14%;
+  top: 18%;
+  width: min(52vw, 32rem);
+  height: min(52vw, 32rem);
+  background: radial-gradient(circle at 50% 50%, var(--neon-color-2) 0%, transparent 70%);
+  animation: neon-drift-2 19s ease-in-out infinite alternate;
+}
+
+.neon-blob--3 {
+  left: 12%;
+  bottom: -22%;
+  width: min(48vw, 30rem);
+  height: min(48vw, 30rem);
+  background: radial-gradient(circle at 50% 50%, var(--neon-color-3) 0%, transparent 68%);
+  animation: neon-drift-3 24s ease-in-out infinite alternate;
+}
+
+@keyframes neon-drift-1 {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(18vw, 14vh, 0) scale(1.18);
+  }
+}
+
+@keyframes neon-drift-2 {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  to {
+    transform: translate3d(-16vw, 12vh, 0) scale(0.92);
+  }
+}
+
+@keyframes neon-drift-3 {
+  from {
+    transform: translate3d(0, 0, 0) scale(0.96);
+  }
+  to {
+    transform: translate3d(14vw, -16vh, 0) scale(1.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon-blob {
+    animation: none;
+    will-change: auto;
+  }
+}

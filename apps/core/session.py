@@ -74,6 +74,9 @@ def hud_context(request) -> dict:
     public_id = ''
     bio = ''
     score = 0
+    codm_uid = ''
+    codm_nickname = ''
+    codm_level = None
     if member:
         from apps.core.identity import profile_display_name, touch_presence
 
@@ -88,6 +91,9 @@ def hud_context(request) -> dict:
         xp['total'] = int(profile.xp or 0)
         gems = int(profile.gems or 0)
         wallet = int(profile.wallet or 0)
+        codm_uid = profile.codm_uid or ''
+        codm_nickname = profile.codm_nickname or ''
+        codm_level = profile.codm_level
         from apps.social.services import follow_counts
 
         counts = follow_counts(request.user)
@@ -121,6 +127,9 @@ def hud_context(request) -> dict:
         'public_id': public_id,
         'bio': bio,
         'score': score,
+        'codm_uid': codm_uid,
+        'codm_nickname': codm_nickname,
+        'codm_level': codm_level,
         'notices': notices,
     }
 

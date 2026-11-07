@@ -1,19 +1,9 @@
 document.addEventListener('DOMContentLoaded', function () {
-  try {
-    mountLandingScene();
-  } catch (err) {
-    /* intro must still run if particles fail */
-  }
   runLandingIntro();
   bindPage();
 });
 
 function bindPage() {
-  try {
-    mountLandingScene();
-  } catch (err) {
-    /* keep page bindings even if particles fail */
-  }
   bindLandingAuth();
   bindMessengerAuth('auth-bale-btn', 'بله');
   bindMessengerAuth('auth-telegram-btn', 'تلگرام');
@@ -21,9 +11,7 @@ function bindPage() {
   bindSiteMenu();
   bindAvatarUpload();
   bindProfileTools();
-  bindArtStyle();
   bindHomeToasts();
-  bindTopbarCycle();
   if (typeof window.__kbBindSocial === 'function') {
     window.__kbBindSocial();
   }
@@ -101,37 +89,6 @@ function bindSiteMenu() {
     },
     true
   );
-}
-
-function mountLandingScene() {
-  if (window.KillBoxParticles && window.KillBoxParticles.last && window.KillBoxParticles.last.running) {
-    return;
-  }
-  if (!window.KillBoxParticles) {
-    return;
-  }
-  if (window.KillBoxParticles.mountScene) {
-    var scene = document.querySelector('.landing-bg');
-    window.KillBoxParticles.mountScene({
-      fogBack: document.getElementById('fog-back'),
-      fogFront: document.getElementById('fog-front'),
-      smokeBack: document.getElementById('smoke-back'),
-      smokeFront: document.getElementById('smoke-front'),
-      ashBack: document.getElementById('ash-back'),
-      ashFront: document.getElementById('ash-front') || document.getElementById('ash-field'),
-      sceneUrl: scene ? scene.getAttribute('data-scene') : '',
-    });
-    return;
-  }
-  var back = document.getElementById('fog-back');
-  var front = document.getElementById('fog-front');
-  if (back && front && window.KillBoxParticles.mountParallax) {
-    window.KillBoxParticles.mountParallax(back, front);
-    return;
-  }
-  if (back) {
-    window.KillBoxParticles.mount(back);
-  }
 }
 
 function runLandingIntro() {
@@ -348,6 +305,12 @@ function bindMessengerAuth(buttonId, label) {
   var poll = 0;
 
   btn.addEventListener('click', function () {
+    var popup = null;
+    try {
+      popup = window.open('about:blank', 'killbox-' + buttonId);
+    } catch (err) {
+      popup = null;
+    }
     btn.disabled = true;
     showStatus('در حال اتصال به ' + label + '…', false);
     fetch(btn.getAttribute('data-start'), {
@@ -365,19 +328,47 @@ function bindMessengerAuth(buttonId, label) {
       })
       .then(function (data) {
         if (!data || !data.success || !data.url) {
+          closePopup(popup);
           btn.disabled = false;
           showStatus((data && data.message) || ('اتصال به ' + label + ' ناموفق بود.'), true);
           return;
         }
-        window.open(data.url, '_blank', 'noopener');
-        showStatus(data.message || ('در ' + label + ' استارت را بزن و شماره را به اشتراک بگذار.'), false);
+        openMessenger(data.url, popup);
+        showStatus(
+          data.message || ('در ' + label + ' استارت را بزن و شماره را به اشتراک بگذار.'),
+          false,
+          data.url
+        );
         startPoll(btn.getAttribute('data-status'));
       })
       .catch(function () {
+        closePopup(popup);
         btn.disabled = false;
         showStatus('ارتباط با سرور برقرار نشد.', true);
       });
   });
+
+  function closePopup(popup) {
+    if (popup && !popup.closed) {
+      popup.close();
+    }
+  }
+
+  function openMessenger(url, popup) {
+    if (popup && !popup.closed) {
+      popup.location.replace(url);
+      try {
+        popup.focus();
+      } catch (err) {
+        /* ignore */
+      }
+      return;
+    }
+    var jump = window.open(url, 'killbox-' + buttonId);
+    if (!jump) {
+      showStatus('بازوی ' + label + ' باز نشد. از لینک زیر وارد شو.', true, url);
+    }
+  }
 
   function startPoll(url) {
     window.clearInterval(poll);
@@ -409,13 +400,26 @@ function bindMessengerAuth(buttonId, label) {
     }, 2000);
   }
 
-  function showStatus(message, isError) {
+  function showStatus(message, isError, url) {
     if (!status) {
       return;
     }
     status.hidden = !message;
-    status.textContent = message || '';
     status.classList.toggle('is-error', !!isError);
+    status.textContent = '';
+    if (!message) {
+      return;
+    }
+    status.appendChild(document.createTextNode(message));
+    if (url) {
+      status.appendChild(document.createTextNode(' '));
+      var link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'اگر ' + label + ' باز نشد، اینجا را بزن.';
+      status.appendChild(link);
+    }
   }
 }
 
@@ -487,82 +491,6 @@ function bindRankDialog() {
     },
     true
   );
-}
-
-function bindTopbarCycle() {
-  function nodes() {
-    return {
-      brand: document.querySelector('.is-docked .landing-brand'),
-      xp: document.getElementById('topbar-xp'),
-    };
-  }
-
-  function snap(showingXp) {
-    var pair = nodes();
-    if (!pair.brand || !pair.xp) {
-      return pair;
-    }
-    pair.brand.classList.remove('is-tv-off', 'is-tv-on');
-    pair.xp.classList.remove('is-tv-off', 'is-tv-on');
-    pair.brand.classList.toggle('is-tv-hidden', showingXp);
-    pair.xp.hidden = !showingXp;
-    return pair;
-  }
-
-  function power(node, on) {
-    if (!node) {
-      return;
-    }
-    node.classList.remove('is-tv-off', 'is-tv-on', 'is-tv-hidden');
-    if (on) {
-      if (node.id === 'topbar-xp') {
-        node.hidden = false;
-      }
-      node.classList.add('is-tv-on');
-      window.setTimeout(function () {
-        node.classList.remove('is-tv-on');
-      }, 650);
-      return;
-    }
-    node.classList.add('is-tv-off');
-    window.setTimeout(function () {
-      node.classList.remove('is-tv-off');
-      if (node.id === 'topbar-xp') {
-        node.hidden = true;
-      } else {
-        node.classList.add('is-tv-hidden');
-      }
-    }, 520);
-  }
-
-  snap(!!window.__kbTopbarShowingXp);
-
-  if (window.__kbTopbarCycle) {
-    return;
-  }
-  window.__kbTopbarCycle = true;
-  window.__kbTopbarShowingXp = false;
-
-  window.setInterval(function () {
-    var pair = nodes();
-    if (!pair.brand || !pair.xp) {
-      return;
-    }
-    var showingXp = !!window.__kbTopbarShowingXp;
-    if (showingXp) {
-      power(pair.xp, false);
-      window.setTimeout(function () {
-        pair.brand.classList.remove('is-tv-hidden');
-        power(pair.brand, true);
-      }, 540);
-    } else {
-      power(pair.brand, false);
-      window.setTimeout(function () {
-        power(pair.xp, true);
-      }, 540);
-    }
-    window.__kbTopbarShowingXp = !showingXp;
-  }, 15000);
 }
 
 function bindHomeToasts() {
@@ -879,59 +807,9 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function bindArtStyle() {
-  var buttons = document.querySelectorAll('button[data-art]');
-  if (!buttons.length) {
-    return;
-  }
-  var allowed = { classic: 1, glass: 1, neon: 1, carbon: 1 };
-
-  function storedArt() {
-    try {
-      return window.localStorage.getItem('killbox-art-style') || '';
-    } catch (err) {
-      return '';
-    }
-  }
-
-  function paint(art) {
-    Array.prototype.forEach.call(document.querySelectorAll('button[data-art]'), function (button) {
-      var active = art && button.getAttribute('data-art') === art;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
-  }
-
-  function applyArt(art) {
-    if (!allowed[art]) {
-      return;
-    }
-    document.documentElement.setAttribute('data-art', art);
-    paint(art);
-    try {
-      window.localStorage.setItem('killbox-art-style', art);
-    } catch (err) {
-      /* ignore */
-    }
-  }
-
-  var current = storedArt();
-  paint(allowed[current] ? current : '');
-  if (window.__kbArtBound) {
-    return;
-  }
-  window.__kbArtBound = true;
-  document.addEventListener('click', function (event) {
-    var button = event.target && event.target.closest && event.target.closest('button[data-art]');
-    if (!button) {
-      return;
-    }
-    applyArt(button.getAttribute('data-art'));
-  });
-}
-
 function bindProfileTools() {
   syncBioUi();
+  bindCodmConnect();
   if (window.__kbProfileBound) {
     return;
   }
@@ -1208,6 +1086,115 @@ function bindProfileTools() {
     },
     true
   );
+}
+
+function bindCodmConnect() {
+  var box = document.querySelector('[data-codm-url]');
+  var form = document.getElementById('codm-form');
+  if (!box || !form || form.getAttribute('data-kb-bound')) {
+    return;
+  }
+  form.setAttribute('data-kb-bound', '1');
+  var url = box.getAttribute('data-codm-url');
+  var uidField = document.getElementById('codm-uid');
+  var submit = document.getElementById('codm-submit');
+  var status = document.getElementById('codm-status');
+  var result = document.getElementById('codm-result');
+  var nameOut = document.getElementById('codm-result-name');
+  var levelOut = document.getElementById('codm-result-level');
+  var uidOut = document.getElementById('codm-result-uid');
+  var fallback = document.getElementById('codm-fallback');
+  var nickField = document.getElementById('codm-nickname');
+  var csrfNode = document.querySelector('[name=csrfmiddlewaretoken]');
+
+  function showStatus(message, isError) {
+    if (!status) {
+      return;
+    }
+    status.hidden = !message;
+    status.textContent = message || '';
+    status.classList.toggle('is-error', !!isError);
+  }
+
+  function paintResult(payload) {
+    if (nameOut) {
+      nameOut.textContent = payload.nickname || '—';
+    }
+    if (levelOut) {
+      levelOut.textContent = payload.level || '—';
+    }
+    if (uidOut) {
+      uidOut.textContent = payload.uid || '—';
+    }
+    if (result) {
+      result.hidden = false;
+    }
+    if (fallback) {
+      fallback.hidden = true;
+    }
+  }
+
+  function send(extra) {
+    var uid = (uidField && uidField.value ? uidField.value : '').trim();
+    if (!/^\d+$/.test(uid)) {
+      showStatus('UID باید فقط عدد باشد.', true);
+      return;
+    }
+    if (submit) {
+      submit.disabled = true;
+    }
+    showStatus('در حال اتصال…', false);
+    var body = { uid: uid };
+    if (extra && extra.nickname) {
+      body.nickname = extra.nickname;
+    }
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfNode ? csrfNode.value : '',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      credentials: 'same-origin',
+      body: new URLSearchParams(body),
+    })
+      .then(function (response) {
+        return response.json();
+      })
+      .then(function (payload) {
+        if (payload && payload.success) {
+          paintResult(payload);
+          showStatus(payload.message || 'اکانت بازی متصل شد.', false);
+          return;
+        }
+        if (payload && payload.source === 'fallback' && fallback) {
+          fallback.hidden = false;
+          if (result) {
+            result.hidden = true;
+          }
+        }
+        showStatus((payload && payload.message) || 'اتصال ناموفق بود.', true);
+      })
+      .catch(function () {
+        showStatus('ارتباط با سرور برقرار نشد.', true);
+      })
+      .finally(function () {
+        if (submit) {
+          submit.disabled = false;
+        }
+      });
+  }
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    send();
+  });
+  if (fallback) {
+    fallback.addEventListener('submit', function (event) {
+      event.preventDefault();
+      send({ nickname: nickField ? nickField.value.trim() : '' });
+    });
+  }
 }
 
 function syncBioUi() {

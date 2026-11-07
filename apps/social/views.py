@@ -60,12 +60,32 @@ from apps.social.services import (
 )
 
 
+def _wants_json(request):
+    requested = request.headers.get('X-Requested-With', '')
+    accept = request.headers.get('Accept', '')
+    return requested == 'XMLHttpRequest' or (
+        'application/json' in accept and 'text/html' not in accept
+    )
+
+
 def _gate(request, members_only=True):
-    if members_only and not is_member(request):
-        if is_admitted(request):
+    admitted = is_admitted(request)
+    member = is_member(request)
+    if members_only and not member:
+        if _wants_json(request):
+            if admitted:
+                return _json_error(
+                    'برای لایک و کامنت باید حسابت را ثبت‌نام کنی.',
+                    status=403,
+                    code='auth',
+                )
+            return _json_error('وارد منطقه شوید.', status=403, code='auth')
+        if admitted:
             return redirect('core:profile')
         return redirect('core:landing')
-    if not is_admitted(request):
+    if not admitted:
+        if _wants_json(request):
+            return _json_error('وارد منطقه شوید.', status=403, code='auth')
         return redirect('core:landing')
     return None
 
@@ -214,7 +234,7 @@ def posts(request):
 
 
 def post_detail(request, pk):
-    bounced = _gate(request)
+    bounced = _gate(request, members_only=False)
     if bounced:
         return bounced
     post = get_object_or_404(Post, pk=pk)
@@ -234,7 +254,10 @@ def post_detail(request, pk):
                 'url': post.media.url if post.media else '',
                 'caption': post.caption,
                 'likes': post.likes.count(),
-                'liked': post.likes.filter(user=request.user).exists(),
+                'liked': bool(
+                    request.user.is_authenticated
+                    and post.likes.filter(user=request.user).exists()
+                ),
                 'comments': comments,
                 'share_url': request.build_absolute_uri(request.path),
             }

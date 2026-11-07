@@ -26,19 +26,53 @@ function csrfToken() {
 
 function postForm(url, data) {
   var body = data instanceof FormData ? data : new URLSearchParams(data || {});
+  var headers = {
+    'X-CSRFToken': csrfToken(),
+    'X-Requested-With': 'XMLHttpRequest',
+    Accept: 'application/json',
+  };
+  if (!(data instanceof FormData)) {
+    headers['Content-Type'] = 'application/x-www-form-urlencoded';
+  }
   return fetch(url, {
     method: 'POST',
-    headers: data instanceof FormData ? { 'X-CSRFToken': csrfToken() } : {
-      'X-CSRFToken': csrfToken(),
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+    headers: headers,
     body: body,
+    credentials: 'same-origin',
   }).then(function (response) {
+    var type = response.headers.get('content-type') || '';
+    if (type.indexOf('application/json') === -1) {
+      return {
+        success: false,
+        status: response.status,
+        code: 'auth',
+        message: 'برای لایک و کامنت باید حسابت را ثبت‌نام کنی.',
+      };
+    }
     return response.json().then(function (payload) {
       payload.status = response.status;
       return payload;
     });
   });
+}
+
+function flashSocial(message) {
+  if (!message) {
+    return;
+  }
+  var node = document.getElementById('kb-social-flash');
+  if (!node) {
+    node = document.createElement('p');
+    node.id = 'kb-social-flash';
+    node.className = 'kb-social-flash';
+    document.body.appendChild(node);
+  }
+  node.hidden = false;
+  node.textContent = message;
+  window.clearTimeout(node._hide);
+  node._hide = window.setTimeout(function () {
+    node.hidden = true;
+  }, 3200);
 }
 
 function videoDuration(file) {
@@ -415,6 +449,7 @@ function bindStoryViewer() {
       }
       postForm('/social/stories/' + item.id + '/like/').then(function (payload) {
         if (!payload.success) {
+          flashSocial(payload.message || 'لایک انجام نشد.');
           return;
         }
         item.liked = payload.liked;
@@ -480,6 +515,7 @@ function bindStoryViewer() {
     }
     postForm('/social/stories/' + item.id + '/comment/', { text: input.value }).then(function (payload) {
       if (!payload.success) {
+        flashSocial(payload.message || 'کامنت ارسال نشد.');
         return;
       }
       item.comments = payload.comments;
@@ -617,7 +653,10 @@ function bindHomeSwipe() {
     function (event) {
       var view = event.target.closest && event.target.closest('.home-swipe');
       var box = view && swipeBox(view);
-      if (!view || !box || event.target.closest('.home-swipe__nav') || pairLocked(box)) {
+      if (!view || !box || pairLocked(box)) {
+        return;
+      }
+      if (event.target.closest('.home-swipe__nav, .home-swipe__acts, [data-like-post]')) {
         return;
       }
       dragging = true;
@@ -658,11 +697,7 @@ function bindHomeSwipe() {
     }
     var idx = indexOf(box);
     if (Math.abs(deltaX) < 28) {
-      if (!box.querySelector('.event-card')) {
-        go(box, idx + 1);
-      } else {
-        go(box, idx);
-      }
+      go(box, idx);
       return;
     }
     if (deltaX < -36) {
@@ -717,24 +752,44 @@ function bindPostReader() {
     }
     var media = item.url
       ? item.kind === 'video'
-        ? '<video src="' + escapeHtml(item.url) + '" controls playsinline></video>'
-        : '<img src="' + escapeHtml(item.url) + '" alt="" draggable="false">'
+        ? '<video class="post-reader__media" src="' + escapeHtml(item.url) + '" controls playsinline></video>'
+        : '<img class="post-reader__media" src="' + escapeHtml(item.url) + '" alt="" draggable="false">'
       : '';
     var caption = item.caption ? '<p>' + escapeHtml(item.caption) + '</p>' : '';
+    var comments = (item.comment_list || [])
+      .map(function (row) {
+        return '<li><strong>' + escapeHtml(row.name) + '</strong> ' + escapeHtml(row.text) + '</li>';
+      })
+      .join('');
     stage.innerHTML =
       '<article class="post-reader__card">' +
-      '<div class="post-reader__user"><img src="' +
-      escapeHtml(item.avatar) +
-      '" alt=""><span>' +
+      '<div class="post-reader__user"><img class="post-reader__avatar" src="' +
+      escapeHtml(item.avatar || '') +
+      '" alt="" width="64" height="64"><span>' +
       escapeHtml(item.name) +
       '</span></div>' +
       media +
       caption +
-      '<button class="story-act" type="button" data-like-post="' +
+      '<div class="post-reader__bar">' +
+      '<button class="story-act' +
+      (item.liked ? ' is-on' : '') +
+      '" type="button" data-like-post="' +
       item.id +
       '"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.4 10.4 19C5.4 14.4 2 11.3 2 7.6A4.4 4.4 0 0 1 6.4 3.2 4.8 4.8 0 0 1 12 5.6a4.8 4.8 0 0 1 5.6-2.4A4.4 4.4 0 0 1 22 7.6c0 3.7-3.4 6.8-8.4 11.4z"/></svg><span>' +
       item.likes +
-      '</span></button></article>';
+      '</span></button>' +
+      (item.detail_url
+        ? '<a class="story-act" href="' +
+          escapeHtml(item.detail_url) +
+          '" data-kb-nav>صفحه پست</a>'
+        : '') +
+      '</div>' +
+      '<ul class="comment-list post-reader__comments">' +
+      (comments || '<li>کامنتی نیست.</li>') +
+      '</ul>' +
+      '<form class="post-reader__comment" data-comment-post="' +
+      item.id +
+      '"><input type="text" maxlength="280" placeholder="کامنت…"><button class="story-act" type="submit">ارسال</button></form></article>';
   }
 
   function go(next) {
@@ -753,9 +808,13 @@ function bindPostReader() {
     if (!node || typeof node.closest !== 'function') {
       return;
     }
+    if (node.closest('[data-like-post], [data-comment-post], .home-swipe__nav, .home-swipe__dot')) {
+      return;
+    }
     var openBtn = node.closest('[data-post-open]');
     if (openBtn) {
       event.preventDefault();
+      event.stopPropagation();
       posts = loadPosts();
       index = Number(openBtn.getAttribute('data-post-open') || 0);
       var dialog = box();
@@ -790,11 +849,33 @@ function bindPostReader() {
       dialogOpen &&
       dialogOpen.open &&
       node.closest('#post-reader-stage') &&
-      !node.closest('[data-like-post]')
+      !node.closest('[data-like-post], [data-comment-post], .post-reader__bar, .comment-list, a')
     ) {
       go(index + 1);
     }
   });
+  window.__kbPaintPostReader = paint;
+  window.__kbUpdatePostComments = function (postId, comments) {
+    posts.forEach(function (row) {
+      if (String(row.id) === String(postId)) {
+        row.comment_list = comments;
+        row.comments = comments.length;
+      }
+    });
+    paint();
+  };
+  window.__kbUpdatePostLike = function (postId, payload) {
+    posts.forEach(function (row) {
+      if (String(row.id) === String(postId)) {
+        row.liked = payload.liked;
+        row.likes = payload.likes;
+      }
+    });
+    var reader = box();
+    if (reader && reader.open) {
+      paint();
+    }
+  };
   document.addEventListener(
     'pointerdown',
     function (event) {
@@ -803,6 +884,9 @@ function bindPostReader() {
         return;
       }
       if (!event.target.closest || !event.target.closest('#post-reader-stage')) {
+        return;
+      }
+      if (event.target.closest('[data-like-post], [data-comment-post], .post-reader__bar, .comment-list, a')) {
         return;
       }
       dragging = true;
@@ -895,32 +979,40 @@ function bindPostComposer() {
 }
 
 function bindSocialActions() {
-  document.querySelectorAll('[data-comment-post]').forEach(function (form) {
-    if (form.getAttribute('data-kb-bound')) {
-      return;
-    }
-    form.setAttribute('data-kb-bound', '1');
-    form.addEventListener('submit', function (event) {
-      event.preventDefault();
-      var input = form.querySelector('input');
-      postForm('/social/posts/' + form.getAttribute('data-comment-post') + '/comment/', {
-        text: input.value,
-      }).then(function (payload) {
-        if (!payload.success) {
-          return;
-        }
-        if (window.__kbSoftReload) {
-          window.__kbSoftReload();
-        } else {
-          window.location.reload();
-        }
-      });
-    });
-  });
   if (window.__kbSocialActionsBound) {
     return;
   }
   window.__kbSocialActionsBound = true;
+  document.addEventListener('submit', function (event) {
+    var form = event.target && event.target.closest ? event.target.closest('[data-comment-post]') : null;
+    if (!form) {
+      return;
+    }
+    event.preventDefault();
+    var input = form.querySelector('input');
+    var postId = form.getAttribute('data-comment-post');
+    postForm('/social/posts/' + postId + '/comment/', {
+      text: input ? input.value : '',
+    }).then(function (payload) {
+      if (!payload.success) {
+        flashSocial(payload.message || 'کامنت ارسال نشد.');
+        return;
+      }
+      if (input) {
+        input.value = '';
+      }
+      var reader = document.getElementById('post-reader');
+      if (reader && reader.open && window.__kbPaintPostReader) {
+        window.__kbUpdatePostComments(postId, payload.comments || []);
+        return;
+      }
+      if (window.__kbSoftReload) {
+        window.__kbSoftReload();
+      } else {
+        window.location.reload();
+      }
+    });
+  });
   document.addEventListener('click', function (event) {
     var node = event.target;
     if (!node || typeof node.closest !== 'function') {
@@ -928,8 +1020,11 @@ function bindSocialActions() {
     }
     var like = node.closest('[data-like-post]');
     if (like) {
+      event.preventDefault();
+      event.stopPropagation();
       postForm('/social/posts/' + like.getAttribute('data-like-post') + '/like/').then(function (payload) {
         if (!payload.success) {
+          flashSocial(payload.message || 'لایک انجام نشد.');
           return;
         }
         var count = like.querySelector('span');
@@ -939,7 +1034,11 @@ function bindSocialActions() {
           like.textContent = 'لایک ' + payload.likes;
         }
         like.classList.toggle('is-on', !!payload.liked);
+        if (window.__kbUpdatePostLike) {
+          window.__kbUpdatePostLike(like.getAttribute('data-like-post'), payload);
+        }
       });
+      return;
     }
     var follow = event.target.closest('[data-follow]');
     if (follow) {

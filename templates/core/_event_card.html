@@ -7,14 +7,16 @@
   <div class="event-card__stage">
     <div class="event-card__art">
       <img class="event-card__frame" src="{% static card.frame_src %}?v=1" alt="" width="960" height="519" draggable="false">
-      <p class="event-card__status" dir="ltr">
-        <span class="event-card__live-dot" aria-hidden="true"></span>
-        <span data-event-status>{{ card.status }}</span>
-      </p>
-      <p class="event-card__timer">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm1 5h-2v6l4.5 2.7 1-1.7-3.5-2V7z"/></svg>
-        <span data-event-timer dir="ltr">۰۰:۰۰:۰۰</span>
-      </p>
+      <div class="event-card__meta">
+        <p class="event-card__status">
+          <span class="event-card__live-dot" aria-hidden="true"></span>
+          <span data-event-status>{{ card.status }}</span>
+        </p>
+        <p class="event-card__timer">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm1 5h-2v6l4.5 2.7 1-1.7-3.5-2V7z"/></svg>
+          <span data-event-timer dir="ltr">۰۰:۰۰:۰۰</span>
+        </p>
+      </div>
       <div class="event-card__hud">
         <p class="event-glass event-glass--name">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 0 1 6.36 15.36l-1.41-1.41A7 7 0 1 0 7.05 16.95l-1.41 1.41A9 9 0 0 1 12 3zm0 4a5 5 0 0 1 3.54 8.54l-1.42-1.42A3 3 0 1 0 9.88 14.12L8.46 15.54A5 5 0 0 1 12 7z"/></svg>

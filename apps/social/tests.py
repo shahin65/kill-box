@@ -37,6 +37,31 @@ class SocialFeatureTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('core:profile'))
 
+    def test_guest_can_open_explore_and_read_post(self):
+        self.client.force_login(self.alpha)
+        created = self.client.post(
+            reverse('social:post_create'),
+            {'media': _png(), 'caption': 'پست میدان'},
+        )
+        post_id = created.json()['id']
+        self.client.logout()
+        self.client.post(reverse('core:guest_enter'))
+        explore = self.client.get(reverse('social:explore'))
+        self.assertEqual(explore.status_code, 200)
+        self.assertContains(explore, 'اکسپلور')
+        self.assertContains(explore, 'data-post-open')
+        self.assertContains(explore, 'استوری')
+        detail = self.client.get(reverse('social:post_detail', args=[post_id]))
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, 'پست میدان')
+        liked = self.client.post(
+            reverse('social:post_like', args=[post_id]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(liked.status_code, 403)
+        self.assertFalse(liked.json()['success'])
+        self.assertEqual(liked.json()['code'], 'auth')
+
     def test_settings_lists_google_languages(self):
         self.client.force_login(self.alpha)
         page = self.client.get(reverse('core:settings'))
@@ -203,6 +228,14 @@ class SocialFeatureTests(TestCase):
         self.assertContains(home, 'data-post-next')
         self.assertContains(home, 'data-post-prev')
         self.assertContains(home, 'data-post-pos')
+        self.assertContains(home, 'data-post-open')
+        self.assertContains(home, 'data-like-post')
+        self.assertContains(home, 'id="post-reader"')
+        self.assertContains(home, 'post-reader__close')
+        self.assertContains(home, 'پست قبلی')
+        self.assertContains(home, 'پست بعدی')
+        self.assertContains(home, 'post-reader__nav-btn')
+        self.assertNotContains(home, 'برای پست بعدی بکش')
         self.assertContains(home, 'is-unseen')
         self.assertContains(home, 'story-viewer__icon')
         self.assertGreaterEqual(home.content.decode().count('home-swipe__slide'), 1)

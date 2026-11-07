@@ -1,0 +1,291 @@
+/* Dev-Lab only: reusable frosted glass card with GPU orbital lights. */
+
+.kb-glass-card {
+  --glass-fill: rgba(10, 15, 12, 0.75);
+  --glass-fill-fallback: rgba(8, 12, 10, 0.94);
+  --glass-blur: 12px;
+  --glass-neon: #39ff14;
+  --glass-neon-soft: rgba(57, 255, 20, 0.55);
+  --glass-border: rgba(57, 255, 20, 0.32);
+  --glass-glow: rgba(57, 255, 20, 0.16);
+  --glass-text: #e7f6e8;
+  --glass-muted: rgba(197, 212, 198, 0.78);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 1.15rem 1.2rem 1.2rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.85rem;
+  background: var(--glass-fill-fallback);
+  color: var(--glass-text);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+  transform: translateZ(0);
+}
+
+@supports ((-webkit-backdrop-filter: blur(12px)) or (backdrop-filter: blur(12px))) {
+  .kb-glass-card {
+    background: var(--glass-fill);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+  }
+}
+
+.kb-glass-card__fx {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: paint;
+}
+
+.kb-glass-card__body {
+  position: relative;
+  z-index: 1;
+}
+
+.kb-glass-card__core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: var(--glass-neon);
+  opacity: 0.28;
+  transform: translate3d(0, 0, 0) scale(1);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  animation: kb-glass-core 3.4s ease-in-out infinite alternate;
+}
+
+.kb-glass-card__ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+
+.kb-glass-card__ring--a {
+  width: 86%;
+  height: 86%;
+  margin: -43% 0 0 -43%;
+  animation: kb-glass-orbit-a 16s linear infinite;
+}
+
+.kb-glass-card__ring--b {
+  width: 64%;
+  height: 64%;
+  margin: -32% 0 0 -32%;
+  animation: kb-glass-orbit-b 22s linear infinite;
+}
+
+.kb-glass-card__dot {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--glass-neon);
+  box-shadow: 0 0 8px var(--glass-neon-soft);
+  transform: translateZ(0);
+  pointer-events: none;
+}
+
+.kb-glass-card__dot::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 5px;
+  width: 18px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--glass-neon-soft), transparent);
+  opacity: 0.7;
+  transform: translateZ(0);
+  pointer-events: none;
+}
+
+.kb-glass-card__trail {
+  position: absolute;
+  height: 2px;
+  pointer-events: none;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  background: linear-gradient(90deg, transparent, var(--glass-neon-soft), transparent);
+}
+
+.kb-glass-card__trail--top {
+  top: 10px;
+  left: 0;
+  width: 28%;
+  animation: kb-glass-trail-x 7.5s linear infinite;
+}
+
+.kb-glass-card__trail--bottom {
+  bottom: 10px;
+  left: 0;
+  width: 24%;
+  animation: kb-glass-trail-x-rev 9s linear infinite;
+}
+
+.kb-glass-card__trail--side {
+  top: 0;
+  left: 10px;
+  width: 22%;
+  transform-origin: 0 50%;
+  animation: kb-glass-trail-y 11s linear infinite;
+}
+
+.kb-glass-card__kicker {
+  margin: 0 0 0.35rem;
+  color: var(--glass-neon);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.kb-glass-card__body h2,
+.kb-glass-card__body h1 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.kb-glass-card__body p {
+  margin: 0 0 0.9rem;
+  color: var(--glass-muted);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.kb-glass-card__body label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--glass-muted);
+  font-size: 0.8rem;
+}
+
+.kb-glass-card__body input {
+  width: 100%;
+  margin-bottom: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.55rem;
+  background: rgba(4, 8, 6, 0.35);
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.kb-glass-card__body button {
+  padding: 0.65rem 1.1rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 0.55rem;
+  background: rgba(57, 255, 20, 0.12);
+  color: var(--glass-neon);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@keyframes kb-glass-core {
+  from {
+    transform: translate3d(0, 0, 0) scale(0.86);
+    opacity: 0.18;
+  }
+  to {
+    transform: translate3d(0, 0, 0) scale(1.18);
+    opacity: 0.42;
+  }
+}
+
+@keyframes kb-glass-orbit-a {
+  from {
+    transform: translate3d(0, 0, 0) rotateX(64deg) rotateZ(0deg);
+  }
+  to {
+    transform: translate3d(0, 0, 0) rotateX(64deg) rotateZ(360deg);
+  }
+}
+
+@keyframes kb-glass-orbit-b {
+  from {
+    transform: translate3d(0, 0, 0) rotateX(58deg) rotateZ(360deg);
+  }
+  to {
+    transform: translate3d(0, 0, 0) rotateX(58deg) rotateZ(0deg);
+  }
+}
+
+@keyframes kb-glass-trail-x {
+  0% {
+    transform: translate3d(-40%, 0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.8;
+  }
+  88% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate3d(380%, 0, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes kb-glass-trail-x-rev {
+  0% {
+    transform: translate3d(380%, 0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.7;
+  }
+  88% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate3d(-40%, 0, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes kb-glass-trail-y {
+  0% {
+    transform: translate3d(0, -30%, 0) rotate(90deg);
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.7;
+  }
+  86% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate3d(0, 420%, 0) rotate(90deg);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .kb-glass-card__ring--b,
+  .kb-glass-card__trail--side {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kb-glass-card__core,
+  .kb-glass-card__ring,
+  .kb-glass-card__trail {
+    animation: none;
+    will-change: auto;
+  }
+}

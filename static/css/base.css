@@ -9,11 +9,23 @@
   --kb-mist: #d5d8c8;
   --kb-fog: #8a8f78;
   --kb-font: "Vazirmatn", "Tahoma", "Segoe UI", sans-serif;
-  --kb-scroll-thumb: #b08a3a;
-  --kb-scroll-track: rgba(8, 10, 8, 0.92);
-  --kb-scroll-thumb-image: linear-gradient(180deg, #e4c57a 0%, #b08a3a 48%, #6e5218 100%);
-  --kb-scroll-track-image: linear-gradient(180deg, #1a1610 0%, #0c0d0b 100%);
-  --kb-scroll-border: rgba(196, 165, 116, 0.22);
+  --kb-scroll-thumb: #c8c8d0;
+  --kb-scroll-track: rgba(12, 12, 16, 0.92);
+  --kb-scroll-thumb-image: linear-gradient(180deg, #ececf2 0%, #9a9aa4 48%, #4a4a52 100%);
+  --kb-scroll-track-image: linear-gradient(180deg, #1c1c22 0%, #0c0c10 100%);
+  --kb-scroll-border: rgba(210, 210, 220, 0.28);
+  --kb-scroll-size: 0.48rem;
+  --kb-scroll-radius: 0.4rem;
+  --kb-art-accent: #e4e4ea;
+  --kb-art-panel-bg: rgba(18, 18, 22, 0.48);
+  --kb-art-panel-border: 1px solid rgba(210, 210, 220, 0.22);
+  --kb-art-panel-blur: 12px;
+  --kb-art-radius: 0.9rem;
+  --kb-art-control-bg: rgba(12, 12, 16, 0.42);
+  --kb-art-control-border: 1px solid rgba(180, 180, 190, 0.28);
+  --kb-art-shadow: inset 3px 0 0 rgba(200, 200, 210, 0.45), 0 16px 36px rgba(0, 0, 0, 0.28);
+  --kb-art-btn-radius: 0.65rem;
+  --kb-art-veil: rgba(12, 12, 16, 0.28);
   color-scheme: dark;
 }
 
@@ -34,8 +46,41 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--kb-scroll-thumb) var(--kb-scroll-track);
+}
+
 body {
   min-height: 100dvh;
+  scrollbar-width: thin;
+  scrollbar-color: var(--kb-scroll-thumb) var(--kb-scroll-track);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--kb-scroll-thumb) var(--kb-scroll-track);
+}
+
+*::-webkit-scrollbar {
+  width: var(--kb-scroll-size);
+  height: var(--kb-scroll-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--kb-scroll-track-image);
+  box-shadow: inset 0 0 0 1px var(--kb-scroll-border);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--kb-scroll-thumb-image);
+  border: 1px solid var(--kb-scroll-border);
+  border-radius: var(--kb-scroll-radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  filter: brightness(1.12);
 }
 
 img {

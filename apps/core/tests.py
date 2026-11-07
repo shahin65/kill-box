@@ -131,6 +131,58 @@ class LandingAuthTests(TestCase):
         self.assertFalse(status.json()['success'])
         self.assertTrue(status.json()['pending'])
 
+    @override_settings(BALE_BOT_TOKEN='test-token', BALE_BOT_USERNAME='killbox_bot')
+    @patch('apps.core.bale.api')
+    def test_bale_start_without_ticket_hides_share_keyboard(self, mocked_api):
+        mocked_api.return_value = {'ok': True, 'result': True}
+        from apps.core.bale import NEED_SITE, handle_update
+
+        handle_update(
+            {
+                'message': {
+                    'chat': {'id': 12},
+                    'from': {'id': 12},
+                    'text': '/start',
+                }
+            }
+        )
+        mocked_api.assert_called_with(
+            'sendMessage',
+            {
+                'chat_id': 12,
+                'text': NEED_SITE,
+                'reply_markup': {'remove_keyboard': True},
+            },
+        )
+
+    @override_settings(BALE_BOT_TOKEN='test-token', BALE_BOT_USERNAME='killbox_bot')
+    @patch('apps.core.bale.api')
+    def test_bale_contact_without_ticket_asks_for_site(self, mocked_api):
+        mocked_api.return_value = {'ok': True, 'result': True}
+        from apps.core.bale import NEED_SITE, handle_update
+
+        handle_update(
+            {
+                'message': {
+                    'chat': {'id': 13},
+                    'from': {'id': 13},
+                    'contact': {
+                        'phone_number': '09121234567',
+                        'user_id': 13,
+                        'first_name': 'S',
+                    },
+                }
+            }
+        )
+        mocked_api.assert_called_with(
+            'sendMessage',
+            {
+                'chat_id': 13,
+                'text': NEED_SITE,
+                'reply_markup': {'remove_keyboard': True},
+            },
+        )
+
     @override_settings(
         TELEGRAM_BOT_TOKEN='test-token',
         TELEGRAM_BOT_USERNAME='KillBoxAuthBot',
@@ -267,8 +319,9 @@ class ProfileHudTests(TestCase):
         )
         home = self.client.get(reverse('core:home'))
         self.assertNotContains(home, 'guest-banner')
-        self.assertContains(home, 'rank_level_0_rookie.webp')
-        self.assertContains(home, 'data-rank-open')
+        self.assertNotContains(home, 'class="topbar-rank"')
+        self.assertContains(home, 'topbar-chip--gem')
+        self.assertContains(home, 'topbar-chip--wallet')
         profile = self.client.get(reverse('core:profile'))
         self.assertContains(profile, 'پروفایل کاربری')
         self.assertContains(profile, 'رنک 0: تازه وارد')
@@ -440,15 +493,22 @@ class DockAndLegalTests(TestCase):
 
     def test_home_dock_and_hamburger_are_present(self):
         home = self.client.get(reverse('core:home'))
-        self.assertContains(home, 'images/icons/Home1.png')
-        self.assertContains(home, 'images/icons/Clan.png')
-        self.assertContains(home, 'images/icons/Shop.png')
-        self.assertContains(home, 'تیم من')
+        self.assertContains(home, 'id="dock-play"')
+        self.assertContains(home, 'id="dock-shop"')
+        self.assertContains(home, 'id="dock-alliance"')
+        self.assertContains(home, 'id="dock-explore"')
+        self.assertContains(home, 'id="dock-live"')
+        self.assertContains(home, 'اتحاد')
+        self.assertContains(home, 'اکسپلور')
+        self.assertContains(home, 'لایو')
         self.assertContains(home, 'فروشگاه')
+        self.assertNotContains(home, 'images/icons/Home1.png')
+        self.assertNotContains(home, 'images/icons/Clan.png')
+        self.assertNotContains(home, 'images/icons/Shop.png')
         self.assertContains(home, 'درباره کیل‌باکس')
         self.assertContains(home, 'سیاست حفظ حریم خصوصی')
         self.assertContains(home, 'شرایط استفاده از خدمات')
-        self.assertContains(home, 'kb-dock__item--home is-active')
+        self.assertContains(home, 'kb-dock__item--play is-active')
         self.assertContains(home, 'آخرین پست‌ها')
         self.assertContains(home, 'آخرین استوری‌ها')
         self.assertContains(home, 'home-feed--posts')
@@ -457,8 +517,11 @@ class DockAndLegalTests(TestCase):
         self.assertNotContains(home, 'home-pulse')
         self.assertContains(home, 'پخش زنده')
         self.assertContains(home, '>پخش زنده<')
-        self.assertContains(home, 'id="topbar-xp"')
-        self.assertContains(home, 'images/icons/xp.webp')
+        self.assertNotContains(home, 'id="topbar-xp"')
+        self.assertContains(home, 'topbar-chip--gem')
+        self.assertContains(home, 'topbar-chip--wallet')
+        self.assertContains(home, 'images/icons/gem.webp')
+        self.assertContains(home, 'images/icons/wallet.webp')
         self.assertNotContains(home, 'event-card__char-sheen')
         self.assertContains(home, 'تورنومنت')
         self.assertContains(home, 'نبرد کیل‌باکس')
@@ -532,6 +595,10 @@ class DockAndLegalTests(TestCase):
         self.assertContains(page, 'لیست دوستان')
         self.assertContains(page, 'خروج')
         self.assertContains(page, 'profile-logout')
+        self.assertContains(page, 'اکانت بازیتو متصل کن :')
+        self.assertContains(page, 'images/icons/CODM.png')
+        self.assertContains(page, 'UID اکانت کالاف موبایل')
+        self.assertContains(page, reverse('core:profile_codm'))
 
     def test_logout_clears_session(self):
         User = get_user_model()
@@ -619,6 +686,65 @@ class LiveHubTests(TestCase):
         names = ' '.join(row['text'] for row in feed.json()['messages'])
         self.assertIn('گلادیاتورها آماده‌ان', names)
         self.assertIn('دونیت', names)
+
+    def test_guest_cannot_connect_codm(self):
+        self.client.post(reverse('core:guest_enter'))
+        response = self.client.post(reverse('core:profile_codm'), {'uid': '123456'})
+        self.assertEqual(response.status_code, 403)
+
+    @patch('apps.lab.services.codm_lookup.get_codm_player_info')
+    def test_member_connects_codm_from_lookup(self, mocked_lookup):
+        mocked_lookup.return_value = {
+            'success': True,
+            'nickname': 'Ghost',
+            'level': '55',
+            'uid': '123456',
+        }
+        User = get_user_model()
+        user = User.objects.create_user(username='09120004444')
+        self.client.force_login(user)
+        response = self.client.post(reverse('core:profile_codm'), {'uid': '123456'})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload['success'])
+        self.assertEqual(payload['nickname'], 'Ghost')
+        from apps.core.models import MemberProfile
+
+        profile = MemberProfile.objects.get(user=user)
+        self.assertEqual(profile.codm_uid, '123456')
+        self.assertEqual(profile.codm_nickname, 'Ghost')
+        self.assertEqual(profile.codm_level, 55)
+
+    @patch('apps.lab.services.codm_lookup.get_codm_player_info')
+    def test_member_codm_fallback_saves_nickname(self, mocked_lookup):
+        mocked_lookup.return_value = {
+            'success': False,
+            'source': 'fallback',
+            'message': 'استعلام خودکار در دسترس نیست. لطفاً نام را دستی وارد کنید.',
+        }
+        User = get_user_model()
+        user = User.objects.create_user(username='09120005555')
+        self.client.force_login(user)
+        first = self.client.post(reverse('core:profile_codm'), {'uid': '999'})
+        self.assertFalse(first.json()['success'])
+        self.assertEqual(first.json()['source'], 'fallback')
+        second = self.client.post(
+            reverse('core:profile_codm'),
+            {'uid': '999', 'nickname': 'Sniper'},
+        )
+        self.assertTrue(second.json()['success'])
+        from apps.core.models import MemberProfile
+
+        profile = MemberProfile.objects.get(user=user)
+        self.assertEqual(profile.codm_uid, '999')
+        self.assertEqual(profile.codm_nickname, 'Sniper')
+
+    def test_member_codm_rejects_invalid_uid(self):
+        User = get_user_model()
+        user = User.objects.create_user(username='09120006666')
+        self.client.force_login(user)
+        response = self.client.post(reverse('core:profile_codm'), {'uid': 'abc'})
+        self.assertEqual(response.status_code, 400)
 
     def test_admin_lists_live_rooms(self):
         User = get_user_model()

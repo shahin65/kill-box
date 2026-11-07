@@ -15,10 +15,10 @@
     <span class="landing-logo-frame">
       <img
         class="landing-logo"
-        src="{% static 'images/logo2.png' %}?v=7"
+        src="{% static 'images/logo.webp' %}?v=1"
         alt="KILLBOX"
-        width="1024"
-        height="1024"
+        width="512"
+        height="512"
       >
       <span class="landing-logo-sheen"></span>
     </span>
@@ -148,19 +148,52 @@
       {% endif %}
       <div class="profile-balances">
         <div class="profile-balance">
-          <img src="{% static 'images/icons/gem.webp' %}" alt="" width="512" height="512">
+          <img src="{% static 'images/icons/gem.webp' %}?v=2" alt="" width="128" height="128">
           <span>
             <strong>{{ gems }}</strong>
             <small>جم</small>
           </span>
         </div>
         <div class="profile-balance">
-          <img src="{% static 'images/icons/wallet.webp' %}" alt="" width="512" height="512">
+          <img src="{% static 'images/icons/wallet.webp' %}?v=2" alt="" width="128" height="128">
           <span>
             <strong>{{ wallet }}</strong>
             <small>کیف پول</small>
           </span>
         </div>
+      </div>
+      <div class="profile-codm" data-codm-url="{% url 'core:profile_codm' %}">
+        <p class="profile-codm__title">اکانت بازیتو متصل کن :</p>
+        <form class="profile-codm__row" id="codm-form">
+          <img src="{% static 'images/icons/CODM.png' %}" alt="" width="512" height="512">
+          <input
+            id="codm-uid"
+            name="uid"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="24"
+            autocomplete="off"
+            dir="ltr"
+            placeholder="UID اکانت کالاف موبایل"
+            value="{{ codm_uid }}"
+            required
+          >
+          <button class="profile-codm__btn" type="submit" id="codm-submit">اتصال</button>
+        </form>
+        <p class="profile-codm__status" id="codm-status" hidden></p>
+        <div class="profile-codm__result" id="codm-result"{% if not codm_uid %} hidden{% endif %}>
+          <span>نام: <strong id="codm-result-name">{{ codm_nickname|default:"—" }}</strong></span>
+          <span>لول: <strong id="codm-result-level">{% if codm_level %}{{ codm_level }}{% else %}—{% endif %}</strong></span>
+          <span>UID: <strong id="codm-result-uid" dir="ltr">{{ codm_uid|default:"—" }}</strong></span>
+        </div>
+        <form class="profile-codm__fallback" id="codm-fallback" hidden>
+          <p>استعلام خودکار در دسترس نیست. نام داخل بازی را وارد کن.</p>
+          <div class="profile-codm__row">
+            <input id="codm-nickname" type="text" maxlength="32" placeholder="نام کاربری داخل بازی" required>
+            <button class="profile-codm__btn" type="submit">تأیید نام</button>
+          </div>
+        </form>
       </div>
       <div class="profile-social">
         <p class="profile-social__title">شبکه‌های اجتماعی</p>

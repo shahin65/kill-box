@@ -1,14 +1,10 @@
 {% load static %}
+{% url 'core:profile' as profile_url %}
 <header class="landing-topbar">
   {% include "core/_hud.html" %}
-  <div class="topbar-xp" id="topbar-xp" hidden>
-    <div class="topbar-xp__inner">
-      <img src="{% static 'images/icons/xp.webp' %}" alt="XP" width="64" height="64">
-      <div class="xp-track" style="--xp: {{ xp.percent }}%">
-        <span class="xp-fill"></span>
-        <span class="xp-value">{{ xp.total }} XP</span>
-      </div>
-    </div>
-  </div>
+  <a class="topbar-chip topbar-chip--wallet" href="{{ profile_url }}" data-kb-nav title="کیف پول">
+    <img src="{% static 'images/icons/wallet.webp' %}?v=2" alt="" width="128" height="128">
+    <span>{{ wallet }}</span>
+  </a>
   {% include "core/_hamburger.html" %}
 </header>

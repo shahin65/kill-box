@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block title %}اکسپلور · KILLBOX{% endblock %}
-{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-feed{% if is_guest %} is-guest{% endif %}{% endblock %}
 
 {% block panel %}
 <section class="profile-card social-card explore-card">
@@ -44,18 +44,6 @@
   </div>
   {{ posts|json_script:"post-reader-data" }}
   {% include "social/_story_viewer.html" %}
+  {% include "social/_post_reader.html" %}
 </section>
-<dialog class="post-reader" id="post-reader">
-  <div class="post-reader__stage" id="post-reader-stage"></div>
-  <p class="post-reader__hint">برای پست بعدی به بالا بکش یا صفحه را لمس کن</p>
-  <div class="post-reader__nav">
-    <button class="story-act" type="button" data-post-reader-prev title="پست قبلی">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 7-7 7h14z"/></svg>
-    </button>
-    <button class="post-reader__close" type="button" data-post-close>بستن</button>
-    <button class="story-act" type="button" data-post-reader-next title="پست بعدی">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 17 7-7H5z"/></svg>
-    </button>
-  </div>
-</dialog>
 {% endblock %}

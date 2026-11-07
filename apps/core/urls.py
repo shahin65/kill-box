@@ -6,11 +6,13 @@ app_name = 'core'
 
 urlpatterns = [
     path('', views.landing, name='landing'),
+    path('bg-preview/', views.neon_bg_preview, name='neon_bg_preview'),
     path('home/', views.home, name='home'),
     path('profile/', views.profile, name='profile'),
     path('profile/avatar/', views.avatar_upload, name='avatar_upload'),
     path('profile/name/', views.profile_name, name='profile_name'),
     path('profile/bio/', views.profile_bio, name='profile_bio'),
+    path('profile/codm/', views.profile_codm, name='profile_codm'),
     path('settings/', views.site_settings, name='settings'),
     path('invite/', views.invite, name='invite'),
     path('team/', views.team, name='team'),

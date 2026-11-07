@@ -9,16 +9,15 @@
 {% block body %}
   {% include "core/_topbar.html" %}
   {% include "core/_guest_banner.html" %}
-  {% if is_member %}{% include "core/_rank_dialog.html" %}{% endif %}
   <a class="landing-brand" href="{% url 'core:home' %}" data-kb-nav>
     <span class="landing-logo-glow"></span>
     <span class="landing-logo-frame">
       <img
         class="landing-logo"
-        src="{% static 'images/logo2.png' %}?v=7"
+        src="{% static 'images/logo.webp' %}?v=1"
         alt="KILLBOX"
-        width="1024"
-        height="1024"
+        width="512"
+        height="512"
       >
       <span class="landing-logo-sheen"></span>
     </span>
@@ -100,7 +99,7 @@
         </button>
         <div class="home-swipe__track">
           {% for post in home_posts %}
-          <article class="home-swipe__slide">
+          <article class="home-swipe__slide" data-post-open="{{ forloop.counter0 }}">
             <div class="home-swipe__user">
               <img class="home-swipe__avatar" src="{{ post.avatar }}" alt="" width="64" height="64" draggable="false">
               <strong>{{ post.name }}</strong>
@@ -117,6 +116,16 @@
             {% if post.url and post.caption %}
             <p class="home-swipe__caption">{{ post.caption }}</p>
             {% endif %}
+            <div class="home-swipe__acts">
+              <button class="story-act{% if post.liked %} is-on{% endif %}" type="button" data-like-post="{{ post.id }}" title="لایک">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.4 10.4 19C5.4 14.4 2 11.3 2 7.6A4.4 4.4 0 0 1 6.4 3.2 4.8 4.8 0 0 1 12 5.6a4.8 4.8 0 0 1 5.6-2.4A4.4 4.4 0 0 1 22 7.6c0 3.7-3.4 6.8-8.4 11.4z"/></svg>
+                <span>{{ post.likes }}</span>
+              </button>
+              <button class="story-act" type="button" data-post-open="{{ forloop.counter0 }}" title="کامنت">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h16v12H7l-3 3z"/></svg>
+                <span>{{ post.comments }}</span>
+              </button>
+            </div>
           </article>
           {% endfor %}
         </div>
@@ -132,7 +141,9 @@
       <p class="profile-copy">هنوز پستی نیست.</p>
       {% endif %}
     </section>
+    {{ home_posts|json_script:"post-reader-data" }}
     {% include "social/_story_viewer.html" %}
+    {% include "social/_post_reader.html" %}
   </main>
   {% if xp_toast or rank_toast %}
   <div

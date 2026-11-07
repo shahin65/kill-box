@@ -8,31 +8,18 @@
   {% endif %}
     <img
       class="{% if has_custom_avatar %}is-custom{% endif %}"
-      src="{% if avatar_url %}{{ avatar_url }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}"
+      src="{% if avatar_url %}{{ avatar_url }}{% else %}{% static 'images/icons/profile2.webp' %}?v=2{% endif %}"
       alt="پروفایل"
-      width="512"
-      height="512"
+      width="256"
+      height="256"
     >
   {% if request.path == profile_url %}
   </span>
   {% else %}
   </a>
   {% endif %}
-  {% if is_member and rank %}
-  <button
-    class="topbar-rank"
-    type="button"
-    data-rank-open
-    aria-haspopup="dialog"
-    aria-controls="rank-dialog"
-    title="{{ rank.title }}"
-  >
-    <img
-      src="{% static rank.icon %}"
-      alt="{{ rank.title }}"
-      width="512"
-      height="512"
-    >
-  </button>
-  {% endif %}
+  <a class="topbar-chip topbar-chip--gem" href="{{ profile_url }}" data-kb-nav title="جم">
+    <img src="{% static 'images/icons/gem.webp' %}?v=2" alt="" width="128" height="128">
+    <span>{{ gems }}</span>
+  </a>
 </div>

@@ -30,6 +30,9 @@ class MemberProfile(models.Model):
     )
     last_seen = models.DateTimeField(null=True, blank=True)
     avatar = models.ImageField(upload_to=avatar_upload_to, blank=True)
+    codm_uid = models.CharField(max_length=24, blank=True, default='')
+    codm_nickname = models.CharField(max_length=32, blank=True, default='')
+    codm_level = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         constraints = [
