@@ -10,19 +10,7 @@
   {% include "core/_topbar.html" %}
   {% include "core/_guest_banner.html" %}
   {% if is_member %}{% include "core/_rank_dialog.html" %}{% endif %}
-  <a class="landing-brand" href="{% url 'core:home' %}" data-kb-nav>
-    <span class="landing-logo-glow"></span>
-    <span class="landing-logo-frame">
-      <img
-        class="landing-logo"
-        src="{% static 'images/logo.webp' %}?v=1"
-        alt="KILLBOX"
-        width="512"
-        height="512"
-      >
-      <span class="landing-logo-sheen"></span>
-    </span>
-  </a>
+  {% include "core/_brand.html" %}
 
   <main class="landing-stage profile-stage">
     {% if not is_member %}
@@ -30,7 +18,7 @@
       <p class="auth-kicker">پروفایل</p>
       <h1 class="auth-title">حساب ثبت نشده</h1>
       <p class="profile-copy">سرباز میهمان هستی. برای استفاده از امکانات سایت باید حسابت را ثبت‌نام کنی.</p>
-      <a class="auth-btn" href="{% url 'core:landing' %}?register=1" data-kb-nav>
+      <a class="auth-btn" href="{% url 'core:register' %}" data-kb-nav>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 11c4.4 0 8 2.2 8 4.8V21H4v-2.2C4 16.2 7.6 14 12 14z"/></svg>
         <span>رفتن به ثبت‌نام</span>
       </a>

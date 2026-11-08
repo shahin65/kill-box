@@ -13,6 +13,7 @@ from apps.social.media import (
     classify,
     prepare_image,
     prepare_video,
+    public_media_url,
 )
 from apps.social.models import (
     ActivityNotice,
@@ -82,11 +83,11 @@ def _gate(request, members_only=True):
             return _json_error('وارد منطقه شوید.', status=403, code='auth')
         if admitted:
             return redirect('core:profile')
-        return redirect('core:landing')
+        return redirect('core:register')
     if not admitted:
         if _wants_json(request):
             return _json_error('وارد منطقه شوید.', status=403, code='auth')
-        return redirect('core:landing')
+        return redirect('core:register')
     return None
 
 
@@ -251,7 +252,7 @@ def post_detail(request, pk):
                 'author_id': post.author_id,
                 'name': display_name(post.author),
                 'kind': post.kind,
-                'url': post.media.url if post.media else '',
+                'url': public_media_url(post.media),
                 'caption': post.caption,
                 'likes': post.likes.count(),
                 'liked': bool(

@@ -73,6 +73,7 @@
 .lab-bar__brand img {
   width: 36px;
   height: 36px;
+  object-fit: contain;
   border-radius: calc(var(--lab-radius-control) + 2px);
 }
 

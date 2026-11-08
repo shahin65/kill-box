@@ -1,45 +1,19 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}KILLBOX{% endblock %}
-{% block body_class %}is-landing{% if force_register %} is-docked is-auth is-welcome-gone{% endif %}{% endblock %}
-{% block body_attrs %}data-intro="{% if force_register %}0{% else %}1{% endif %}" data-admitted="{% if admitted %}1{% else %}0{% endif %}" data-home="{% url 'core:home' %}"{% endblock %}
+{% block title %}ورود · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-docked is-auth{% endblock %}
 
 {% block extra_css %}{% endblock %}
 
 {% block body %}
-  <svg class="landing-filters" width="0" height="0" aria-hidden="true" focusable="false">
-    <filter id="kb-welcome-noise" x="-30%" y="-40%" width="160%" height="180%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="4" result="grain"/>
-      <feDisplacementMap in="SourceGraphic" in2="grain" scale="38" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-  </svg>
-
-  <header class="landing-topbar" id="landing-topbar"></header>
-
-  <div class="landing-brand" id="landing-brand">
-    <span class="landing-logo-glow"></span>
-    <span class="landing-logo-frame">
-      <img
-        class="landing-logo"
-        src="{% static 'images/logo.webp' %}?v=1"
-        alt="KILLBOX"
-        width="512"
-        height="512"
-      >
-      <span class="landing-logo-sheen"></span>
-    </span>
-  </div>
-  <p class="landing-welcome" id="landing-welcome">
-    <span class="landing-welcome__text">ما هوای گیمرها رو داریم</span>
-    <span class="landing-welcome__scan" aria-hidden="true"></span>
-  </p>
+  <header class="landing-topbar"></header>
+  {% include "core/_brand.html" %}
 
   <main class="landing-stage" id="landing-stage">
     <section
       class="landing-auth"
       id="auth-panel"
-      {% if not force_register %}hidden{% endif %}
       data-otp-cooldown="{{ sms.cooldown }}"
     >
       {% csrf_token %}

@@ -6,13 +6,7 @@
 {% block body %}
   {% include "core/_topbar.html" %}
   {% include "core/_guest_banner.html" %}
-  <a class="landing-brand" href="{% url 'core:home' %}" data-kb-nav>
-    <span class="landing-logo-glow"></span>
-    <span class="landing-logo-frame">
-      <img class="landing-logo" src="{% static 'images/logo.webp' %}?v=1" alt="KILLBOX" width="512" height="512">
-      <span class="landing-logo-sheen"></span>
-    </span>
-  </a>
+  {% include "core/_brand.html" %}
   <main class="landing-stage profile-stage">
     {% block panel %}{% endblock %}
   </main>

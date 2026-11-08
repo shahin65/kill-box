@@ -5,20 +5,20 @@
 {% block body_class %}is-lab{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/lab.css' %}?v=31">
+  <link rel="stylesheet" href="{% static 'css/lab.css' %}?v=32">
   <link rel="stylesheet" href="{% static 'css/kb-glass-card.css' %}?v=1">
 {% endblock %}
 
 {% block body %}
   <header class="lab-bar lab-chrome">
     <div class="lab-bar__brand">
-      <img src="{% static 'images/logo.webp' %}?v=1" alt="" width="36" height="36">
+      <img src="{% static 'images/logo.webp' %}?v=2" alt="" width="36" height="36">
       <span>DEV-LAB</span>
     </div>
     <p class="lab-bar__meta">
       محیط ایزوله · فقط Staff · {{ user.get_username }}
     </p>
-    <a class="lab-bar__link" href="{% url 'core:landing' %}" data-kb-nav>بازگشت به لندینگ</a>
+    <a class="lab-bar__link" href="{% url 'core:home' %}" data-kb-nav>بازگشت به خانه</a>
   </header>
 
   <main class="lab-wrap lab-chrome">

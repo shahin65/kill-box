@@ -36,6 +36,26 @@ class MediaError(ValueError):
     pass
 
 
+def public_media_url(field) -> str:
+    """Absolute URL for an uploaded file. Arvan returns the bucket CDN host."""
+    if not field:
+        return ''
+    try:
+        if not getattr(field, 'name', ''):
+            return ''
+        url = field.url
+    except ValueError:
+        return ''
+    if str(url).startswith(('http://', 'https://')):
+        return url
+    from django.conf import settings
+
+    domain = str(getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', '') or '').strip()
+    if getattr(settings, 'ARVAN_MEDIA_ENABLED', False) and domain:
+        return f'https://{domain}/{str(field.name).lstrip("/")}'
+    return url
+
+
 def classify(uploaded: UploadedFile) -> str:
     content_type = str(getattr(uploaded, 'content_type', '') or '').lower()
     name = str(getattr(uploaded, 'name', '') or '').lower()

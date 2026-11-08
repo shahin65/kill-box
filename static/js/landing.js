@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function () {
-  runLandingIntro();
   bindPage();
 });
 
@@ -91,55 +90,6 @@ function bindSiteMenu() {
   );
 }
 
-function runLandingIntro() {
-  var root = document.body;
-  if (!root || root.getAttribute('data-intro') !== '1') {
-    return;
-  }
-  var admitted = root.getAttribute('data-admitted') === '1';
-  var homeUrl = root.getAttribute('data-home') || '/home/';
-  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function finish() {
-    if (admitted) {
-      if (window.__kbGo) {
-        window.__kbGo(homeUrl);
-        return;
-      }
-      window.location.replace(homeUrl);
-      return;
-    }
-    revealAuth();
-  }
-
-  function dock() {
-    root.classList.add('is-welcome-gone');
-    root.classList.add('is-docked');
-    window.setTimeout(finish, reduced ? 0 : 980);
-  }
-
-  if (reduced) {
-    dock();
-    return;
-  }
-
-  window.setTimeout(function () {
-    root.classList.add('is-dissolving');
-    window.setTimeout(function () {
-      root.classList.remove('is-dissolving');
-      dock();
-    }, 920);
-  }, 2400);
-}
-
-function revealAuth() {
-  var panel = document.getElementById('auth-panel');
-  document.body.classList.add('is-auth');
-  if (panel) {
-    panel.hidden = false;
-  }
-}
-
 function bindLandingAuth() {
   var panel = document.getElementById('auth-panel');
   var sendForm = document.getElementById('auth-send-form');
@@ -219,9 +169,9 @@ function bindLandingAuth() {
         }
         showAuthStatus(data.message || 'شماره موبایل تایید شد.', false);
         if (window.__kbGo) {
-          window.__kbGo(data.redirect || '/home/');
+          window.__kbGo(data.redirect || '/');
         } else {
-          window.location.assign(data.redirect || '/home/');
+          window.location.assign(data.redirect || '/');
         }
       })
       .catch(function () {

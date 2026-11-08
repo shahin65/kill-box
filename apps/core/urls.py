@@ -1,13 +1,15 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 
 app_name = 'core'
 
 urlpatterns = [
-    path('', views.landing, name='landing'),
+    path('', views.home, name='home'),
+    path('register/', views.register, name='register'),
+    path('home/', RedirectView.as_view(pattern_name='core:home', permanent=True)),
     path('bg-preview/', views.neon_bg_preview, name='neon_bg_preview'),
-    path('home/', views.home, name='home'),
     path('profile/', views.profile, name='profile'),
     path('profile/avatar/', views.avatar_upload, name='avatar_upload'),
     path('profile/name/', views.profile_name, name='profile_name'),

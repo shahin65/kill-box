@@ -1,0 +1,14 @@
+{% load static %}
+<a class="landing-brand" href="{% url 'core:home' %}" data-kb-nav>
+  <span class="landing-logo-glow"></span>
+  <span class="landing-logo-frame">
+    <img
+      class="landing-logo"
+      src="{% static 'images/logo.webp' %}?v=2"
+      alt="KILLBOX"
+      width="384"
+      height="359"
+    >
+    <span class="landing-logo-sheen"></span>
+  </span>
+</a>

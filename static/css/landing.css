@@ -131,24 +131,19 @@ body.is-docked {
 
 .landing-brand {
   position: fixed;
-  top: 50%;
+  top: 2.25rem;
   left: 50%;
   z-index: 101;
   display: grid;
   place-items: center;
+  width: 3.6rem;
+  height: 3.6rem;
+  overflow: visible;
   background: transparent;
   color: inherit;
   text-decoration: none;
   transform: translate(-50%, -50%);
-  transition: top 0.95s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
-}
-
-.is-docked .landing-brand {
-  top: 2.25rem;
-  width: 3.6rem;
-  height: 3.6rem;
-  overflow: visible;
 }
 
 .landing-logo-glow {
@@ -176,11 +171,12 @@ body.is-docked {
   position: relative;
   z-index: 1;
   display: block;
-  width: min(62vw, 260px);
+  width: 3.35rem;
+  height: auto;
+  object-fit: contain;
   background: transparent;
   mix-blend-mode: normal;
   box-shadow: none;
-  transition: width 0.95s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .is-docked .landing-logo {
@@ -1939,28 +1935,6 @@ dialog:not([open]) {
 
 @media (min-width: 768px) {
   .landing-logo {
-    width: min(40vw, 300px);
-  }
-
-  .landing-welcome {
-    top: calc(50% + min(20vw, 9.4rem) + 1.7rem);
-  }
-
-  .is-docked .landing-logo {
-    width: 3.35rem;
-  }
-}
-
-@media (min-width: 1200px) {
-  .landing-logo {
-    width: 300px;
-  }
-
-  .landing-welcome {
-    top: calc(50% + 11.1rem);
-  }
-
-  .is-docked .landing-logo {
     width: 3.35rem;
   }
 }

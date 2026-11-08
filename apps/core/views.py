@@ -52,31 +52,26 @@ def neon_bg_preview(request):
     return render(request, 'core/neon_bg_preview.html')
 
 
-def landing(request):
+def register(request):
     capture_referral(request)
-    force_register = str(request.GET.get('register') or '').lower() in {
-        '1',
-        'true',
-        'yes',
-        'on',
-    }
+    if is_member(request):
+        return redirect('core:home')
     return render(
         request,
-        'core/landing.html',
+        'core/register.html',
         {
             'sms': sms_lab_context(),
             'bale': bale_public_context(),
             'telegram': telegram_bot.telegram_public_context(),
             'signup': signup_public_context(),
-            'admitted': is_admitted(request) and not force_register,
-            'force_register': force_register,
         },
     )
 
 
 def home(request):
+    capture_referral(request)
     if not is_admitted(request):
-        return redirect('core:landing')
+        return redirect('core:register')
     from apps.social.services import latest_posts, serialize_story_groups
 
     context = hud_context(request)
@@ -98,25 +93,25 @@ def home(request):
 
 def profile(request):
     if not is_admitted(request):
-        return redirect('core:landing')
+        return redirect('core:register')
     return render(request, 'core/profile.html', hud_context(request))
 
 
 def site_settings(request):
     if not is_admitted(request):
-        return redirect('core:landing')
+        return redirect('core:register')
     return render(request, 'core/settings.html', hud_context(request))
 
 
 def team(request):
     if not is_admitted(request):
-        return redirect('core:landing')
+        return redirect('core:register')
     return render(request, 'core/team.html', hud_context(request))
 
 
 def shop(request):
     if not is_admitted(request):
-        return redirect('core:landing')
+        return redirect('core:register')
     return render(request, 'core/shop.html', hud_context(request))
 
 
@@ -141,7 +136,7 @@ def _live_messages(slug):
 
 def live_hub(request, slug=None):
     if not is_admitted(request):
-        return redirect('core:landing')
+        return redirect('core:register')
     room = live_room(slug)
     context = hud_context(request)
     context.update(
@@ -223,7 +218,7 @@ def about(request):
 
 def invite(request):
     if not is_admitted(request):
-        return redirect('core:landing')
+        return redirect('core:register')
     if not is_member(request):
         return redirect('core:profile')
     context = hud_context(request)
@@ -235,7 +230,7 @@ def invite(request):
 def logout_view(request):
     django_logout(request)
     request.session.flush()
-    return redirect('core:landing')
+    return redirect('core:register')
 
 
 @require_POST
@@ -341,7 +336,7 @@ def profile_codm(request):
 
 def _legal_page(request, kind):
     if not is_admitted(request):
-        return redirect('core:landing')
+        return redirect('core:register')
     cfg = SiteSettings.load()
     if kind == 'privacy':
         title = 'سیاست حفظ حریم خصوصی'

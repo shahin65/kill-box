@@ -25,7 +25,7 @@ class LandingAuthTests(TestCase):
     def test_home_rejects_anonymous(self):
         response = self.client.get(reverse('core:home'))
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('core:landing'))
+        self.assertEqual(response.url, reverse('core:register'))
 
     @override_settings(
         MELIPAYAMAK_DRY_RUN=False,
@@ -280,20 +280,32 @@ class ProfileHudTests(TestCase):
         self.client.post(reverse('core:guest_enter'))
         profile = self.client.get(reverse('core:profile'))
         self.assertContains(profile, 'رفتن به ثبت‌نام')
-        self.assertContains(profile, '?register=1')
+        self.assertContains(profile, reverse('core:register'))
         self.assertNotContains(profile, 'پروفایل عملیاتی')
 
     def test_guest_can_open_register_from_home(self):
         self.client.post(reverse('core:guest_enter'))
-        page = self.client.get(reverse('core:landing'), {'register': '1'})
+        page = self.client.get(reverse('core:register'))
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, 'id="auth-panel"')
         self.assertNotContains(page, 'data-admitted="1"')
+        self.assertNotContains(page, 'landing-welcome')
+        self.assertContains(page, reverse('core:home'))
+
+    def test_root_is_home_and_old_home_path_redirects(self):
+        self.client.post(reverse('core:guest_enter'))
+        home = self.client.get('/')
+        self.assertEqual(home.status_code, 200)
+        self.assertContains(home, 'آخرین پست‌ها')
+        self.assertEqual(reverse('core:home'), '/')
+        old = self.client.get('/home/')
+        self.assertEqual(old.status_code, 301)
+        self.assertEqual(old.url, '/')
 
     def test_anonymous_profile_redirects(self):
         response = self.client.get(reverse('core:profile'))
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('core:landing'))
+        self.assertEqual(response.url, reverse('core:register'))
 
     @override_settings(
         MELIPAYAMAK_DRY_RUN=False,
@@ -365,8 +377,8 @@ class SignupSettingsTests(TestCase):
         settings_row = SiteSettings.load()
         settings_row.phone_signup = False
         settings_row.save()
-        landing = self.client.get(reverse('core:landing'))
-        self.assertContains(landing, 'ثبت‌نام از طریق تلفن فعلاً توسط فرماندهی غیرفعال شده است.')
+        register = self.client.get(reverse('core:register'))
+        self.assertContains(register, 'ثبت‌نام از طریق تلفن فعلاً توسط فرماندهی غیرفعال شده است.')
         send = self.client.post(
             reverse('core:otp_send'),
             data='{"phone":"09121234567"}',
@@ -514,6 +526,8 @@ class DockAndLegalTests(TestCase):
         self.assertContains(home, 'home-feed--posts')
         self.assertContains(home, 'favicon.ico')
         self.assertContains(home, 'apple-touch-icon.png')
+        self.assertContains(home, 'images/logo.webp')
+        self.assertNotContains(home, 'landing-welcome')
         self.assertNotContains(home, 'home-pulse')
         self.assertContains(home, 'پخش زنده')
         self.assertContains(home, '>پخش زنده<')
@@ -606,7 +620,7 @@ class DockAndLegalTests(TestCase):
         self.client.force_login(user)
         out = self.client.post(reverse('core:logout'))
         self.assertEqual(out.status_code, 302)
-        self.assertEqual(out.url, reverse('core:landing'))
+        self.assertEqual(out.url, reverse('core:register'))
         home = self.client.get(reverse('core:home'))
         self.assertEqual(home.status_code, 302)
 
@@ -649,7 +663,7 @@ class DockAndLegalTests(TestCase):
         self.assertContains(invite, 'data-copy-invite')
         self.assertContains(invite, 'data-share-invite')
         self.assertContains(invite, 'invite-status')
-        self.assertContains(invite, 'register=1')
+        self.assertContains(invite, '/register/?ref=')
 
 
 class LiveHubTests(TestCase):

@@ -259,3 +259,25 @@ class SocialFeatureTests(TestCase):
                 is_read=False,
             ).exists()
         )
+
+
+class ArvanStorageFallbackTests(TestCase):
+    def test_uploads_use_local_storage_in_tests(self):
+        from django.conf import settings
+        from django.core.files.storage import FileSystemStorage, default_storage
+
+        from apps.core.models import MemberProfile
+        from apps.social.media import public_media_url
+        from apps.social.models import Post, Story
+
+        self.assertFalse(settings.ARVAN_MEDIA_ENABLED)
+        self.assertEqual(
+            settings.STORAGES['default']['BACKEND'],
+            'django.core.files.storage.FileSystemStorage',
+        )
+        self.assertIsInstance(default_storage, FileSystemStorage)
+        self.assertIsInstance(Post._meta.get_field('media').storage, FileSystemStorage)
+        self.assertIsInstance(Story._meta.get_field('media').storage, FileSystemStorage)
+        self.assertIsInstance(MemberProfile._meta.get_field('avatar').storage, FileSystemStorage)
+        self.assertEqual(public_media_url(None), '')
+

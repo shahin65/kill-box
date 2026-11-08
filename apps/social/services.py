@@ -9,6 +9,7 @@ from apps.core.identity import (
     normalize_public_id,
     profile_display_name,
 )
+from apps.social.media import public_media_url
 from apps.social.models import (
     ActivityNotice,
     Block,
@@ -229,7 +230,7 @@ def serialize_post(post, request) -> dict:
         'name': display_name(post.author),
         'avatar': member_avatar_url(post.author),
         'kind': post.kind,
-        'url': post.media.url if post.media else '',
+        'url': public_media_url(post.media),
         'caption': post.caption or '',
         'likes': like_count,
         'comments': comment_count,
@@ -283,7 +284,7 @@ def serialize_story_groups(request, *, friend_first=False, story_limit=None, gro
             {
                 'id': row.pk,
                 'kind': row.kind,
-                'url': row.media.url if row.media else '',
+                'url': public_media_url(row.media),
                 'overlay': row.overlay,
                 'seen': row.pk in seen_ids,
                 'likes': row.likes.count(),
@@ -303,7 +304,7 @@ def serialize_story_groups(request, *, friend_first=False, story_limit=None, gro
                 'name': display_name(story.author),
                 'avatar': member_avatar_url(story.author),
                 'count': len(items),
-                'cover': items[0].media.url if items[0].media else '',
+                'cover': public_media_url(items[0].media),
                 'mine': bool(viewer and story.author_id == viewer.pk),
                 'friend': False,
                 'unseen': any(not row['seen'] for row in stories),

@@ -106,7 +106,7 @@ def referral_report(user, request=None) -> dict:
         public_id = profile.public_id or ''
     share_url = ''
     if request and public_id:
-        share_url = request.build_absolute_uri(f'/?ref={public_id}&register=1')
+        share_url = request.build_absolute_uri(f'/register/?ref={public_id}')
     return {
         'count': count,
         'share_url': share_url,

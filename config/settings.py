@@ -2,6 +2,7 @@
 Django settings for the Kill Box project.
 """
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -111,16 +112,64 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Arvan Object Storage (S3-compatible) for every user upload: posts, stories,
+# avatars, legal/banner images. Template CSS/JS/images stay on WhiteNoise.
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'killbox-media')
+AWS_S3_ENDPOINT_URL = os.getenv(
+    'AWS_S3_ENDPOINT_URL',
+    'https://s3.ir-central1.arvanstorage.ir',
+)
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'ir-central1')
+AWS_S3_FILE_OVERWRITE = os.getenv('AWS_S3_FILE_OVERWRITE', 'False').lower() in {
+    '1',
+    'true',
+    'yes',
+    'on',
+}
+AWS_QUERYSTRING_AUTH = os.getenv('AWS_QUERYSTRING_AUTH', 'False').lower() in {
+    '1',
+    'true',
+    'yes',
+    'on',
+}
+AWS_S3_SIGNATURE_VERSION = os.getenv('AWS_S3_SIGNATURE_VERSION', 's3v4')
+AWS_S3_ADDRESSING_STYLE = os.getenv('AWS_S3_ADDRESSING_STYLE', 'path')
+AWS_DEFAULT_ACL = os.getenv('AWS_DEFAULT_ACL', 'public-read')
+AWS_S3_CUSTOM_DOMAIN = os.getenv(
+    'AWS_S3_CUSTOM_DOMAIN',
+    f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.arvanstorage.ir',
+)
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'public, max-age=31536000, immutable',
+}
+
+_running_tests = 'test' in sys.argv or os.getenv('KILLBOX_DISABLE_ARVAN', '').lower() in {
+    '1',
+    'true',
+    'yes',
+    'on',
+}
+ARVAN_MEDIA_ENABLED = bool(
+    AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME
+) and not _running_tests
+
 STORAGES = {
     'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'BACKEND': (
+            'config.custom_storages.ArvanMediaStorage'
+            if ARVAN_MEDIA_ENABLED
+            else 'django.core.files.storage.FileSystemStorage'
+        ),
     },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },
 }
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
 if DEBUG:
     CACHES = {
