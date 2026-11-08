@@ -118,6 +118,184 @@
   font-weight: 800;
 }
 
+.profile-stats {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.75rem 0.8rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.95rem;
+  background: rgba(4, 8, 8, 0.42);
+  text-align: right;
+}
+
+.profile-stats__totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.45rem;
+}
+
+.profile-stats__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  padding: 0.45rem 0.4rem;
+  border-radius: 0.7rem;
+  background: rgba(8, 10, 12, 0.55);
+}
+
+.profile-stats__stat strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f3f5ee;
+}
+
+.profile-stats__stat small {
+  color: var(--kb-mist, #d5d8c8);
+  font-size: 0.68rem;
+}
+
+.profile-stats__stat.is-views strong {
+  color: #8cefff;
+}
+
+.profile-stats__stat.is-likes strong {
+  color: #f0c27a;
+}
+
+.profile-stats__stat.is-comments strong {
+  color: #e9a8ff;
+}
+
+.profile-stats__chart {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  align-items: end;
+  gap: 0.28rem;
+  min-height: 7.2rem;
+  padding: 0.35rem 0.1rem 0;
+}
+
+.profile-stats__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.profile-stats__bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.12rem;
+  width: 100%;
+  height: 6.1rem;
+}
+
+.profile-stats__bar {
+  display: block;
+  width: 0.38rem;
+  min-height: 0.16rem;
+  border-radius: 999px 999px 0.12rem 0.12rem;
+  background: #8cefff;
+}
+
+.profile-stats__bar.is-likes {
+  background: #f0c27a;
+}
+
+.profile-stats__bar.is-comments {
+  background: #e9a8ff;
+}
+
+.profile-stats__col small {
+  color: var(--kb-mist, #d5d8c8);
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.profile-stats__legend {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  color: var(--kb-mist, #d5d8c8);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.profile-stats__legend span::before {
+  content: "";
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-left: 0.28rem;
+  border-radius: 999px;
+  background: #8cefff;
+  vertical-align: -0.08rem;
+}
+
+.profile-stats__legend .is-likes::before {
+  background: #f0c27a;
+}
+
+.profile-stats__legend .is-comments::before {
+  background: #e9a8ff;
+}
+
+.profile-stats__table-wrap {
+  overflow-x: auto;
+}
+
+.profile-stats__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+
+.profile-stats__table th,
+.profile-stats__table td {
+  padding: 0.32rem 0.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.profile-stats__table th {
+  color: var(--kb-mist, #d5d8c8);
+  font-weight: 700;
+}
+
+.profile-stats__table td {
+  color: #f3f5ee;
+  font-weight: 700;
+}
+
+.profile-stats__unseen {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.profile-stats__unseen p,
+.profile-stats__unseen li {
+  margin: 0;
+  color: #d8f5a8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.profile-stats__unseen ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.profile-stats__unseen li {
+  color: var(--kb-mist, #d5d8c8);
+  font-weight: 600;
+}
+
 .profile-extras {
   display: grid;
   grid-template-columns: 1fr 1fr;

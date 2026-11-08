@@ -475,13 +475,14 @@ function bindMessengerAuth() {
       });
   });
 
-  var codeForm = document.getElementById('messenger-code-form');
-  if (codeForm) {
-    codeForm.addEventListener('submit', function (event) {
-      event.preventDefault();
-      submitMessengerCode();
-    });
-  }
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || form.id !== 'messenger-code-form') {
+      return;
+    }
+    event.preventDefault();
+    submitMessengerCode();
+  });
 
   function closeMessengerPopup(popup) {
     if (popup && !popup.closed) {
@@ -657,16 +658,12 @@ function bindMessengerAuth() {
           return;
         }
         window.clearInterval(timerTick);
-        showMessengerStatus(lastStart.btn, data.message || 'ورود تکمیل شد.', false);
+        showMessengerStatus(lastStart.btn, data.message || 'ثبت‌نام شما انجام شد.', false);
         if (form) {
           form.hidden = true;
         }
         if (data.redirect) {
-          if (window.__kbGo) {
-            window.__kbGo(data.redirect);
-          } else {
-            window.location.assign(data.redirect);
-          }
+          window.location.assign(data.redirect);
         }
       })
       .catch(function () {

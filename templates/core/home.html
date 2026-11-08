@@ -37,22 +37,6 @@
         <p class="home-swipe__count"><span data-post-pos>1</span> / {{ home_lives|length }}</p>
       </div>
     </section>
-    <section class="feed-card home-feed home-feed--arena">
-      <div class="feed-head">
-        <h2>آخرین استوری‌ها</h2>
-        <a class="feed-more" href="{% url 'social:explore' %}" data-kb-nav>بیشتر</a>
-      </div>
-      <div class="story-tray">
-        {% for group in story_groups %}
-        <button class="story-ring{% if group.unseen %} is-unseen{% else %} is-seen{% endif %}{% if group.following %} is-following is-friend{% endif %}" type="button" data-story-open="{{ forloop.counter0 }}">
-          <img src="{% if group.avatar %}{{ group.avatar }}{% elif group.cover %}{{ group.cover }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}" alt="">
-          <span>{{ group.name }}</span>
-        </button>
-        {% empty %}
-        <p class="profile-copy">هنوز استوری زنده‌ای نیست.</p>
-        {% endfor %}
-      </div>
-    </section>
     <section class="feed-card home-feed home-feed--arena" data-kb-swipe>
       <div class="feed-head">
         <h2>تورنومنت</h2>
@@ -76,63 +60,6 @@
         <p class="home-swipe__count"><span data-post-pos>1</span> / {{ home_tournaments|length }}</p>
       </div>
     </section>
-    <section class="feed-card home-feed home-feed--arena home-feed--posts" data-post-swipe>
-      <div class="feed-head">
-        <h2>آخرین پست‌ها</h2>
-        <a class="feed-more" href="{% url 'social:explore' %}" data-kb-nav>بیشتر</a>
-      </div>
-      {% if home_posts %}
-      <div class="home-swipe is-pair">
-        <button class="home-swipe__nav is-prev" type="button" data-post-prev title="پست قبلی">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.8 5.2 8 12l6.8 6.8 1.4-1.4L10.8 12l5.4-5.4z"/></svg>
-        </button>
-        <div class="home-swipe__track">
-          {% for post in home_posts %}
-          <article class="home-swipe__slide" data-post-open="{{ forloop.counter0 }}" data-kb-view-post="{{ post.id }}">
-            <div class="home-swipe__user">
-              <img class="home-swipe__avatar" src="{{ post.avatar }}" alt="" width="64" height="64" draggable="false">
-              <strong>{{ post.name }}</strong>
-            </div>
-            {% if post.url %}
-              {% include "social/_media.html" with item=post extra_class="home-swipe__media" ratio="4/5" %}
-            {% elif post.caption %}
-            <p class="home-swipe__text">{{ post.caption }}</p>
-            {% endif %}
-            {% if post.url and post.caption %}
-            <p class="home-swipe__caption">{{ post.caption }}</p>
-            {% endif %}
-            <div class="home-swipe__acts">
-              <button class="story-act{% if post.liked %} is-on{% endif %}" type="button" data-like-post="{{ post.id }}" title="لایک">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.4 10.4 19C5.4 14.4 2 11.3 2 7.6A4.4 4.4 0 0 1 6.4 3.2 4.8 4.8 0 0 1 12 5.6a4.8 4.8 0 0 1 5.6-2.4A4.4 4.4 0 0 1 22 7.6c0 3.7-3.4 6.8-8.4 11.4z"/></svg>
-                <span>{{ post.likes }}</span>
-              </button>
-              <button class="story-act" type="button" data-post-open="{{ forloop.counter0 }}" title="کامنت">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h16v12H7l-3 3z"/></svg>
-                <span>{{ post.comments }}</span>
-              </button>
-              <span class="story-act" title="بازدید" data-kb-views="{{ post.id }}">{{ post.views_label }}</span>
-              <button class="story-act{% if post.saved %} is-on{% endif %}" type="button" data-save-post="{{ post.id }}" title="ذخیره" aria-pressed="{% if post.saved %}true{% else %}false{% endif %}">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h12v18l-6-3.4L6 21z"/></svg>
-              </button>
-            </div>
-          </article>
-          {% endfor %}
-        </div>
-        <button class="home-swipe__nav is-next" type="button" data-post-next title="پست بعدی">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m9.2 5.2-1.4 1.4L13.2 12l-5.4 5.4 1.4 1.4L16 12z"/></svg>
-        </button>
-      </div>
-      <div class="home-swipe__pager">
-        <div class="home-swipe__dots" aria-hidden="true"></div>
-        <p class="home-swipe__count"><span data-post-pos>1</span> / {{ home_posts|length }}</p>
-      </div>
-      {% else %}
-      <p class="profile-copy">هنوز پستی نیست.</p>
-      {% endif %}
-    </section>
-    {{ home_posts|json_script:"post-reader-data" }}
-    {% include "social/_story_viewer.html" %}
-    {% include "social/_post_reader.html" %}
   </main>
   {% if xp_toast or rank_toast %}
   <div

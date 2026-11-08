@@ -40,7 +40,9 @@ class LandingAuthTests(TestCase):
     def test_anonymous_can_open_home(self):
         response = self.client.get(reverse('core:home'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'آخرین پست‌ها')
+        self.assertNotContains(response, 'آخرین پست‌ها')
+        self.assertNotContains(response, 'آخرین استوری‌ها')
+        self.assertContains(response, 'پخش زنده')
         self.assertContains(response, 'به دنیای کیل‌باکس خوش آمدی')
         self.assertContains(response, 'id="auth-prompt"')
         self.assertContains(response, 'ورود / ثبت‌نام')
@@ -125,9 +127,11 @@ class LandingAuthTests(TestCase):
         )
         body = verify.json()
         self.assertTrue(body['success'])
-        self.assertEqual(body['redirect'], reverse('core:home'))
-        home = self.client.get(reverse('core:home'))
-        self.assertEqual(home.status_code, 200)
+        self.assertEqual(body['redirect'], reverse('core:profile'))
+        self.assertIn('ثبت‌نام شما انجام شد', body['message'])
+        profile_page = self.client.get(reverse('core:profile'))
+        self.assertEqual(profile_page.status_code, 200)
+        self.assertContains(profile_page, 'ثبت‌نام شما انجام شد')
         replay = self.client.post(
             reverse('core:logout'),
         )
@@ -279,13 +283,58 @@ class LandingAuthTests(TestCase):
         )
         body = verify.json()
         self.assertTrue(body['success'])
-        self.assertEqual(body['redirect'], reverse('core:home'))
-        home = self.client.get(reverse('core:home'))
-        self.assertEqual(home.status_code, 200)
+        self.assertEqual(body['redirect'], reverse('core:profile'))
+        self.assertIn('ثبت‌نام شما انجام شد', body['message'])
+        profile_page = self.client.get(reverse('core:profile'))
+        self.assertEqual(profile_page.status_code, 200)
+        self.assertContains(profile_page, 'ثبت‌نام شما انجام شد')
+        self.assertContains(profile_page, '0912')
         profile = get_user_model().objects.get(username='09129876543')
         from apps.core.models import MemberProfile
 
         self.assertEqual(MemberProfile.objects.get(user=profile).telegram_chat_id, '77')
+
+    @override_settings(
+        TELEGRAM_BOT_TOKEN='test-token',
+        TELEGRAM_BOT_USERNAME='KillBoxAuthBot',
+    )
+    @patch('apps.core.telegram.api')
+    def test_messenger_form_post_redirects_to_profile(self, mocked_api):
+        mocked_api.return_value = {'ok': True, 'result': True}
+        start = self.client.post(reverse('core:telegram_start'))
+        ticket = self.client.session['telegram_ticket']
+        from apps.core.telegram import handle_update
+
+        handle_update(
+            {
+                'message': {
+                    'chat': {'id': 81},
+                    'from': {'id': 81},
+                    'text': '/start auth_' + ticket,
+                }
+            }
+        )
+        handle_update(
+            {
+                'message': {
+                    'chat': {'id': 81},
+                    'from': {'id': 81},
+                    'contact': {
+                        'phone_number': '09121112233',
+                        'user_id': 81,
+                        'first_name': 'F',
+                    },
+                }
+            }
+        )
+        code = _otp_from_bot(mocked_api)
+        verify = self.client.post(reverse('core:messenger_verify_code'), {'code': code})
+        self.assertEqual(verify.status_code, 302)
+        self.assertEqual(verify.url, reverse('core:profile'))
+        profile_page = self.client.get(verify.url)
+        self.assertContains(profile_page, 'ثبت‌نام شما انجام شد')
+        self.assertContains(profile_page, '0912')
+        self.assertTrue(get_user_model().objects.filter(username='09121112233').exists())
 
     @override_settings(
         TELEGRAM_BOT_TOKEN='test-token',
@@ -613,12 +662,37 @@ class ProfileHudTests(TestCase):
         self.assertContains(page, 'messenger-code-form')
         self.assertContains(page, 'auth/messenger/verify-code/')
         self.assertContains(page, 'autocomplete="one-time-code"')
+        self.assertContains(page, 'topbar-hud')
+        self.assertContains(page, 'class="landing-topbar"')
+        self.assertContains(page, 'method="post"')
+        self.assertContains(page, 'kb-dock')
+        self.assertContains(page, 'ناوبری پایین')
+
+    def test_register_query_code_does_not_log_in(self):
+        page = self.client.get(
+            reverse('core:register'),
+            {'csrfmiddlewaretoken': 'token', 'code': '574782'},
+        )
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'id="auth-panel"')
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertFalse(get_user_model().objects.exists())
+
+    def test_bot_welcome_text_is_phone_signup(self):
+        from apps.core.bale import START_TEXT as bale_text
+        from apps.core.telegram import START_TEXT as telegram_text
+
+        self.assertTrue(telegram_text.startswith('به ربات ثبت تلفن همراه خوش اومدی'))
+        self.assertTrue(bale_text.startswith('به ربات ثبت تلفن همراه خوش اومدی'))
+        self.assertNotIn('منطقه عملیاتی', telegram_text)
+        self.assertNotIn('منطقه عملیاتی', bale_text)
 
     def test_root_is_home_and_old_home_path_redirects(self):
         self.client.post(reverse('core:guest_enter'))
         home = self.client.get('/')
         self.assertEqual(home.status_code, 200)
-        self.assertContains(home, 'آخرین پست‌ها')
+        self.assertContains(home, 'پخش زنده')
+        self.assertNotContains(home, 'آخرین پست‌ها')
         self.assertEqual(reverse('core:home'), '/')
         old = self.client.get('/home/')
         self.assertEqual(old.status_code, 301)
@@ -872,9 +946,9 @@ class DockAndLegalTests(TestCase):
         self.assertContains(home, 'سیاست حفظ حریم خصوصی')
         self.assertContains(home, 'شرایط استفاده از خدمات')
         self.assertContains(home, 'kb-dock__item--play is-active')
-        self.assertContains(home, 'آخرین پست‌ها')
-        self.assertContains(home, 'آخرین استوری‌ها')
-        self.assertContains(home, 'home-feed--posts')
+        self.assertNotContains(home, 'آخرین پست‌ها')
+        self.assertNotContains(home, 'آخرین استوری‌ها')
+        self.assertNotContains(home, 'home-feed--posts')
         self.assertContains(home, 'favicon.ico')
         self.assertContains(home, 'apple-touch-icon.png')
         self.assertContains(home, 'images/logo.webp')

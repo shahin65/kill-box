@@ -28,6 +28,11 @@
     <section class="profile-card" data-avatar-upload="{% url 'core:avatar_upload' %}" data-name-url="{% url 'core:profile_name' %}" data-bio-url="{% url 'core:profile_bio' %}">
       {% csrf_token %}
       <p class="auth-kicker">پروفایل کاربری</p>
+      {% if auth_flash %}
+      <p class="auth-status profile-flash" id="signup-flash">
+        {{ auth_flash.message }}{% if auth_flash.masked_phone %} · <span dir="ltr">{{ auth_flash.masked_phone }}</span>{% endif %}
+      </p>
+      {% endif %}
       <div class="profile-uid">
         <span>آی‌دی یکتا</span>
         <code id="profile-uid" dir="ltr">{{ public_id }}</code>
@@ -272,6 +277,72 @@
           <span>لیست دوستان</span>
         </a>
       </div>
+      <section class="profile-stats" aria-label="آمار شبکه‌های اجتماعی">
+        <p class="profile-social__title">آمار شبکه‌های اجتماعی</p>
+        <div class="profile-stats__totals">
+          <div class="profile-stats__stat is-views">
+            <strong>{{ social_stats.totals_label.views }}</strong>
+            <small>بازدید</small>
+          </div>
+          <div class="profile-stats__stat is-likes">
+            <strong>{{ social_stats.totals_label.likes }}</strong>
+            <small>لایک</small>
+          </div>
+          <div class="profile-stats__stat is-comments">
+            <strong>{{ social_stats.totals_label.comments }}</strong>
+            <small>کامنت</small>
+          </div>
+        </div>
+        <div class="profile-stats__chart" role="img" aria-label="نمودار هفت‌روزه بازدید، لایک و کامنت">
+          {% for day in social_stats.days %}
+          <div class="profile-stats__col">
+            <div class="profile-stats__bars">
+              <span class="profile-stats__bar is-views" style="height: {{ day.views_pct }}%" title="بازدید {{ day.views_label }}"></span>
+              <span class="profile-stats__bar is-likes" style="height: {{ day.likes_pct }}%" title="لایک {{ day.likes_label }}"></span>
+              <span class="profile-stats__bar is-comments" style="height: {{ day.comments_pct }}%" title="کامنت {{ day.comments_label }}"></span>
+            </div>
+            <small>{{ day.label }}</small>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="profile-stats__legend">
+          <span class="is-views">بازدید</span>
+          <span class="is-likes">لایک</span>
+          <span class="is-comments">کامنت</span>
+        </div>
+        <div class="profile-stats__table-wrap">
+          <table class="profile-stats__table">
+            <thead>
+              <tr>
+                <th>روز</th>
+                <th>بازدید</th>
+                <th>لایک</th>
+                <th>کامنت</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for day in social_stats.days %}
+              <tr>
+                <td>{{ day.label }}</td>
+                <td>{{ day.views_label }}</td>
+                <td>{{ day.likes_label }}</td>
+                <td>{{ day.comments_label }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="profile-stats__unseen">
+          <p>{{ social_stats.unseen_summary }}</p>
+          {% if social_stats.unseen %}
+          <ul>
+            {% for item in social_stats.unseen %}
+            <li><strong>{{ item.name }}</strong> · {{ item.label }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      </section>
       <a class="profile-settings" href="{% url 'core:settings' %}" data-kb-nav>
         <img src="{% static 'images/icons/setting.webp' %}" alt="" width="512" height="512">
         <span>تنظیمات</span>

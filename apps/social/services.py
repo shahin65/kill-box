@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta, timezone as dt_timezone
 
 from django.db import IntegrityError, transaction
-from django.db.models import Case, Count, DateTimeField, Exists, F, IntegerField, OuterRef, Prefetch, Q, Value, When
+from django.db.models import Case, Count, DateTimeField, Exists, F, IntegerField, OuterRef, Prefetch, Q, Sum, Value, When
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 from apps.core.identity import (
@@ -24,6 +25,7 @@ from apps.social.models import (
     SavedPost,
     Story,
     StoryComment,
+    StoryLike,
     StoryView,
 )
 
@@ -613,6 +615,144 @@ def record_post_view(post, *, user=None, session_key='') -> tuple[bool, int]:
 def comment_rows_for(post, viewer=None):
     rows = post.comments.select_related('user', 'user__member_profile').order_by('created_at')
     return [serialize_comment(row, viewer) for row in rows]
+
+
+NOTICE_KIND_LABELS = {
+    ActivityNotice.MESSAGE: 'پیام خصوصی جدید',
+    ActivityNotice.STORY_LIKE: 'لایک استوری',
+    ActivityNotice.STORY_COMMENT: 'کامنت استوری',
+    ActivityNotice.POST_LIKE: 'لایک پست',
+    ActivityNotice.POST_COMMENT: 'کامنت پست',
+}
+_FA_WEEKDAYS = ('دوش', 'سه‌ش', 'چهار', 'پنج', 'جمعه', 'شنبه', 'یکش')
+
+
+def _day_counts(qs, start):
+    rows = (
+        qs.filter(created_at__gte=start)
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(n=Count('id'))
+    )
+    out = {}
+    for row in rows:
+        day = row.get('day')
+        if day is None:
+            continue
+        out[day] = int(row.get('n') or 0)
+    return out
+
+
+def _merge_day_counts(*maps):
+    out = {}
+    for mapping in maps:
+        for day, count in mapping.items():
+            out[day] = out.get(day, 0) + int(count or 0)
+    return out
+
+
+def _bar_pct(value, peak):
+    number = int(value or 0)
+    if number <= 0 or peak <= 0:
+        return 0
+    pct = int(round((number / peak) * 100))
+    return max(8, min(100, pct))
+
+
+def profile_social_stats(user, *, days=7, unseen_limit=6) -> dict:
+    empty = {
+        'totals': {'views': 0, 'likes': 0, 'comments': 0},
+        'totals_label': {'views': '۰', 'likes': '۰', 'comments': '۰'},
+        'days': [],
+        'unseen': [],
+        'unseen_summary': 'تغییر مشاهده‌نشده‌ای نیست.',
+        'unseen_count': 0,
+    }
+    if not user or not getattr(user, 'is_authenticated', False):
+        return empty
+
+    today = timezone.localdate()
+    start = timezone.make_aware(
+        datetime.combine(today - timedelta(days=days - 1), datetime.min.time()),
+        timezone.get_current_timezone(),
+    )
+    post_views = Post.objects.filter(author=user).aggregate(n=Sum('views_count'))['n'] or 0
+    views = int(post_views) + StoryView.objects.filter(story__author=user).count()
+    likes = (
+        PostLike.objects.filter(post__author=user).count()
+        + StoryLike.objects.filter(story__author=user).count()
+    )
+    comments = (
+        PostComment.objects.filter(post__author=user).count()
+        + StoryComment.objects.filter(story__author=user).count()
+    )
+    view_days = _merge_day_counts(
+        _day_counts(PostView.objects.filter(post__author=user), start),
+        _day_counts(StoryView.objects.filter(story__author=user), start),
+    )
+    like_days = _merge_day_counts(
+        _day_counts(PostLike.objects.filter(post__author=user), start),
+        _day_counts(StoryLike.objects.filter(story__author=user), start),
+    )
+    comment_days = _merge_day_counts(
+        _day_counts(PostComment.objects.filter(post__author=user), start),
+        _day_counts(StoryComment.objects.filter(story__author=user), start),
+    )
+    chart = []
+    peak = 1
+    for offset in range(days - 1, -1, -1):
+        day = today - timedelta(days=offset)
+        row = {
+            'views': int(view_days.get(day, 0)),
+            'likes': int(like_days.get(day, 0)),
+            'comments': int(comment_days.get(day, 0)),
+        }
+        peak = max(peak, row['views'], row['likes'], row['comments'])
+        if offset == 0:
+            label = 'امروز'
+        elif offset == 1:
+            label = 'دیروز'
+        else:
+            label = _FA_WEEKDAYS[day.weekday()]
+        row['label'] = label
+        row['views_label'] = format_count(row['views'])
+        row['likes_label'] = format_count(row['likes'])
+        row['comments_label'] = format_count(row['comments'])
+        chart.append(row)
+    for row in chart:
+        row['views_pct'] = _bar_pct(row['views'], peak)
+        row['likes_pct'] = _bar_pct(row['likes'], peak)
+        row['comments_pct'] = _bar_pct(row['comments'], peak)
+
+    unseen_qs = ActivityNotice.objects.filter(recipient=user, is_read=False)
+    unseen_count = unseen_qs.count()
+    unseen_rows = list(
+        unseen_qs.select_related('actor', 'actor__member_profile').order_by('-created_at', '-pk')[:unseen_limit]
+    )
+    unseen = [
+        {
+            'name': profile_display_name(row.actor),
+            'label': NOTICE_KIND_LABELS.get(row.kind, 'فعالیت جدید'),
+            'kind': row.kind,
+        }
+        for row in unseen_rows
+    ]
+    if unseen_count:
+        summary = f'{format_count(unseen_count)} تغییر جدید هنوز دیده نشده'
+    else:
+        summary = 'تغییر مشاهده‌نشده‌ای نیست.'
+    return {
+        'totals': {'views': views, 'likes': likes, 'comments': comments},
+        'totals_label': {
+            'views': format_count(views),
+            'likes': format_count(likes),
+            'comments': format_count(comments),
+        },
+        'days': chart,
+        'unseen': unseen,
+        'unseen_summary': summary,
+        'unseen_count': unseen_count,
+    }
 
 
 def saved_posts_queryset(user):

@@ -34,14 +34,19 @@ from apps.core.avatar import AvatarError, save_member_avatar
 from apps.core.uploads import abort_upload, begin_upload, file_fingerprint, finish_upload
 from apps.core.session import (
     AUTH_REQUIRED_MESSAGE,
+    AUTH_SIGNUP_MESSAGE,
     admit_guest,
     admit_member,
+    consume_auth_error,
+    consume_auth_flash,
     consume_home_toasts,
     ensure_member_profile,
     hud_context,
     is_admitted,
     is_member,
     member_required_response,
+    set_auth_error,
+    set_auth_flash,
 )
 from apps.core.identity import (
     BIO_MAX,
@@ -54,6 +59,7 @@ from apps.core.identity import profile_display_name
 from apps.core.models import LiveChat, SiteSettings
 from apps.core.siteconfig import get_signup_settings, signup_public_context
 from apps.sms.otp import (
+    mask_mobile,
     public_otp_payload,
     send_verification_code,
     sms_lab_context,
@@ -69,28 +75,25 @@ def register(request):
     capture_referral(request)
     if is_member(request):
         return redirect('core:home')
-    return render(
-        request,
-        'core/register.html',
+    context = hud_context(request)
+    context.update(
         {
             'sms': sms_lab_context(),
             'bale': bale_public_context(),
             'telegram': telegram_bot.telegram_public_context(),
             'signup': signup_public_context(),
-        },
+            'auth_error': consume_auth_error(request),
+        }
     )
+    return render(request, 'core/register.html', context)
 
 
 def home(request):
     capture_referral(request)
-    from apps.social.services import latest_posts, serialize_story_groups
-
     context = hud_context(request)
     context.update(consume_home_toasts(request))
     context.update(
         {
-            'home_posts': latest_posts(request, limit=24),
-            'story_groups': serialize_story_groups(request),
             'home_lives': home_live_cards(),
             'home_tournaments': home_tournaments(),
         }
@@ -99,7 +102,13 @@ def home(request):
 
 
 def profile(request):
-    return render(request, 'core/profile.html', hud_context(request))
+    context = hud_context(request)
+    context['auth_flash'] = consume_auth_flash(request)
+    if context.get('is_member'):
+        from apps.social.services import profile_social_stats
+
+        context['social_stats'] = profile_social_stats(request.user)
+    return render(request, 'core/profile.html', context)
 
 
 def site_settings(request):
@@ -440,6 +449,25 @@ def _json_body(request):
     return payload
 
 
+def _request_payload(request):
+    payload = _json_body(request)
+    if payload is not None:
+        return payload
+    if request.POST:
+        return {key: request.POST.get(key) for key in request.POST}
+    return None
+
+
+def _wants_json(request):
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    content_type = (getattr(request, 'content_type', '') or request.headers.get('Content-Type') or '').lower()
+    if 'application/json' in content_type:
+        return True
+    accept = (request.headers.get('Accept') or '').lower()
+    return 'application/json' in accept and 'text/html' not in accept
+
+
 @require_POST
 def otp_send(request):
     if not get_signup_settings().phone_signup:
@@ -679,17 +707,28 @@ def telegram_status(request):
 
 @require_POST
 def messenger_verify_code(request):
+    wants_json = _wants_json(request)
+    profile_url = reverse('core:profile')
     if is_member(request):
-        return JsonResponse(
-            {'success': False, 'message': 'قبلاً وارد حساب شده‌ای.'},
-            status=400,
-        )
-    payload = _json_body(request)
+        if wants_json:
+            return JsonResponse(
+                {
+                    'success': False,
+                    'message': 'قبلاً وارد حساب شده‌ای.',
+                    'redirect': profile_url,
+                },
+                status=400,
+            )
+        return redirect('core:profile')
+    payload = _request_payload(request)
     if payload is None:
-        return JsonResponse(
-            {'success': False, 'message': 'بدنهٔ درخواست نامعتبر است.'},
-            status=400,
-        )
+        if wants_json:
+            return JsonResponse(
+                {'success': False, 'message': 'بدنهٔ درخواست نامعتبر است.'},
+                status=400,
+            )
+        set_auth_error(request, 'بدنهٔ درخواست نامعتبر است.')
+        return redirect('core:register')
     ticket = request.session.get('telegram_ticket') or request.session.get('bale_ticket') or ''
     result = consume_login_code(
         str(payload.get('code') or ''),
@@ -697,25 +736,34 @@ def messenger_verify_code(request):
         ip=request.META.get('REMOTE_ADDR', ''),
     )
     if not result.get('ok'):
-        return JsonResponse(
-            {'success': False, 'message': result.get('message') or 'کد نامعتبر است.'},
-            status=int(result.get('status') or 400),
-        )
+        message = result.get('message') or 'کد نامعتبر است.'
+        status = int(result.get('status') or 400)
+        if wants_json:
+            return JsonResponse({'success': False, 'message': message}, status=status)
+        set_auth_error(request, message)
+        return redirect('core:register')
     kwargs = {}
     if result.get('platform') == 'telegram':
         kwargs['telegram_chat_id'] = str(result.get('chat_id') or '')
     elif result.get('platform') == 'bale':
         kwargs['bale_chat_id'] = str(result.get('chat_id') or '')
-    admit_member(request, result['phone'], **kwargs)
+    phone = str(result['phone'])
+    admit_member(request, phone, **kwargs)
     request.session.pop('telegram_ticket', None)
     request.session.pop('bale_ticket', None)
-    return JsonResponse(
-        {
-            'success': True,
-            'message': 'ورود با پیام‌رسان تکمیل شد.',
-            'redirect': reverse('core:home'),
-        }
-    )
+    masked = mask_mobile(phone)
+    message = f'{AUTH_SIGNUP_MESSAGE} · {masked}' if masked else AUTH_SIGNUP_MESSAGE
+    set_auth_flash(request, AUTH_SIGNUP_MESSAGE, phone)
+    if wants_json:
+        return JsonResponse(
+            {
+                'success': True,
+                'message': message,
+                'phone': masked,
+                'redirect': profile_url,
+            }
+        )
+    return redirect('core:profile')
 
 
 @csrf_exempt

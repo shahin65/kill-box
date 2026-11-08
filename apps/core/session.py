@@ -9,7 +9,10 @@ GUEST_KEY = 'killbox_guest'
 PHONE_KEY = 'killbox_phone'
 XP_TOAST_KEY = 'killbox_xp_toast'
 RANK_TOAST_KEY = 'killbox_rank_toast'
+AUTH_FLASH_KEY = 'killbox_auth_flash'
+AUTH_ERROR_KEY = 'killbox_auth_error'
 AUTH_REQUIRED_MESSAGE = 'برای انجام این عملیات ابتدا وارد حساب کاربری خود شوید'
+AUTH_SIGNUP_MESSAGE = 'ثبت‌نام شما انجام شد'
 
 
 def is_admitted(request) -> bool:
@@ -205,3 +208,24 @@ def consume_home_toasts(request) -> dict:
         'xp_toast': gained,
         'rank_toast': get_rank(rank_level) if rank_level is not None else None,
     }
+
+
+def set_auth_flash(request, message: str, phone: str = '') -> None:
+    request.session[AUTH_FLASH_KEY] = {
+        'message': message,
+        'phone': phone,
+        'masked_phone': mask_mobile(phone) if phone else '',
+    }
+
+
+def consume_auth_flash(request) -> dict | None:
+    flash = request.session.pop(AUTH_FLASH_KEY, None)
+    return flash if isinstance(flash, dict) else None
+
+
+def set_auth_error(request, message: str) -> None:
+    request.session[AUTH_ERROR_KEY] = str(message or '')
+
+
+def consume_auth_error(request) -> str:
+    return str(request.session.pop(AUTH_ERROR_KEY, '') or '')

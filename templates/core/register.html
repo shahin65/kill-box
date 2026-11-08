@@ -6,10 +6,12 @@
 
 {% block extra_css %}{% endblock %}
 
-{% block body %}
-  <header class="landing-topbar"></header>
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
   {% include "core/_brand.html" %}
+{% endblock %}
 
+{% block body %}
   <main class="landing-stage" id="landing-stage">
     <section
       class="landing-auth"
@@ -19,7 +21,7 @@
     >
       {% csrf_token %}
       {% if signup.phone %}
-      <form class="auth-card" id="auth-send-form" action="{% url 'core:otp_send' %}" novalidate>
+      <form class="auth-card" id="auth-send-form" method="post" action="{% url 'core:otp_send' %}" novalidate>
         {% csrf_token %}
         <p class="auth-kicker">ثبت‌نام / ورود</p>
         <h1 class="auth-title">ورود با پیامک</h1>
@@ -47,7 +49,7 @@
         </button>
       </form>
 
-      <form class="auth-card auth-card--code" id="auth-verify-form" action="{% url 'core:otp_verify' %}" hidden novalidate>
+      <form class="auth-card auth-card--code" id="auth-verify-form" method="post" action="{% url 'core:otp_verify' %}" hidden novalidate>
         {% csrf_token %}
         <label class="auth-label" for="auth-code">کد تایید</label>
         <div class="auth-row">
@@ -80,9 +82,9 @@
       </div>
       {% endif %}
 
-      <p class="auth-status" id="auth-status" hidden></p>
+      <p class="auth-status{% if auth_error %} is-error{% endif %}" id="auth-status"{% if not auth_error %} hidden{% endif %}>{% if auth_error %}{{ auth_error }}{% endif %}</p>
 
-      <form class="auth-card messenger-code" id="messenger-code-form" hidden novalidate>
+      <form class="auth-card messenger-code" id="messenger-code-form" method="post" action="{% url 'core:messenger_verify_code' %}" hidden novalidate>
         {% csrf_token %}
         <p class="auth-kicker">ورود با پیام‌رسان</p>
         <h2 class="auth-title">کد دریافتی از ربات را وارد کنید</h2>
@@ -159,4 +161,8 @@
       </form>
     </section>
   </main>
+{% endblock %}
+
+{% block chrome_dock %}
+  {% include "core/_dock.html" %}
 {% endblock %}

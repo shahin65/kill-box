@@ -569,6 +569,11 @@ body.is-docked {
   font-weight: 700;
 }
 
+.profile-flash {
+  margin: 0.2rem 0 0.9rem;
+  min-height: 0;
+}
+
 .auth-status.is-error {
   color: #ffb4a8;
 }

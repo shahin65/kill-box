@@ -30,7 +30,7 @@ TELEGRAM_ORIGIN = 'https://api.telegram.org'
 WEBHOOK_SECRET_HEADER = 'X-Telegram-Bot-Api-Secret-Token'
 PROXY_SECRET_HEADER = 'X-Killbox-Proxy-Secret'
 START_TEXT = (
-    'سرباز، به منطقه عملیاتی کیل‌باکس خوش اومدی.\n\n'
+    'به ربات ثبت تلفن همراه خوش اومدی.\n\n'
     'برای تکمیل ثبت‌نام، شماره موبایلی که روی همین حساب تلگرام ثبت شده را به اشتراک بگذار.'
 )
 SHARE_BUTTON = 'اشتراک‌گذاری شماره موبایل تلگرام'
