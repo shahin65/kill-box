@@ -1,6 +1,7 @@
 """Telegram bot: share-contact signup. Token never leaves the server."""
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import secrets
@@ -16,7 +17,9 @@ from apps.sms.otp import mask_mobile, normalize_mobile
 
 logger = logging.getLogger(__name__)
 
-API_ROOT = 'https://api.telegram.org/bot'
+TELEGRAM_ORIGIN = 'https://api.telegram.org'
+WEBHOOK_SECRET_HEADER = 'X-Telegram-Bot-Api-Secret-Token'
+PROXY_SECRET_HEADER = 'X-Killbox-Proxy-Secret'
 TICKET_TTL = 10 * 60
 START_TEXT = (
     'سرباز، به منطقه عملیاتی کیل‌باکس خوش اومدی.\n\n'
@@ -85,16 +88,62 @@ def handle_update(update: dict) -> None:
         _on_contact(chat_id, from_id, contact)
 
 
+def telegram_api_base() -> str:
+    base = str(getattr(settings, 'TELEGRAM_API_BASE_URL', '') or '').strip().rstrip('/')
+    return base or TELEGRAM_ORIGIN
+
+
+def public_site_url() -> str:
+    return str(getattr(settings, 'PUBLIC_SITE_URL', '') or '').strip().rstrip('/')
+
+
+def webhook_url() -> str:
+    explicit = str(getattr(settings, 'TELEGRAM_WEBHOOK_URL', '') or '').strip()
+    if explicit:
+        return explicit
+    site = public_site_url()
+    if site:
+        return f'{site}/auth/telegram/webhook/'
+    return ''
+
+
+def webhook_secret() -> str:
+    return str(getattr(settings, 'TELEGRAM_WEBHOOK_SECRET', '') or '')
+
+
+def verify_webhook_request(request, url_secret: str = '') -> bool:
+    expected = webhook_secret()
+    if not expected:
+        return False
+    header = (
+        request.headers.get(WEBHOOK_SECRET_HEADER)
+        or request.META.get('HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN')
+        or ''
+    )
+    if header:
+        return hmac.compare_digest(str(header), expected)
+    if url_secret:
+        return hmac.compare_digest(str(url_secret), expected)
+    return False
+
+
 def api(method: str, payload: dict | None = None) -> dict:
     token = str(getattr(settings, 'TELEGRAM_BOT_TOKEN', '') or '')
     if not token:
         return {'ok': False, 'description': 'Telegram token is not configured.'}
-    url = f'{API_ROOT}{token}/{method}'
+    url = f'{telegram_api_base()}/bot{token}/{method}'
     body = json.dumps(payload or {}, ensure_ascii=False).encode('utf-8')
+    headers = {
+        'Content-Type': 'application/json',
+        'User-Agent': 'KillBoxTelegram/1.0',
+    }
+    proxy_secret = str(getattr(settings, 'TELEGRAM_PROXY_SECRET', '') or '')
+    if proxy_secret:
+        headers[PROXY_SECRET_HEADER] = proxy_secret
     request = urllib.request.Request(
         url,
         data=body,
-        headers={'Content-Type': 'application/json'},
+        headers=headers,
         method='POST',
     )
     try:
@@ -119,7 +168,7 @@ def start_poller() -> None:
             return
         if not getattr(settings, 'TELEGRAM_BOT_TOKEN', ''):
             return
-        using_webhook = bool(getattr(settings, 'TELEGRAM_WEBHOOK_URL', ''))
+        using_webhook = bool(webhook_url())
         _poller_started = True
     configure_bot()
     if using_webhook:
@@ -237,13 +286,31 @@ def _chat_key(chat_id) -> str:
     return f'tg:chat:{chat_id}'
 
 
+def set_webhook(url: str = '') -> dict:
+    target = (url or webhook_url()).strip()
+    secret = webhook_secret()
+    if not target:
+        return {'ok': False, 'description': 'Webhook URL is not configured.'}
+    payload = {
+        'url': target,
+        'allowed_updates': ['message'],
+        'drop_pending_updates': True,
+    }
+    if secret:
+        payload['secret_token'] = secret
+    return api('setWebhook', payload)
+
+
+def delete_webhook() -> dict:
+    return api('deleteWebhook', {'drop_pending_updates': True})
+
+
 def configure_bot() -> None:
     api(
         'setMyCommands',
         {'commands': [{'command': 'start', 'description': 'شروع ثبت‌نام کیل‌باکس'}]},
     )
-    webhook = str(getattr(settings, 'TELEGRAM_WEBHOOK_URL', '') or '')
-    if webhook:
-        api('setWebhook', {'url': webhook})
+    if webhook_url():
+        set_webhook()
     else:
-        api('deleteWebhook', {})
+        delete_webhook()

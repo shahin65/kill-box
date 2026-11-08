@@ -36,9 +36,10 @@ urlpatterns = [
     path('auth/bale/webhook/<str:secret>/', views.bale_webhook, name='bale_webhook'),
     path('auth/telegram/start/', views.telegram_start, name='telegram_start'),
     path('auth/telegram/status/', views.telegram_status, name='telegram_status'),
+    path('auth/telegram/webhook/', views.telegram_webhook, name='telegram_webhook'),
     path(
         'auth/telegram/webhook/<str:secret>/',
         views.telegram_webhook,
-        name='telegram_webhook',
+        name='telegram_webhook_legacy',
     ),
 ]

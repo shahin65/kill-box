@@ -1,6 +1,6 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 
-from django.db.models import Q
+from django.db.models import Case, Count, DateTimeField, F, IntegerField, Prefetch, Q, Value, When
 from django.utils import timezone
 
 from apps.core.identity import (
@@ -14,19 +14,18 @@ from apps.social.models import (
     ActivityNotice,
     Block,
     ChatThread,
-    DirectMessage,
     Follow,
     Friendship,
     Post,
+    PostComment,
+    PostLike,
     Story,
+    StoryComment,
     StoryView,
 )
 
 STORY_TTL = timedelta(hours=24)
-STORY_DAILY_CAP = 10
-POST_CAP = 100
-THREAD_CAP = 30
-MESSAGE_CAP = 50
+STORY_DAILY_CAP = 15
 
 
 def display_name(user) -> str:
@@ -40,17 +39,42 @@ def follow_counts(user) -> dict:
     }
 
 
-def purge_expired_stories() -> None:
-    expired = list(Story.objects.filter(expires_at__lte=timezone.now()))
-    for story in expired:
-        if story.media:
-            story.media.delete(save=False)
-        story.delete()
+def following_ids_for(user) -> set[int]:
+    if not user or not getattr(user, 'pk', None):
+        return set()
+    cached = getattr(user, '_kb_following_ids', None)
+    if cached is not None:
+        return cached
+    ids = set(
+        Follow.objects.filter(follower=user).values_list('following_id', flat=True)
+    )
+    user._kb_following_ids = ids
+    return ids
+
+
+def _delete_field_file(field) -> None:
+    if field:
+        field.delete(save=False)
 
 
 def stories_today(user) -> int:
-    start = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
-    return Story.objects.filter(author=user, created_at__gte=start).count()
+    return Story.objects.filter(author=user, expires_at__gt=timezone.now()).count()
+
+
+def story_play_seconds(story: Story) -> float:
+    if story.duration and story.duration > 0:
+        return float(story.duration)
+    return 5.0 if story.kind == 'image' else 15.0
+
+
+def purge_expired_stories() -> None:
+    expired = list(Story.objects.filter(expires_at__lte=timezone.now())[:80])
+    if not expired:
+        return
+    for story in expired:
+        _delete_field_file(story.thumbnail)
+        _delete_field_file(story.media)
+        story.delete()
 
 
 def pair_users(a, b):
@@ -72,29 +96,19 @@ def threads_for(user):
     return ChatThread.objects.filter(Q(user_low=user) | Q(user_high=user))
 
 
-def trim_threads(user) -> None:
-    qs = list(threads_for(user).order_by('updated_at'))
-    extra = len(qs) - THREAD_CAP
-    if extra <= 0:
-        return
-    for thread in qs[:extra]:
-        thread.delete()
-
-
-def trim_messages(thread: ChatThread) -> None:
-    keep = list(
-        thread.messages.order_by('-created_at').values_list('pk', flat=True)[:MESSAGE_CAP]
-    )
-    if keep:
-        thread.messages.exclude(pk__in=keep).delete()
-    elif thread.messages.exists():
-        thread.messages.all().delete()
-
-
 def delete_post_media(post: Post) -> None:
-    if post.media:
-        post.media.delete(save=False)
+    _delete_field_file(post.thumbnail)
+    _delete_field_file(post.media)
     post.delete()
+
+
+def poster_url(obj) -> str:
+    thumb = public_media_url(getattr(obj, 'thumbnail', None))
+    if thumb:
+        return thumb
+    if getattr(obj, 'kind', '') == 'image':
+        return public_media_url(getattr(obj, 'media', None))
+    return ''
 
 
 def _friend_pair_q(a, b):
@@ -211,19 +225,40 @@ def viewer_of(request):
     return None
 
 
+def _has_prefetch(instance, related_name: str) -> bool:
+    cache_map = getattr(instance, '_prefetched_objects_cache', None)
+    return bool(cache_map is not None and related_name in cache_map)
+
+
+def _related_rows(instance, related_name: str):
+    if _has_prefetch(instance, related_name):
+        return list(getattr(instance, related_name).all())
+    return None
+
+
 def serialize_post(post, request) -> dict:
     viewer = viewer_of(request)
-    likes = list(post.likes.all()) if hasattr(post, '_prefetched_objects_cache') and 'likes' in getattr(post, '_prefetched_objects_cache', {}) else None
-    comments = list(post.comments.all()) if hasattr(post, '_prefetched_objects_cache') and 'comments' in getattr(post, '_prefetched_objects_cache', {}) else None
-    like_count = len(likes) if likes is not None else post.likes.count()
-    comment_rows = comments if comments is not None else list(post.comments.select_related('user'))
-    comment_count = len(comment_rows)
-    liked = False
-    if viewer:
-        if likes is not None:
-            liked = any(row.user_id == viewer.pk for row in likes)
-        else:
-            liked = post.likes.filter(user=viewer).exists()
+    likes = _related_rows(post, 'likes')
+    comments = _related_rows(post, 'comments')
+    like_count = getattr(post, 'like_n', None)
+    if like_count is None:
+        like_count = len(likes) if likes is not None else post.likes.count()
+    comment_rows = (
+        comments
+        if comments is not None
+        else list(post.comments.select_related('user', 'user__member_profile'))
+    )
+    comment_count = getattr(post, 'comment_n', None)
+    if comment_count is None:
+        comment_count = len(comment_rows)
+    liked = getattr(post, '_kb_liked', None)
+    if liked is None:
+        liked = False
+        if viewer:
+            if likes is not None:
+                liked = any(row.user_id == viewer.pk for row in likes)
+            else:
+                liked = post.likes.filter(user=viewer).exists()
     return {
         'id': post.pk,
         'author_id': post.author_id,
@@ -231,63 +266,148 @@ def serialize_post(post, request) -> dict:
         'avatar': member_avatar_url(post.author),
         'kind': post.kind,
         'url': public_media_url(post.media),
+        'poster': poster_url(post),
         'caption': post.caption or '',
         'likes': like_count,
         'comments': comment_count,
         'comment_list': [
-            {'name': display_name(row.user), 'text': row.text} for row in comment_rows
+            {'name': display_name(row.user), 'text': row.text} for row in comment_rows[-8:]
         ],
         'liked': liked,
         'mine': bool(viewer and post.author_id == viewer.pk),
+        'following': bool(getattr(post, 'is_following', 0)),
         'share_url': request.build_absolute_uri(f'/social/posts/{post.pk}/'),
         'detail_url': f'/social/posts/{post.pk}/',
     }
 
 
-def latest_posts(request, limit=10):
-    feed = (
+_FEED_EPOCH = datetime(2000, 1, 1, tzinfo=dt_timezone.utc)
+
+
+def ranked_posts_queryset(viewer=None):
+    """Following posts first (newest), then public posts by engagement then recency."""
+    following_ids = following_ids_for(viewer)
+    if viewer and getattr(viewer, 'pk', None):
+        following_ids = set(following_ids)
+        following_ids.add(viewer.pk)
+    following_list = list(following_ids) or [-1]
+    qs = (
         Post.objects.select_related('author', 'author__member_profile')
-        .prefetch_related('likes', 'comments__user')[:limit]
+        .prefetch_related(
+            Prefetch(
+                'comments',
+                queryset=PostComment.objects.select_related('user', 'user__member_profile'),
+            )
+        )
+        .annotate(
+            is_following=Case(
+                When(author_id__in=following_list, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+            like_n=Count('likes', distinct=True),
+            comment_n=Count('comments', distinct=True),
+        )
+        .annotate(
+            hot_score=F('like_n') + F('comment_n'),
+            following_ts=Case(
+                When(author_id__in=following_list, then=F('created_at')),
+                default=Value(_FEED_EPOCH),
+                output_field=DateTimeField(),
+            ),
+        )
+        .order_by('-is_following', '-following_ts', '-hot_score', '-created_at')
     )
-    return [serialize_post(post, request) for post in feed]
+    return qs
+
+
+def latest_posts(request, limit=10):
+    viewer = viewer_of(request)
+    posts = list(ranked_posts_queryset(viewer)[:limit])
+    if viewer and posts:
+        liked_ids = set(
+            PostLike.objects.filter(
+                user=viewer, post_id__in=[post.pk for post in posts]
+            ).values_list('post_id', flat=True)
+        )
+        for post in posts:
+            post._kb_liked = post.pk in liked_ids
+    return [serialize_post(post, request) for post in posts]
+
+
+def ranked_stories_queryset(viewer=None):
+    """Own, unseen following, seen following, then public live stories."""
+    now = timezone.now()
+    qs = (
+        Story.objects.filter(expires_at__gt=now)
+        .select_related('author', 'author__member_profile')
+        .prefetch_related(
+            'likes',
+            Prefetch(
+                'comments',
+                queryset=StoryComment.objects.select_related(
+                    'user', 'user__member_profile'
+                ),
+            ),
+        )
+    )
+    if not viewer:
+        return qs.annotate(
+            tray_rank=Value(3, output_field=IntegerField()),
+            is_following=Value(0, output_field=IntegerField()),
+            is_unseen=Value(1, output_field=IntegerField()),
+        ).order_by('-created_at')
+    following_list = list(following_ids_for(viewer)) or [-1]
+    seen_ids = StoryView.objects.filter(user=viewer).values('story_id')
+    return qs.annotate(
+        is_following=Case(
+            When(author_id__in=following_list, then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
+        is_unseen=Case(
+            When(pk__in=seen_ids, then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        ),
+        tray_rank=Case(
+            When(author_id=viewer.pk, then=Value(0)),
+            When(
+                Q(author_id__in=following_list) & ~Q(pk__in=seen_ids),
+                then=Value(1),
+            ),
+            When(author_id__in=following_list, then=Value(2)),
+            default=Value(3),
+            output_field=IntegerField(),
+        ),
+    ).order_by('tray_rank', '-created_at')
 
 
 def serialize_story_groups(request, *, friend_first=False, story_limit=None, group_limit=None):
-    purge_expired_stories()
-    now = timezone.now()
-    live = list(
-        Story.objects.filter(expires_at__gt=now)
-        .select_related('author', 'author__member_profile')
-        .prefetch_related('likes', 'comments__user')
-        .order_by('-created_at')
-    )
-    if story_limit:
-        live = live[:story_limit]
     viewer = viewer_of(request)
-    seen_ids = set()
-    if viewer and live:
-        seen_ids = set(
-            StoryView.objects.filter(user=viewer, story_id__in=[row.pk for row in live]).values_list(
-                'story_id',
-                flat=True,
-            )
-        )
+    live = list(ranked_stories_queryset(viewer))
+    following_ids = following_ids_for(viewer)
     groups = []
     seen_authors = set()
     for story in live:
         if story.author_id in seen_authors:
             continue
         seen_authors.add(story.author_id)
-        items = [row for row in live if row.author_id == story.author_id]
-        newest = items[0].created_at
+        items = sorted(
+            [row for row in live if row.author_id == story.author_id],
+            key=lambda row: (row.created_at, row.pk),
+        )
+        newest = items[-1]
         stories = [
             {
                 'id': row.pk,
                 'kind': row.kind,
                 'url': public_media_url(row.media),
+                'poster': poster_url(row),
+                'duration': story_play_seconds(row),
                 'overlay': row.overlay,
-                'seen': row.pk in seen_ids,
-                'likes': row.likes.count(),
+                'seen': not bool(getattr(row, 'is_unseen', 1)),
+                'likes': len(row.likes.all()),
                 'liked': bool(
                     viewer and any(like.user_id == viewer.pk for like in row.likes.all())
                 ),
@@ -296,36 +416,26 @@ def serialize_story_groups(request, *, friend_first=False, story_limit=None, gro
                     for item in row.comments.all()
                 ],
             }
-            for row in reversed(items)
+            for row in items
         ]
+        is_following = story.author_id in following_ids
         groups.append(
             {
                 'author_id': story.author_id,
                 'name': display_name(story.author),
                 'avatar': member_avatar_url(story.author),
                 'count': len(items),
-                'cover': public_media_url(items[0].media),
+                'cover': poster_url(newest) or public_media_url(newest.media),
                 'mine': bool(viewer and story.author_id == viewer.pk),
-                'friend': False,
+                'following': is_following,
+                'friend': is_following,
                 'unseen': any(not row['seen'] for row in stories),
-                'newest': newest.timestamp() if newest else 0,
                 'stories': stories,
             }
         )
-    if friend_first and viewer:
-        friends = friend_ids_for(viewer)
-        for group in groups:
-            group['friend'] = group['author_id'] in friends
-        groups.sort(
-            key=lambda row: (
-                0 if row['mine'] else 1 if row['friend'] else 2,
-                -row['newest'],
-            )
-        )
-    if group_limit:
-        groups = groups[:group_limit]
-    for group in groups:
-        group.pop('newest', None)
+    limit = group_limit or story_limit
+    if limit:
+        groups = groups[:limit]
     return groups
 
 
@@ -409,6 +519,4 @@ def open_friend_thread(user, peer):
         initiator=user,
         status=ChatThread.ACCEPTED,
     )
-    trim_threads(user)
-    trim_threads(peer)
     return chat

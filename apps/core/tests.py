@@ -1,4 +1,4 @@
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -6,6 +6,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
@@ -22,10 +23,13 @@ class LandingAuthTests(TestCase):
         home = self.client.get(reverse('core:home'))
         self.assertEqual(home.status_code, 200)
 
-    def test_home_rejects_anonymous(self):
+    def test_anonymous_can_open_home(self):
         response = self.client.get(reverse('core:home'))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('core:register'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'آخرین پست‌ها')
+        self.assertContains(response, 'به دنیای کیل‌باکس خوش آمدی')
+        self.assertContains(response, 'id="auth-prompt"')
+        self.assertContains(response, 'ورود / ثبت‌نام')
 
     @override_settings(
         MELIPAYAMAK_DRY_RUN=False,
@@ -262,6 +266,90 @@ class LandingAuthTests(TestCase):
         self.assertFalse(status.json()['success'])
         self.assertTrue(status.json()['pending'])
 
+    @override_settings(
+        TELEGRAM_BOT_TOKEN='test-token',
+        TELEGRAM_API_BASE_URL='https://tg-proxy.example',
+        TELEGRAM_PROXY_SECRET='proxy-secret',
+    )
+    @patch('apps.core.telegram.urllib.request.urlopen')
+    def test_telegram_api_uses_cloudflare_base(self, mocked_open):
+        class _Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return b'{"ok":true,"result":true}'
+
+        mocked_open.return_value = _Resp()
+        from apps.core.telegram import api
+
+        result = api('sendMessage', {'chat_id': 1, 'text': 'ok'})
+        self.assertTrue(result.get('ok'))
+        request = mocked_open.call_args[0][0]
+        self.assertEqual(
+            request.full_url,
+            'https://tg-proxy.example/bottest-token/sendMessage',
+        )
+        self.assertEqual(request.get_header('X-killbox-proxy-secret'), 'proxy-secret')
+        self.assertEqual(request.get_header('User-agent'), 'KillBoxTelegram/1.0')
+
+    @override_settings(TELEGRAM_WEBHOOK_SECRET='hook-secret')
+    @patch('apps.core.telegram.handle_update')
+    def test_telegram_webhook_requires_secret_header(self, mocked_handle):
+        url = reverse('core:telegram_webhook')
+        denied = self.client.post(url, data='{"update_id":1}', content_type='application/json')
+        self.assertEqual(denied.status_code, 403)
+        mocked_handle.assert_not_called()
+        wrong = self.client.post(
+            url,
+            data='{"update_id":1}',
+            content_type='application/json',
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN='nope',
+        )
+        self.assertEqual(wrong.status_code, 403)
+        ok = self.client.post(
+            url,
+            data='{"update_id":1,"message":{"text":"/start"}}',
+            content_type='application/json',
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN='hook-secret',
+        )
+        self.assertEqual(ok.status_code, 200)
+        self.assertTrue(ok.json()['ok'])
+        mocked_handle.assert_called_once()
+
+    @override_settings(TELEGRAM_WEBHOOK_SECRET='hook-secret')
+    @patch('apps.core.telegram.handle_update')
+    def test_telegram_legacy_webhook_url_secret(self, mocked_handle):
+        url = reverse('core:telegram_webhook_legacy', args=['hook-secret'])
+        ok = self.client.post(url, data='{"update_id":2}', content_type='application/json')
+        self.assertEqual(ok.status_code, 200)
+        mocked_handle.assert_called_once()
+
+    @override_settings(
+        TELEGRAM_BOT_TOKEN='test-token',
+        TELEGRAM_WEBHOOK_SECRET='hook-secret',
+        PUBLIC_SITE_URL='https://killbox.amytisapp.ir',
+        TELEGRAM_WEBHOOK_URL='',
+    )
+    @patch('apps.core.telegram.api')
+    def test_set_telegram_webhook_command(self, mocked_api):
+        mocked_api.return_value = {'ok': True, 'result': True}
+        out = StringIO()
+        call_command('set_telegram_webhook', stdout=out)
+        mocked_api.assert_any_call(
+            'setWebhook',
+            {
+                'url': 'https://killbox.amytisapp.ir/auth/telegram/webhook/',
+                'allowed_updates': ['message'],
+                'drop_pending_updates': True,
+                'secret_token': 'hook-secret',
+            },
+        )
+        self.assertIn('Webhook set', out.getvalue())
+
 
 class ProfileHudTests(TestCase):
     def setUp(self):
@@ -270,7 +358,7 @@ class ProfileHudTests(TestCase):
     def test_guest_home_shows_register_banner_without_rank(self):
         self.client.post(reverse('core:guest_enter'))
         home = self.client.get(reverse('core:home'))
-        self.assertContains(home, 'برای استفاده از امکانات سایت باید حسابت را ثبت‌نام کنی.')
+        self.assertContains(home, 'به دنیای کیل‌باکس خوش آمدی')
         self.assertContains(home, 'profile2.webp')
         self.assertContains(home, reverse('core:profile'))
         self.assertNotContains(home, 'class="topbar-rank"')
@@ -302,10 +390,11 @@ class ProfileHudTests(TestCase):
         self.assertEqual(old.status_code, 301)
         self.assertEqual(old.url, '/')
 
-    def test_anonymous_profile_redirects(self):
+    def test_anonymous_profile_shows_register_cta(self):
         response = self.client.get(reverse('core:profile'))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('core:register'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'رفتن به ثبت‌نام')
+        self.assertContains(response, reverse('core:register'))
 
     @override_settings(
         MELIPAYAMAK_DRY_RUN=False,
@@ -330,7 +419,8 @@ class ProfileHudTests(TestCase):
             content_type='application/json',
         )
         home = self.client.get(reverse('core:home'))
-        self.assertNotContains(home, 'guest-banner')
+        self.assertNotContains(home, 'id="kb-guest-banner"')
+        self.assertNotContains(home, 'id="auth-prompt"')
         self.assertNotContains(home, 'class="topbar-rank"')
         self.assertContains(home, 'topbar-chip--gem')
         self.assertContains(home, 'topbar-chip--wallet')
@@ -622,7 +712,8 @@ class DockAndLegalTests(TestCase):
         self.assertEqual(out.status_code, 302)
         self.assertEqual(out.url, reverse('core:register'))
         home = self.client.get(reverse('core:home'))
-        self.assertEqual(home.status_code, 302)
+        self.assertEqual(home.status_code, 200)
+        self.assertContains(home, 'به دنیای کیل‌باکس خوش آمدی')
 
     def test_phone_signup_records_referral(self):
         from unittest.mock import patch
@@ -686,6 +777,15 @@ class LiveHubTests(TestCase):
         self.assertContains(page, 'چت زنده')
         self.assertContains(page, 'دونیت')
         self.assertContains(page, 'سیگنال زنده کیل‌باکس')
+        denied = self.client.post(
+            reverse('core:live_chat', args=['killbox-night']),
+            {'text': 'گلادیاتورها آماده‌ان'},
+        )
+        self.assertEqual(denied.status_code, 401)
+        self.assertEqual(denied.json()['code'], 'auth')
+        User = get_user_model()
+        member = User.objects.create_user(username='09120001111')
+        self.client.force_login(member)
         chat = self.client.post(
             reverse('core:live_chat', args=['killbox-night']),
             {'text': 'گلادیاتورها آماده‌ان'},

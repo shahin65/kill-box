@@ -22,6 +22,7 @@ from apps.core.bale import (
 )
 from apps.core.avatar import AvatarError, save_member_avatar
 from apps.core.session import (
+    AUTH_REQUIRED_MESSAGE,
     admit_guest,
     admit_member,
     consume_home_toasts,
@@ -29,6 +30,7 @@ from apps.core.session import (
     hud_context,
     is_admitted,
     is_member,
+    member_required_response,
 )
 from apps.core.identity import (
     BIO_MAX,
@@ -70,20 +72,14 @@ def register(request):
 
 def home(request):
     capture_referral(request)
-    if not is_admitted(request):
-        return redirect('core:register')
     from apps.social.services import latest_posts, serialize_story_groups
 
     context = hud_context(request)
     context.update(consume_home_toasts(request))
     context.update(
         {
-            'home_posts': latest_posts(request, limit=10),
-            'story_groups': serialize_story_groups(
-                request,
-                friend_first=True,
-                story_limit=10,
-            ),
+            'home_posts': latest_posts(request, limit=24),
+            'story_groups': serialize_story_groups(request),
             'home_lives': home_live_cards(),
             'home_tournaments': home_tournaments(),
         }
@@ -92,26 +88,20 @@ def home(request):
 
 
 def profile(request):
-    if not is_admitted(request):
-        return redirect('core:register')
     return render(request, 'core/profile.html', hud_context(request))
 
 
 def site_settings(request):
-    if not is_admitted(request):
-        return redirect('core:register')
+    if not is_member(request):
+        return member_required_response(request)
     return render(request, 'core/settings.html', hud_context(request))
 
 
 def team(request):
-    if not is_admitted(request):
-        return redirect('core:register')
     return render(request, 'core/team.html', hud_context(request))
 
 
 def shop(request):
-    if not is_admitted(request):
-        return redirect('core:register')
     return render(request, 'core/shop.html', hud_context(request))
 
 
@@ -135,8 +125,6 @@ def _live_messages(slug):
 
 
 def live_hub(request, slug=None):
-    if not is_admitted(request):
-        return redirect('core:register')
     room = live_room(slug)
     context = hud_context(request)
     context.update(
@@ -149,14 +137,16 @@ def live_hub(request, slug=None):
     return render(request, 'core/live.html', context)
 
 
-def _live_json_error(message, status=400):
-    return JsonResponse({'success': False, 'message': message}, status=status)
+def _live_json_error(message, status=400, **extra):
+    payload = {'success': False, 'message': message}
+    payload.update(extra)
+    return JsonResponse(payload, status=status)
 
 
 @require_POST
 def live_chat(request, slug):
-    if not is_admitted(request):
-        return _live_json_error('وارد منطقه شوید.', status=403)
+    if not is_member(request):
+        return _live_json_error(AUTH_REQUIRED_MESSAGE, status=401, code='auth')
     room = live_room(slug)
     text = str(request.POST.get('text') or '').strip()
     if not text:
@@ -167,8 +157,8 @@ def live_chat(request, slug):
 
 @require_POST
 def live_donate(request, slug):
-    if not is_admitted(request):
-        return _live_json_error('وارد منطقه شوید.', status=403)
+    if not is_member(request):
+        return _live_json_error(AUTH_REQUIRED_MESSAGE, status=401, code='auth')
     room = live_room(slug)
     try:
         amount = int(str(request.POST.get('amount') or '0').strip())
@@ -198,8 +188,6 @@ def live_donate(request, slug):
 
 @require_GET
 def live_feed(request, slug):
-    if not is_admitted(request):
-        return _live_json_error('وارد منطقه شوید.', status=403)
     room = live_room(slug)
     return JsonResponse({'success': True, 'messages': _live_messages(room['slug'])})
 
@@ -335,8 +323,6 @@ def profile_codm(request):
 
 
 def _legal_page(request, kind):
-    if not is_admitted(request):
-        return redirect('core:register')
     cfg = SiteSettings.load()
     if kind == 'privacy':
         title = 'سیاست حفظ حریم خصوصی'
@@ -567,9 +553,8 @@ def telegram_status(request):
 
 @csrf_exempt
 @require_POST
-def telegram_webhook(request, secret: str):
-    expected = str(getattr(settings, 'TELEGRAM_WEBHOOK_SECRET', '') or '')
-    if not expected or not hmac.compare_digest(secret, expected):
+def telegram_webhook(request, secret: str = ''):
+    if not telegram_bot.verify_webhook_request(request, url_secret=secret):
         return HttpResponse(status=403)
     payload = _json_body(request) or {}
     telegram_bot.handle_update(payload)

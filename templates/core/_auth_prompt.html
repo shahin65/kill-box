@@ -1,0 +1,11 @@
+<dialog class="auth-prompt" id="auth-prompt" aria-labelledby="auth-prompt-title">
+  <div class="auth-prompt__panel">
+    <button class="auth-prompt__close" type="button" data-auth-prompt-close aria-label="بستن">×</button>
+    <p class="auth-kicker">منطقه عملیاتی</p>
+    <h2 id="auth-prompt-title">ورود به کیل‌باکس</h2>
+    <p>برای انجام این عملیات ابتدا وارد حساب کاربری خود شوید</p>
+    <a class="auth-btn auth-prompt__cta" href="{% url 'core:register' %}" data-kb-nav data-auth-prompt-close>
+      <span>ورود / ثبت‌نام</span>
+    </a>
+  </div>
+</dialog>

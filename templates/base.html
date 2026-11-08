@@ -3,10 +3,11 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8">
+  <title>{% block title %}KILLBOX{% endblock %}</title>
+  {% if not kb_partial %}
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#070a07">
   <meta name="color-scheme" content="dark">
-  <title>{% block title %}KILLBOX{% endblock %}</title>
   <link rel="icon" href="{% static 'images/favicon.ico' %}?v=3" sizes="any">
   <link rel="icon" type="image/png" href="{% static 'images/favicon-32.png' %}?v=3" sizes="32x32">
   <link rel="apple-touch-icon" href="{% static 'images/apple-touch-icon.png' %}?v=3">
@@ -14,13 +15,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/base.css' %}?v=9">
-  <link rel="stylesheet" href="{% static 'css/neon-bg.css' %}?v=2">
-  <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=71">
-  <link rel="stylesheet" href="{% static 'css/social.css' %}?v=23">
+  <link rel="stylesheet" href="{% static 'css/neon-bg.css' %}?v=3">
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=73">
+  <link rel="stylesheet" href="{% static 'css/social.css' %}?v=26">
   <link rel="stylesheet" href="{% static 'css/arena.css' %}?v=11">
   {% block extra_css %}{% endblock %}
+  {% endif %}
 </head>
-<body class="{% block body_class %}{% endblock %}" {% block body_attrs %}{% endblock %}>
+<body class="{% block body_class %}{% endblock %}" {% if kb_member %}data-kb-member="1"{% endif %} {% block body_attrs %}{% endblock %}>
+  {% if not kb_partial %}
   <div id="google_translate_element" hidden></div>
   <script>
   (function (win, doc) {
@@ -30,6 +33,12 @@
     win.__kbNav = true;
 
     var busy = false;
+    var pending = null;
+    var inflight = null;
+    var cacheMap = new Map();
+    var gets = new Map();
+    var CACHE_MS = 18000;
+    var CACHE_MAX = 10;
 
     function absUrl(href) {
       try {
@@ -79,6 +88,75 @@
 
     function copyBodyState(fromBody, toBody) {
       toBody.className = fromBody.className;
+      if (fromBody.getAttribute('data-kb-member')) {
+        toBody.setAttribute('data-kb-member', fromBody.getAttribute('data-kb-member'));
+      } else {
+        toBody.removeAttribute('data-kb-member');
+      }
+    }
+
+    function cacheGet(url) {
+      var hit = cacheMap.get(destKey(url));
+      if (!hit) {
+        return '';
+      }
+      if (Date.now() - hit.at > CACHE_MS) {
+        cacheMap.delete(destKey(url));
+        return '';
+      }
+      return hit.html;
+    }
+
+    function cachePut(url, html) {
+      cacheMap.set(destKey(url), { html: html, at: Date.now() });
+      if (cacheMap.size <= CACHE_MAX) {
+        return;
+      }
+      var first = cacheMap.keys().next().value;
+      cacheMap.delete(first);
+    }
+
+    function syncSlot(id, parsed, mode) {
+      var cur = doc.getElementById(id);
+      var next = parsed.getElementById(id);
+      if (!cur || !next) {
+        return;
+      }
+      if (mode === 'dock') {
+        var nextItems = next.querySelectorAll('.kb-dock__item');
+        if (!nextItems.length) {
+          cur.innerHTML = '';
+          return;
+        }
+        if (!cur.querySelector('.kb-dock')) {
+          cur.replaceWith(next);
+          return;
+        }
+        var curItems = cur.querySelectorAll('.kb-dock__item');
+        for (var i = 0; i < curItems.length && i < nextItems.length; i += 1) {
+          curItems[i].className = nextItems[i].className;
+        }
+        return;
+      }
+      if (cur.innerHTML === next.innerHTML) {
+        return;
+      }
+      cur.replaceWith(next);
+    }
+
+    function markDock(url) {
+      var path = pathOf(url);
+      var items = doc.querySelectorAll('.kb-dock__item');
+      for (var i = 0; i < items.length; i += 1) {
+        var href = items[i].getAttribute('href') || '';
+        var itemUrl = absUrl(href);
+        var itemPath = pathOf(itemUrl);
+        var on = itemPath === path;
+        if (itemPath === '/live' && path.indexOf('/live') === 0) {
+          on = true;
+        }
+        items[i].classList.toggle('is-active', on);
+      }
     }
 
     function applyShell(html, url, push) {
@@ -89,9 +167,13 @@
         hardGo(url);
         return;
       }
+      syncSlot('kb-chrome-top', parsed, 'top');
       shell.replaceWith(next);
-      doc.title = parsed.title || doc.title;
+      syncSlot('kb-chrome-dock', parsed, 'dock');
+      var titleNode = parsed.querySelector('title');
+      doc.title = (titleNode && titleNode.textContent) || parsed.title || doc.title;
       copyBodyState(parsed.body, doc.body);
+      markDock(url);
       if (push) {
         if (!win.__kbHist) {
           win.history.replaceState({ kbNav: 1 }, '', win.location.href);
@@ -104,31 +186,102 @@
       }
     }
 
+    function fetchShell(url, signal) {
+      var cached = cacheGet(url);
+      if (cached) {
+        return Promise.resolve({ html: cached, url: url });
+      }
+      var key = destKey(url);
+      if (gets.has(key)) {
+        return gets.get(key);
+      }
+      var req = fetch(url.href, {
+        credentials: 'same-origin',
+        headers: {
+          Accept: 'text/html',
+          'X-Killbox-Nav': '1',
+        },
+        signal: signal,
+      }).then(function (res) {
+        if (!res.ok) {
+          throw new Error('nav');
+        }
+        var finalUrl = absUrl(res.url) || url;
+        return res.text().then(function (html) {
+          cachePut(finalUrl, html);
+          return { html: html, url: finalUrl };
+        });
+      }).finally(function () {
+        gets.delete(key);
+      });
+      gets.set(key, req);
+      return req;
+    }
+
+    function pump() {
+      if (!pending) {
+        busy = false;
+        inflight = null;
+        doc.documentElement.classList.remove('is-kb-busy');
+        return;
+      }
+      var job = pending;
+      pending = null;
+      busy = true;
+      doc.documentElement.classList.add('is-kb-busy');
+      markDock(job.url);
+      var ctrl = new AbortController();
+      inflight = ctrl;
+      fetchShell(job.url, ctrl.signal)
+        .then(function (payload) {
+          if (pending) {
+            return;
+          }
+          applyShell(payload.html, payload.url, job.push);
+        })
+        .catch(function (err) {
+          if (err && err.name === 'AbortError') {
+            return;
+          }
+          if (!pending) {
+            hardGo(job.url);
+          }
+        })
+        .then(function () {
+          inflight = null;
+          if (pending) {
+            pump();
+            return;
+          }
+          busy = false;
+          doc.documentElement.classList.remove('is-kb-busy');
+        });
+    }
+
     function loadShell(url, push) {
+      pending = { url: url, push: push };
+      if (inflight) {
+        try {
+          inflight.abort();
+        } catch (err) {}
+        inflight = null;
+      }
       if (busy) {
         return true;
       }
-      busy = true;
-      fetch(url.href, {
-        credentials: 'same-origin',
-        headers: { Accept: 'text/html' },
-      })
-        .then(function (res) {
-          if (!res.ok) {
-            throw new Error('nav');
-          }
-          var finalUrl = absUrl(res.url) || url;
-          return res.text().then(function (html) {
-            applyShell(html, finalUrl, push);
-          });
-        })
-        .catch(function () {
-          hardGo(url);
-        })
-        .then(function () {
-          busy = false;
-        });
+      pump();
       return true;
+    }
+
+    function prefetch(href) {
+      var url = absUrl(href);
+      if (!url || url.origin !== win.location.origin || isHere(url) || !canSwap(url)) {
+        return;
+      }
+      if (cacheGet(url)) {
+        return;
+      }
+      fetchShell(url).catch(function () {});
     }
 
     function forceGo(href) {
@@ -207,12 +360,20 @@
       forceGo(href);
     }
 
+    function onHint(event) {
+      var href = hrefFrom(event.target);
+      if (href) {
+        prefetch(href);
+      }
+    }
+
     win.__kbGo = forceGo;
     win.__kbSoftReload = function () {
       var url = absUrl(win.location.href);
       if (!url) {
         return;
       }
+      cacheMap.delete(destKey(url));
       loadShell(url, false);
     };
     win.addEventListener('popstate', function () {
@@ -223,17 +384,27 @@
       loadShell(url, false);
     });
     doc.addEventListener('click', onActivate, true);
+    doc.addEventListener('pointerenter', onHint, true);
+    doc.addEventListener('touchstart', onHint, { capture: true, passive: true });
   })(window, document);
   </script>
   {% include "core/_neon_bg.html" %}
-  <div id="kb-shell">
-    {% block body %}{% endblock %}
-  </div>
+  {% if not kb_member %}
+  {% include "core/_guest_banner.html" %}
+  {% include "core/_auth_prompt.html" %}
+  {% endif %}
+  {% endif %}
+  <div id="kb-chrome-top">{% block chrome_top %}{% endblock %}</div>
+  <div id="kb-shell">{% block body %}{% endblock %}</div>
+  <div id="kb-chrome-dock">{% block chrome_dock %}{% endblock %}</div>
+  {% if not kb_partial %}
   {% block extra_js %}
-  <script src="{% static 'js/landing.js' %}?v=48" defer></script>
-  <script src="{% static 'js/social.js' %}?v=10" defer></script>
-  <script src="{% static 'js/live.js' %}?v=3" defer></script>
+  <script src="{% static 'js/landing.js' %}?v=49" defer></script>
+  <script src="{% static 'js/feed-media.js' %}?v=1" defer></script>
+  <script src="{% static 'js/social.js' %}?v=14" defer></script>
+  <script src="{% static 'js/live.js' %}?v=4" defer></script>
   {% endblock %}
   <script src="{% static 'js/translate.js' %}?v=2" defer></script>
+  {% endif %}
 </body>
 </html>

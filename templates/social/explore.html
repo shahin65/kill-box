@@ -14,7 +14,7 @@
   </div>
   <div class="story-tray">
     {% for group in story_groups %}
-    <button class="story-ring{% if group.unseen %} is-unseen{% else %} is-seen{% endif %}{% if group.friend %} is-friend{% endif %}" type="button" data-story-open="{{ forloop.counter0 }}">
+    <button class="story-ring{% if group.unseen %} is-unseen{% else %} is-seen{% endif %}{% if group.following %} is-following is-friend{% endif %}" type="button" data-story-open="{{ forloop.counter0 }}">
       <img src="{% if group.avatar %}{{ group.avatar }}{% elif group.cover %}{{ group.cover }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}" alt="">
       <span>{{ group.name }}</span>
     </button>
@@ -29,10 +29,13 @@
     {% for post in posts %}
     <button class="explore-tile" type="button" data-post-open="{{ forloop.counter0 }}">
       {% if post.url %}
-        {% if post.kind == 'video' %}
-        <video src="{{ post.url }}" muted playsinline></video>
+        {% if post.kind == 'video' and post.poster %}
+        <img src="{{ post.poster }}" alt="" loading="lazy" decoding="async">
+        <i class="explore-tile__play" aria-hidden="true"></i>
+        {% elif post.kind == 'video' %}
+        {% include "social/_media.html" with item=post extra_class="" ratio="1/1" %}
         {% else %}
-        <img src="{{ post.url }}" alt="">
+        <img src="{{ post.url }}" alt="" loading="lazy" decoding="async">
         {% endif %}
       {% else %}
       <span>{{ post.caption|truncatechars:48 }}</span>

@@ -3,12 +3,18 @@
 
 {% block extra_css %}{% endblock %}
 
-{% block body %}
+{% block chrome_top %}
   {% include "core/_topbar.html" %}
-  {% include "core/_guest_banner.html" %}
   {% include "core/_brand.html" %}
+{% endblock %}
+
+{% block body %}
   <main class="landing-stage profile-stage">
+    {% csrf_token %}
     {% block panel %}{% endblock %}
   </main>
+{% endblock %}
+
+{% block chrome_dock %}
   {% include "core/_dock.html" %}
 {% endblock %}

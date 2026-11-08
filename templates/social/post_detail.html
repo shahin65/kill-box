@@ -11,11 +11,7 @@
     <strong>{{ item.name }}</strong>
     <button type="button" data-follow="{{ item.author_id }}">دنبال کردن</button>
   </header>
-  {% if item.kind == 'video' %}
-  <video class="post-card__media" src="{{ item.url }}" controls playsinline></video>
-  {% else %}
-  <img class="post-card__media" src="{{ item.url }}" alt="">
-  {% endif %}
+  {% include "social/_media.html" with item=item extra_class="post-card__media" ratio="4/5" %}
   {% if item.caption %}<p class="post-card__caption">{{ item.caption }}</p>{% endif %}
   <div class="post-card__bar">
     <button type="button" data-like-post="{{ item.id }}">لایک {{ item.likes }}</button>

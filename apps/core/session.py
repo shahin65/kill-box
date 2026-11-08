@@ -9,6 +9,7 @@ GUEST_KEY = 'killbox_guest'
 PHONE_KEY = 'killbox_phone'
 XP_TOAST_KEY = 'killbox_xp_toast'
 RANK_TOAST_KEY = 'killbox_rank_toast'
+AUTH_REQUIRED_MESSAGE = 'برای انجام این عملیات ابتدا وارد حساب کاربری خود شوید'
 
 
 def is_admitted(request) -> bool:
@@ -23,6 +24,30 @@ def is_guest(request) -> bool:
 
 def is_member(request) -> bool:
     return bool(getattr(request, 'user', None) and request.user.is_authenticated)
+
+
+def member_required_response(request):
+    from django.http import JsonResponse
+    from django.shortcuts import redirect
+
+    accept = request.headers.get('Accept') or ''
+    wants_json = (
+        request.method != 'GET'
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or ('application/json' in accept and 'text/html' not in accept)
+    )
+    if wants_json:
+        return JsonResponse(
+            {
+                'success': False,
+                'message': AUTH_REQUIRED_MESSAGE,
+                'code': 'auth',
+            },
+            status=401,
+        )
+    if is_admitted(request):
+        return redirect('core:profile')
+    return redirect('core:register')
 
 
 def admit_guest(request) -> None:
@@ -59,8 +84,8 @@ def ensure_member_profile(user):
 
 
 def hud_context(request) -> dict:
-    guest = is_guest(request)
     member = is_member(request)
+    guest = (not member)
     phone = str(request.session.get(PHONE_KEY) or '')
     rank = None
     avatar_url = ''
@@ -77,6 +102,7 @@ def hud_context(request) -> dict:
     codm_uid = ''
     codm_nickname = ''
     codm_level = None
+    notices = {'inbox': 0, 'stories': 0, 'posts': 0, 'total': 0}
     if member:
         from apps.core.identity import profile_display_name, touch_presence
 
@@ -94,21 +120,19 @@ def hud_context(request) -> dict:
         codm_uid = profile.codm_uid or ''
         codm_nickname = profile.codm_nickname or ''
         codm_level = profile.codm_level
-        from apps.social.services import follow_counts
-
-        counts = follow_counts(request.user)
-        followers = counts['followers']
-        following = counts['following']
         if profile.avatar:
             avatar_url = profile.avatar.url
             has_custom_avatar = True
         if not phone:
             phone = request.user.get_username()
-    notices = {'inbox': 0, 'stories': 0, 'posts': 0, 'total': 0}
-    if member:
-        from apps.social.services import notice_counts
+        path = (getattr(request, 'path', '') or '').rstrip('/')
+        if path == '/profile':
+            from apps.social.services import follow_counts, notice_counts
 
-        notices = notice_counts(request.user)
+            counts = follow_counts(request.user)
+            followers = counts['followers']
+            following = counts['following']
+            notices = notice_counts(request.user)
     return {
         'is_guest': guest,
         'is_member': member,

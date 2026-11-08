@@ -62,6 +62,12 @@ def is_online(profile) -> bool:
 def touch_presence(user) -> None:
     if not getattr(user, 'is_authenticated', False) or not getattr(user, 'pk', None):
         return
+    from django.core.cache import cache
+
+    key = f'kb_seen_{user.pk}'
+    if cache.get(key):
+        return
+    cache.set(key, 1, 60)
     MemberProfile.objects.filter(user=user).update(last_seen=timezone.now())
 
 

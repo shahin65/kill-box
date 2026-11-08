@@ -2,16 +2,30 @@ from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
-from apps.social.models import ActivityNotice, ChatThread, DirectMessage, Follow, Post, Story, StoryView
-from apps.social.services import purge_expired_stories
+from apps.social.media import story_segment_plan
+from apps.social.models import (
+    ActivityNotice,
+    ChatThread,
+    DirectMessage,
+    Follow,
+    Post,
+    PostLike,
+    Story,
+    StoryView,
+)
+from apps.social.services import latest_posts, purge_expired_stories, serialize_story_groups, story_play_seconds
 
 
 def _png(name='shot.png'):
@@ -31,11 +45,20 @@ class SocialFeatureTests(TestCase):
         self.alpha = User.objects.create_user(username='09121110000')
         self.bravo = User.objects.create_user(username='09121110001')
 
-    def test_guest_is_kept_out_of_social(self):
+    def test_anonymous_can_open_explore_without_guest_session(self):
+        explore = self.client.get(reverse('social:explore'))
+        self.assertEqual(explore.status_code, 200)
+        self.assertContains(explore, 'اکسپلور')
+        home = self.client.get(reverse('core:home'))
+        self.assertEqual(home.status_code, 200)
+        stories = self.client.get(reverse('social:stories'))
+        self.assertEqual(stories.status_code, 200)
+
+    def test_guest_can_watch_stories(self):
         self.client.post(reverse('core:guest_enter'))
         response = self.client.get(reverse('social:stories'))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('core:profile'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'استوری')
 
     def test_guest_can_open_explore_and_read_post(self):
         self.client.force_login(self.alpha)
@@ -58,9 +81,20 @@ class SocialFeatureTests(TestCase):
             reverse('social:post_like', args=[post_id]),
             HTTP_X_REQUESTED_WITH='XMLHttpRequest',
         )
-        self.assertEqual(liked.status_code, 403)
+        self.assertEqual(liked.status_code, 401)
         self.assertFalse(liked.json()['success'])
         self.assertEqual(liked.json()['code'], 'auth')
+        follow = self.client.post(
+            reverse('social:follow', args=[self.alpha.pk]),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(follow.status_code, 401)
+        comment = self.client.post(
+            reverse('social:post_comment', args=[post_id]),
+            {'text': 'عالی'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+        self.assertEqual(comment.status_code, 401)
 
     def test_settings_lists_google_languages(self):
         self.client.force_login(self.alpha)
@@ -82,17 +116,60 @@ class SocialFeatureTests(TestCase):
         self.assertTrue(created.json()['success'])
         story = Story.objects.get()
         self.assertTrue(story.media.name.endswith('.webp'))
+        self.assertTrue(story.thumbnail)
+        self.assertTrue(story.thumbnail.name.endswith('.webp'))
+        self.assertEqual(story.duration, 5)
         liked = self.client.post(reverse('social:story_like', args=[story.pk]))
         self.assertTrue(liked.json()['liked'])
-        with self.settings():
-            from unittest.mock import patch
+        again = self.client.post(
+            reverse('social:story_create'),
+            {'media': _png('two.png')},
+        )
+        self.assertEqual(again.status_code, 200)
+        self.assertTrue(again.json()['success'])
+        self.assertEqual(Story.objects.filter(author=self.alpha).count(), 2)
+        for index in range(13):
+            extra = self.client.post(
+                reverse('social:story_create'),
+                {'media': _png(f'cap{index}.png')},
+            )
+            self.assertTrue(extra.json()['success'])
+        blocked = self.client.post(
+            reverse('social:story_create'),
+            {'media': _png('over.png')},
+        )
+        self.assertEqual(blocked.status_code, 400)
+        self.assertFalse(blocked.json()['success'])
+        self.assertEqual(Story.objects.filter(author=self.alpha).count(), 15)
 
-            with patch('apps.social.views.STORY_DAILY_CAP', 1):
-                again = self.client.post(
-                    reverse('social:story_create'),
-                    {'media': _png('two.png')},
-                )
-        self.assertEqual(again.status_code, 403)
+    def test_story_segment_plan_splits_after_fifteen_seconds(self):
+        self.assertEqual(story_segment_plan(8.2), [(0.0, 8.2)])
+        self.assertEqual(story_segment_plan(15), [(0.0, 15.0)])
+        self.assertEqual(story_segment_plan(16), [(0.0, 15.0), (15.0, 1.0)])
+        self.assertEqual(len(story_segment_plan(47)), 4)
+
+    def test_long_video_becomes_consecutive_stories(self):
+        self.client.force_login(self.alpha)
+        clips = [
+            (ContentFile(b'clip-a', name='clip-0.mp4'), None, 15.0),
+            (ContentFile(b'clip-b', name='clip-1.mp4'), None, 12.4),
+        ]
+        with patch('apps.social.views.prepare_story_videos', return_value=clips):
+            created = self.client.post(
+                reverse('social:story_create'),
+                {'media': SimpleUploadedFile('run.mp4', b'fake-mp4', content_type='video/mp4')},
+            )
+        self.assertTrue(created.json()['success'])
+        self.assertEqual(created.json()['count'], 2)
+        rows = list(Story.objects.filter(author=self.alpha).order_by('pk'))
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0].kind, 'video')
+        self.assertEqual(rows[0].duration, 15.0)
+        self.assertEqual(rows[1].duration, 12.4)
+        self.assertEqual(story_play_seconds(rows[1]), 12.4)
+        groups = serialize_story_groups(created.wsgi_request)
+        self.assertEqual(groups[0]['stories'][0]['duration'], 15.0)
+        self.assertEqual(groups[0]['stories'][1]['duration'], 12.4)
 
     def test_expired_story_is_purged_from_host(self):
         self.client.force_login(self.alpha)
@@ -105,29 +182,24 @@ class SocialFeatureTests(TestCase):
         self.assertFalse(Story.objects.exists())
         self.assertFalse(Path(path).exists())
 
-    def test_post_cap_replaces_oldest(self):
+    def test_posts_are_not_capped(self):
         self.client.force_login(self.alpha)
-        from unittest.mock import patch
-
-        with patch('apps.social.views.POST_CAP', 1):
-            first = self.client.post(
-                reverse('social:post_create'),
-                {'media': _png(), 'caption': 'اول'},
-            )
-            self.assertTrue(first.json()['success'])
-            blocked = self.client.post(
-                reverse('social:post_create'),
-                {'media': _png('new.png'), 'caption': 'دوم'},
-            )
-            self.assertEqual(blocked.status_code, 409)
-            self.assertTrue(blocked.json()['replace_ok'])
-            replaced = self.client.post(
-                reverse('social:post_create'),
-                {'media': _png('new2.png'), 'caption': 'دوم', 'replace': '1'},
-            )
-        self.assertTrue(replaced.json()['success'])
-        self.assertEqual(Post.objects.count(), 1)
-        self.assertEqual(Post.objects.get().caption, 'دوم')
+        first = self.client.post(
+            reverse('social:post_create'),
+            {'media': _png(), 'caption': 'اول'},
+        )
+        self.assertTrue(first.json()['success'])
+        second = self.client.post(
+            reverse('social:post_create'),
+            {'media': _png('new.png'), 'caption': 'دوم'},
+        )
+        self.assertEqual(second.status_code, 200)
+        self.assertTrue(second.json()['success'])
+        self.assertEqual(Post.objects.count(), 2)
+        self.assertEqual(
+            set(Post.objects.values_list('caption', flat=True)),
+            {'اول', 'دوم'},
+        )
 
     def test_private_message_request_reject_and_follow(self):
         self.client.force_login(self.alpha)
@@ -196,6 +268,7 @@ class SocialFeatureTests(TestCase):
             addressee=self.bravo,
             status=Friendship.ACCEPTED,
         )
+        Follow.objects.create(follower=self.alpha, following=self.bravo)
         self.client.force_login(self.alpha)
         post = self.client.post(
             reverse('social:post_create'),
@@ -230,6 +303,13 @@ class SocialFeatureTests(TestCase):
         self.assertContains(home, 'data-post-pos')
         self.assertContains(home, 'data-post-open')
         self.assertContains(home, 'data-like-post')
+        self.assertContains(home, 'data-kb-media')
+        self.assertContains(home, 'loading="lazy"')
+        self.assertContains(home, 'decoding="async"')
+        self.assertContains(home, 'kb-media')
+        posted = Post.objects.get()
+        self.assertTrue(posted.thumbnail)
+        self.assertTrue(posted.thumbnail.name.endswith('.webp'))
         self.assertContains(home, 'id="post-reader"')
         self.assertContains(home, 'post-reader__close')
         self.assertContains(home, 'پست قبلی')
@@ -261,6 +341,159 @@ class SocialFeatureTests(TestCase):
         )
 
 
+    def test_serialize_post_includes_poster(self):
+        self.client.force_login(self.alpha)
+        created = self.client.post(
+            reverse('social:post_create'),
+            {'media': _png(), 'caption': 'کاور'},
+        )
+        post = Post.objects.get(pk=created.json()['id'])
+        from apps.social.services import serialize_post
+
+        payload = serialize_post(post, created.wsgi_request)
+        self.assertTrue(payload['poster'])
+        self.assertEqual(payload['kind'], 'image')
+        page = self.client.get(reverse('social:posts'))
+        self.assertContains(page, 'data-kb-media')
+        self.assertContains(page, 'aspect-ratio: 4/5')
+        self.assertContains(page, 'loading="lazy"')
+        self.assertContains(page, 'decoding="async"')
+        self.assertContains(page, '--kb-poster')
+        markup = Path(__file__).resolve().parents[2] / 'templates' / 'social' / '_media.html'
+        html = markup.read_text(encoding='utf-8')
+        self.assertIn('preload="metadata"', html)
+        self.assertIn('webkit-playsinline', html)
+        self.assertIn('data-kb-mute', html)
+        self.assertIn('data-kb-video', html)
+
+    def test_home_feed_ranks_following_then_public(self):
+        charlie = get_user_model().objects.create_user(username='09121110002')
+        Follow.objects.create(follower=self.alpha, following=self.bravo)
+        now = timezone.now()
+        expires = now + timedelta(hours=20)
+        public_story = Story.objects.create(
+            author=charlie,
+            kind='image',
+            overlay='public',
+            expires_at=expires,
+            media=_png('pub.png'),
+        )
+        public_story.created_at = now
+        public_story.save(update_fields=['created_at'])
+        following_story = Story.objects.create(
+            author=self.bravo,
+            kind='image',
+            overlay='follow',
+            expires_at=expires,
+            media=_png('fol.png'),
+        )
+        following_story.created_at = now - timedelta(hours=3)
+        following_story.save(update_fields=['created_at'])
+        self.client.force_login(self.alpha)
+        home = self.client.get(reverse('core:home'))
+        groups = serialize_story_groups(home.wsgi_request)
+        authors = [group['author_id'] for group in groups]
+        self.assertEqual(authors[0], self.bravo.pk)
+        self.assertIn(charlie.pk, authors)
+        self.assertTrue(groups[0]['following'])
+        self.assertTrue(groups[0]['unseen'])
+        self.assertContains(home, 'is-following')
+        StoryView.objects.create(story=following_story, user=self.alpha)
+        seen_groups = serialize_story_groups(self.client.get(reverse('core:home')).wsgi_request)
+        self.assertEqual(seen_groups[0]['author_id'], self.bravo.pk)
+        self.assertFalse(seen_groups[0]['unseen'])
+        public_group = next(group for group in seen_groups if group['author_id'] == charlie.pk)
+        self.assertTrue(public_group['unseen'])
+        self.assertFalse(public_group['following'])
+
+        following_post = Post.objects.create(
+            author=self.bravo,
+            kind='image',
+            caption='from follow',
+            media=_png('fp.png'),
+        )
+        following_post.created_at = now - timedelta(hours=5)
+        following_post.save(update_fields=['created_at'])
+        public_post = Post.objects.create(
+            author=charlie,
+            kind='image',
+            caption='hot public',
+            media=_png('pp.png'),
+        )
+        PostLike.objects.create(post=public_post, user=self.bravo)
+        PostLike.objects.create(post=public_post, user=charlie)
+        feed = latest_posts(self.client.get(reverse('core:home')).wsgi_request, limit=10)
+        captions = [row['caption'] for row in feed]
+        self.assertEqual(captions[0], 'from follow')
+        self.assertIn('hot public', captions)
+        self.assertTrue(feed[0]['following'])
+        self.assertFalse(next(row for row in feed if row['caption'] == 'hot public')['following'])
+
+    def test_serialize_skips_expired_without_deleting(self):
+        self.client.force_login(self.alpha)
+        self.client.post(reverse('social:story_create'), {'media': _png()})
+        story = Story.objects.get()
+        story.expires_at = timezone.now() - timedelta(minutes=1)
+        story.save(update_fields=['expires_at'])
+        groups = serialize_story_groups(self.client.get(reverse('core:home')).wsgi_request)
+        self.assertEqual(groups, [])
+        self.assertTrue(Story.objects.filter(pk=story.pk).exists())
+
+    def test_home_explore_profile_query_budget(self):
+        from apps.core.session import ensure_member_profile
+        from apps.social.models import PostComment, StoryLike
+
+        ensure_member_profile(self.alpha)
+        ensure_member_profile(self.bravo)
+        Follow.objects.create(follower=self.alpha, following=self.bravo)
+        now = timezone.now()
+        expires = now + timedelta(hours=8)
+        for index in range(6):
+            post = Post.objects.create(
+                author=self.bravo if index % 2 else self.alpha,
+                kind='image',
+                caption=f'post-{index}',
+                media=_png(f'p{index}.png'),
+            )
+            PostLike.objects.create(post=post, user=self.bravo)
+            PostComment.objects.create(post=post, user=self.bravo, text='ok')
+            story = Story.objects.create(
+                author=self.bravo if index % 2 else self.alpha,
+                kind='image',
+                overlay=f's{index}',
+                expires_at=expires,
+                media=_png(f's{index}.png'),
+            )
+            StoryLike.objects.create(story=story, user=self.bravo)
+        self.client.force_login(self.alpha)
+        with CaptureQueriesContext(connection) as captured:
+            home = self.client.get(reverse('core:home'))
+        self.assertEqual(home.status_code, 200)
+        self.assertLess(len(captured), 28)
+        with CaptureQueriesContext(connection) as captured:
+            explore = self.client.get(reverse('social:explore'))
+        self.assertEqual(explore.status_code, 200)
+        self.assertLess(len(captured), 28)
+        with CaptureQueriesContext(connection) as captured:
+            profile = self.client.get(reverse('core:profile'))
+        self.assertEqual(profile.status_code, 200)
+        self.assertLess(len(captured), 22)
+
+    def test_partial_nav_omits_static_shell(self):
+        self.client.force_login(self.alpha)
+        full = self.client.get(reverse('core:home'))
+        self.assertContains(full, 'fonts.googleapis.com')
+        self.assertContains(full, 'landing.js')
+        partial = self.client.get(reverse('core:home'), HTTP_X_KILLBOX_NAV='1')
+        self.assertEqual(partial.status_code, 200)
+        self.assertEqual(partial['X-Killbox-Nav'], '1')
+        self.assertNotContains(partial, 'fonts.googleapis.com')
+        self.assertNotContains(partial, 'landing.js')
+        self.assertContains(partial, 'id="kb-shell"')
+        self.assertContains(partial, 'kb-dock')
+        self.assertContains(partial, 'id="kb-chrome-top"')
+
+
 class ArvanStorageFallbackTests(TestCase):
     def test_uploads_use_local_storage_in_tests(self):
         from django.conf import settings
@@ -277,7 +510,9 @@ class ArvanStorageFallbackTests(TestCase):
         )
         self.assertIsInstance(default_storage, FileSystemStorage)
         self.assertIsInstance(Post._meta.get_field('media').storage, FileSystemStorage)
+        self.assertIsInstance(Post._meta.get_field('thumbnail').storage, FileSystemStorage)
         self.assertIsInstance(Story._meta.get_field('media').storage, FileSystemStorage)
+        self.assertIsInstance(Story._meta.get_field('thumbnail').storage, FileSystemStorage)
         self.assertIsInstance(MemberProfile._meta.get_field('avatar').storage, FileSystemStorage)
         self.assertEqual(public_media_url(None), '')
 

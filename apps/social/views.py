@@ -3,17 +3,17 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from apps.core.session import hud_context, is_admitted, is_member
+from apps.core.session import hud_context, is_member, member_required_response
 from apps.social.media import (
+    IMAGE_STORY_SECONDS,
     POST_MAX_SECONDS,
     POST_VIDEO_MAX_BYTES,
-    STORY_MAX_SECONDS,
-    STORY_VIDEO_MAX_BYTES,
     MediaError,
     classify,
+    make_thumbnail,
     prepare_image,
+    prepare_story_videos,
     prepare_video,
-    public_media_url,
 )
 from apps.social.models import (
     ActivityNotice,
@@ -31,12 +31,10 @@ from apps.social.models import (
     StoryView,
 )
 from apps.social.services import (
-    POST_CAP,
     STORY_DAILY_CAP,
     STORY_TTL,
     are_friends,
     daily_suggestions,
-    delete_post_media,
     display_name,
     find_by_public_id,
     follow_counts,
@@ -47,6 +45,7 @@ from apps.social.services import (
     is_online,
     latest_posts,
     mark_notices_read,
+    serialize_post,
     open_friend_thread,
     pair_users,
     purge_expired_stories,
@@ -56,8 +55,6 @@ from apps.social.services import (
     stories_today,
     thread_for,
     threads_for,
-    trim_messages,
-    trim_threads,
 )
 
 
@@ -70,25 +67,11 @@ def _wants_json(request):
 
 
 def _gate(request, members_only=True):
-    admitted = is_admitted(request)
-    member = is_member(request)
-    if members_only and not member:
-        if _wants_json(request):
-            if admitted:
-                return _json_error(
-                    'برای لایک و کامنت باید حسابت را ثبت‌نام کنی.',
-                    status=403,
-                    code='auth',
-                )
-            return _json_error('وارد منطقه شوید.', status=403, code='auth')
-        if admitted:
-            return redirect('core:profile')
-        return redirect('core:register')
-    if not admitted:
-        if _wants_json(request):
-            return _json_error('وارد منطقه شوید.', status=403, code='auth')
-        return redirect('core:register')
-    return None
+    if not members_only:
+        return None
+    if is_member(request):
+        return None
+    return member_required_response(request)
 
 
 def _page(request, template, extra=None):
@@ -111,7 +94,7 @@ def _json_ok(message='', **extra):
 
 
 def stories(request):
-    bounced = _gate(request)
+    bounced = _gate(request, members_only=False)
     if bounced:
         return bounced
     mark_notices_read(
@@ -123,7 +106,6 @@ def stories(request):
         'social/stories.html',
         {
             'story_groups': serialize_story_groups(request, friend_first=True),
-            'stories_left': max(0, STORY_DAILY_CAP - stories_today(request.user)),
         },
     )
 
@@ -148,28 +130,60 @@ def story_create(request):
     if bounced:
         return bounced
     purge_expired_stories()
-    if stories_today(request.user) >= STORY_DAILY_CAP:
-        return _json_error('امروز سقف ۱۰ استوری پر شده است.', status=403)
+    remaining = STORY_DAILY_CAP - stories_today(request.user)
+    if remaining <= 0:
+        return _json_error('سقف ۱۵ استوری فعال در ۲۴ ساعت پر شده است.')
     uploaded = request.FILES.get('media')
     if not uploaded:
         return _json_error('فایل استوری انتخاب نشده است.')
     overlay = str(request.POST.get('overlay') or '')[:80]
+    uploaded_thumb = request.FILES.get('thumbnail')
+    expires_at = timezone.now() + STORY_TTL
     try:
         kind = classify(uploaded)
         if kind == 'image':
             stored = prepare_image(uploaded, max_side=1080)
+            clips = [
+                (
+                    stored,
+                    make_thumbnail('image', stored, uploaded_thumb),
+                    float(IMAGE_STORY_SECONDS),
+                )
+            ]
         else:
-            stored = prepare_video(uploaded, STORY_MAX_SECONDS, STORY_VIDEO_MAX_BYTES)
+            clips = prepare_story_videos(uploaded)
+            if uploaded_thumb and clips:
+                try:
+                    custom = make_thumbnail('image', clips[0][0], uploaded_thumb)
+                except MediaError:
+                    custom = None
+                if custom:
+                    first = clips[0]
+                    clips[0] = (first[0], custom, first[2])
     except MediaError as exc:
         return _json_error(str(exc))
-    story = Story(
-        author=request.user,
-        kind=kind,
-        overlay=overlay,
-        expires_at=timezone.now() + STORY_TTL,
-    )
-    story.media.save(stored.name, stored, save=True)
-    return _json_ok('استوری ارسال شد.', id=story.pk)
+    if len(clips) > remaining:
+        return _json_error(
+            f'این ویدیو به {len(clips)} استوری تبدیل می‌شود و فقط {remaining} جای خالی مانده است.'
+        )
+    created_ids = []
+    for stored, thumb, duration in clips:
+        story = Story(
+            author=request.user,
+            kind=kind,
+            overlay=overlay,
+            duration=duration,
+            expires_at=expires_at,
+        )
+        story.media.save(stored.name, stored, save=False)
+        if thumb:
+            story.thumbnail.save(thumb.name, thumb, save=False)
+        story.save()
+        created_ids.append(story.pk)
+    message = 'استوری ارسال شد.'
+    if len(created_ids) > 1:
+        message = f'{len(created_ids)} استوری پشت‌سرهم از ویدیو ساخته شد.'
+    return _json_ok(message, id=created_ids[0], ids=created_ids, count=len(created_ids))
 
 
 @require_POST
@@ -216,7 +230,7 @@ def story_seen(request, pk):
 
 
 def posts(request):
-    bounced = _gate(request)
+    bounced = _gate(request, members_only=False)
     if bounced:
         return bounced
     mark_notices_read(
@@ -228,8 +242,6 @@ def posts(request):
         'social/posts.html',
         {
             'posts': latest_posts(request, limit=80),
-            'post_count': Post.objects.filter(author=request.user).count(),
-            'post_cap': POST_CAP,
         },
     )
 
@@ -239,30 +251,12 @@ def post_detail(request, pk):
     if bounced:
         return bounced
     post = get_object_or_404(Post, pk=pk)
-    comments = [
-        {'name': display_name(row.user), 'text': row.text}
-        for row in post.comments.select_related('user')
-    ]
+    item = serialize_post(post, request)
+    item['comments'] = item.get('comment_list') or []
     return _page(
         request,
         'social/post_detail.html',
-        {
-            'item': {
-                'id': post.pk,
-                'author_id': post.author_id,
-                'name': display_name(post.author),
-                'kind': post.kind,
-                'url': public_media_url(post.media),
-                'caption': post.caption,
-                'likes': post.likes.count(),
-                'liked': bool(
-                    request.user.is_authenticated
-                    and post.likes.filter(user=request.user).exists()
-                ),
-                'comments': comments,
-                'share_url': request.build_absolute_uri(request.path),
-            }
-        },
+        {'item': item},
     )
 
 
@@ -275,15 +269,6 @@ def post_create(request):
     if not uploaded:
         return _json_error('فایل پست انتخاب نشده است.')
     caption = str(request.POST.get('caption') or '')[:2200]
-    replace = str(request.POST.get('replace') or '') in {'1', 'true', 'yes'}
-    existing = Post.objects.filter(author=request.user).order_by('created_at')
-    if existing.count() >= POST_CAP and not replace:
-        return _json_error(
-            'ظرفیت ۱۰۰ پست پر شده. با ارسال پست جدید، اولین پست حذف می‌شود.',
-            status=409,
-            code='cap',
-            replace_ok=True,
-        )
     try:
         kind = classify(uploaded)
         if kind == 'image':
@@ -292,12 +277,12 @@ def post_create(request):
             stored = prepare_video(uploaded, POST_MAX_SECONDS, POST_VIDEO_MAX_BYTES)
     except MediaError as exc:
         return _json_error(str(exc))
-    if existing.count() >= POST_CAP:
-        oldest = existing.first()
-        if oldest:
-            delete_post_media(oldest)
+    thumb = make_thumbnail(kind, stored, request.FILES.get('thumbnail'))
     post = Post(author=request.user, kind=kind, caption=caption)
-    post.media.save(stored.name, stored, save=True)
+    post.media.save(stored.name, stored, save=False)
+    if thumb:
+        post.thumbnail.save(thumb.name, thumb, save=False)
+    post.save()
     return _json_ok('پست منتشر شد.', id=post.pk)
 
 
@@ -459,15 +444,12 @@ def message_send(request, user_id):
             initiator=request.user,
             status=ChatThread.PENDING,
         )
-        trim_threads(request.user)
-        trim_threads(peer)
     elif chat.status == ChatThread.REJECTED and chat.initiator_id != request.user.pk:
         chat.status = ChatThread.ACCEPTED
         chat.save(update_fields=['status', 'updated_at'])
     DirectMessage.objects.create(thread=chat, sender=request.user, text=text)
     chat.save(update_fields=['updated_at'])
     push_notice(peer, request.user, ActivityNotice.MESSAGE, chat.pk)
-    trim_messages(chat)
     return _json_ok('ارسال شد.')
 
 

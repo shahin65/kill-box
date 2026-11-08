@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function bindPage() {
+  bindGuestChrome();
   bindLandingAuth();
   bindMessengerAuth('auth-bale-btn', 'بله');
   bindMessengerAuth('auth-telegram-btn', 'تلگرام');
@@ -20,6 +21,135 @@ function bindPage() {
 }
 
 window.__kbBindPage = bindPage;
+
+var KB_AUTH_GUARD =
+  '[data-like-post], #story-like, [data-follow], [data-comment-post], [data-kb-auth], #story-form, #post-form, #story-comment-form, #live-chat-form, #live-donate-form, [data-accept], [data-reject], [data-block], .event-fee-btn, .composer';
+
+function kbIsMember() {
+  return document.body.getAttribute('data-kb-member') === '1';
+}
+
+function closeAuthPrompt() {
+  var dialog = document.getElementById('auth-prompt');
+  if (!dialog) {
+    return;
+  }
+  dialog.classList.remove('is-open');
+  try {
+    if (typeof dialog.close === 'function' && dialog.open) {
+      dialog.close();
+      return;
+    }
+  } catch (err) {
+    /* ignore */
+  }
+  dialog.removeAttribute('open');
+}
+
+function promptAuth() {
+  var dialog = document.getElementById('auth-prompt');
+  if (!dialog) {
+    return false;
+  }
+  try {
+    if (typeof dialog.showModal === 'function' && !dialog.open) {
+      dialog.showModal();
+      return true;
+    }
+  } catch (err) {
+    /* fall through */
+  }
+  dialog.setAttribute('open', '');
+  dialog.classList.add('is-open');
+  return true;
+}
+
+function kbRequireAuth() {
+  if (kbIsMember()) {
+    return true;
+  }
+  promptAuth();
+  return false;
+}
+
+window.__kbPromptAuth = promptAuth;
+window.__kbRequireAuth = kbRequireAuth;
+
+function bindGuestChrome() {
+  if (window.__kbGuestChromeBound) {
+    return;
+  }
+  window.__kbGuestChromeBound = true;
+  var banner = document.getElementById('kb-guest-banner');
+  try {
+    if (banner && window.sessionStorage.getItem('kb_guest_banner_off') === '1') {
+      banner.classList.add('is-off');
+      document.documentElement.classList.add('is-guest-banner-off');
+    }
+  } catch (err) {
+    /* ignore */
+  }
+  document.addEventListener(
+    'click',
+    function (event) {
+      var node = event.target;
+      if (!node || typeof node.closest !== 'function') {
+        return;
+      }
+      if (node.closest('[data-guest-banner-close]')) {
+        if (banner) {
+          banner.classList.add('is-off');
+        }
+        document.documentElement.classList.add('is-guest-banner-off');
+        try {
+          window.sessionStorage.setItem('kb_guest_banner_off', '1');
+        } catch (err) {
+          /* ignore */
+        }
+        return;
+      }
+      if (node.closest('[data-auth-prompt-close]') || node === document.getElementById('auth-prompt')) {
+        closeAuthPrompt();
+      }
+      if (kbIsMember()) {
+        return;
+      }
+      if (!node.closest(KB_AUTH_GUARD)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      promptAuth();
+    },
+    true
+  );
+  document.addEventListener(
+    'submit',
+    function (event) {
+      if (kbIsMember()) {
+        return;
+      }
+      var form = event.target;
+      if (!form) {
+        return;
+      }
+      var gated =
+        form.id === 'story-form' ||
+        form.id === 'post-form' ||
+        form.id === 'live-chat-form' ||
+        form.id === 'live-donate-form' ||
+        form.id === 'story-comment-form' ||
+        (form.hasAttribute && form.hasAttribute('data-comment-post'));
+      if (!gated) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      promptAuth();
+    },
+    true
+  );
+}
 
 function bindSiteMenu() {
   if (window.__kbMenuBound) {

@@ -1,6 +1,5 @@
-{% if is_guest %}
-<p class="guest-banner">
-  <span>برای استفاده از امکانات سایت باید حسابت را ثبت‌نام کنی.</span>
-  <a class="guest-banner__link" href="{% url 'core:register' %}" data-kb-nav>ثبت‌نام حساب</a>
-</p>
-{% endif %}
+<aside id="kb-guest-banner" class="guest-banner" role="region" aria-label="دعوت به ورود">
+  <p class="guest-banner__copy">به دنیای کیل‌باکس خوش آمدی! برای شرکت در تورنمنت‌ها و ساخت کلن، وارد شو.</p>
+  <a class="guest-banner__cta" href="{% url 'core:register' %}" data-kb-nav>ورود / ثبت‌نام</a>
+  <button class="guest-banner__close" type="button" data-guest-banner-close aria-label="بستن بنر">×</button>
+</aside>

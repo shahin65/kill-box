@@ -6,11 +6,12 @@
 
 {% block extra_css %}{% endblock %}
 
-{% block body %}
+{% block chrome_top %}
   {% include "core/_topbar.html" %}
-  {% include "core/_guest_banner.html" %}
   {% include "core/_brand.html" %}
+{% endblock %}
 
+{% block body %}
   <main class="landing-stage home-stage">
     {% csrf_token %}
     <section class="feed-card home-feed home-feed--arena" data-kb-swipe>
@@ -43,7 +44,7 @@
       </div>
       <div class="story-tray">
         {% for group in story_groups %}
-        <button class="story-ring{% if group.unseen %} is-unseen{% else %} is-seen{% endif %}{% if group.friend %} is-friend{% endif %}" type="button" data-story-open="{{ forloop.counter0 }}">
+        <button class="story-ring{% if group.unseen %} is-unseen{% else %} is-seen{% endif %}{% if group.following %} is-following is-friend{% endif %}" type="button" data-story-open="{{ forloop.counter0 }}">
           <img src="{% if group.avatar %}{{ group.avatar }}{% elif group.cover %}{{ group.cover }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}" alt="">
           <span>{{ group.name }}</span>
         </button>
@@ -93,11 +94,7 @@
               <strong>{{ post.name }}</strong>
             </div>
             {% if post.url %}
-              {% if post.kind == 'video' %}
-              <video class="home-swipe__media" src="{{ post.url }}" muted playsinline></video>
-              {% else %}
-              <img class="home-swipe__media" src="{{ post.url }}" alt="" draggable="false">
-              {% endif %}
+              {% include "social/_media.html" with item=post extra_class="home-swipe__media" ratio="4/5" %}
             {% elif post.caption %}
             <p class="home-swipe__text">{{ post.caption }}</p>
             {% endif %}
@@ -144,5 +141,8 @@
     data-rank-title="{% if rank_toast %}{{ rank_toast.title }}{% endif %}"
   ></div>
   {% endif %}
+{% endblock %}
+
+{% block chrome_dock %}
   {% include "core/_dock.html" %}
 {% endblock %}

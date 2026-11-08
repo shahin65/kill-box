@@ -68,6 +68,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.core.middleware.KillboxNavMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -82,6 +83,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.core.context_processors.killbox',
             ],
         },
     },
@@ -112,6 +114,8 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+WHITENOISE_MAX_AGE = 60 * 60 * 24 * 365
+WHITENOISE_USE_FINDERS = DEBUG
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -205,8 +209,13 @@ BALE_WEBHOOK_URL = os.getenv('BALE_WEBHOOK_URL', '')
 # Telegram bot — token stays in the environment file; never hardcode.
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '')
+TELEGRAM_API_BASE_URL = (
+    os.getenv('TELEGRAM_API_BASE_URL', 'https://api.telegram.org') or 'https://api.telegram.org'
+).rstrip('/')
+TELEGRAM_PROXY_SECRET = os.getenv('TELEGRAM_PROXY_SECRET', '')
 TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET', '')
 TELEGRAM_WEBHOOK_URL = os.getenv('TELEGRAM_WEBHOOK_URL', '')
+PUBLIC_SITE_URL = os.getenv('PUBLIC_SITE_URL', '').rstrip('/')
 
 # Melipayamak Console OTP — dedicated URL only; never hardcode.
 MELIPAYAMAK_API_URL = os.getenv('MELIPAYAMAK_API_URL', '')

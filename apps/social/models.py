@@ -16,6 +16,14 @@ def post_upload_to(instance, filename):
     return f'posts/{instance.author_id}/{timezone.now():%Y%m%d}/{timezone.now().timestamp():.0f}{ext}'
 
 
+def story_thumb_upload_to(instance, filename):
+    return f'stories/{instance.author_id}/{timezone.now():%Y%m%d}/{timezone.now().timestamp():.0f}-thumb.webp'
+
+
+def post_thumb_upload_to(instance, filename):
+    return f'posts/{instance.author_id}/{timezone.now():%Y%m%d}/{timezone.now().timestamp():.0f}-thumb.webp'
+
+
 def _ext(filename, kind):
     name = str(filename or '').lower()
     for candidate in ('.webm', '.mov', '.m4v', '.mp4', '.webp', '.png', '.gif', '.jpg', '.jpeg'):
@@ -43,7 +51,9 @@ class Story(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_stories')
     kind = models.CharField(max_length=8, choices=(('image', 'image'), ('video', 'video')))
     media = models.FileField(upload_to=story_upload_to)
+    thumbnail = models.ImageField(upload_to=story_thumb_upload_to, blank=True)
     overlay = models.CharField(max_length=80, blank=True)
+    duration = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(db_index=True)
 
@@ -91,6 +101,7 @@ class Post(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_posts')
     kind = models.CharField(max_length=8, choices=(('image', 'image'), ('video', 'video')))
     media = models.FileField(upload_to=post_upload_to)
+    thumbnail = models.ImageField(upload_to=post_thumb_upload_to, blank=True)
     caption = models.CharField(max_length=2200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

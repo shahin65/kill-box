@@ -4,10 +4,12 @@
 {% block title %}{{ room.name }} · لایو · KILLBOX{% endblock %}
 {% block body_class %}is-landing is-home is-docked is-live{% if is_guest %} is-guest{% endif %}{% endblock %}
 
-{% block body %}
+{% block chrome_top %}
   {% include "core/_topbar.html" %}
-  {% include "core/_guest_banner.html" %}
   {% include "core/_brand.html" %}
+{% endblock %}
+
+{% block body %}
   <main class="landing-stage home-stage kb-live" data-live-room="{{ room.slug }}" data-live-actor="{{ live_actor }}">
     {% csrf_token %}
     <section class="feed-card home-feed kb-live__head">
@@ -73,5 +75,8 @@
       </section>
     </div>
   </main>
+{% endblock %}
+
+{% block chrome_dock %}
   {% include "core/_dock.html" %}
 {% endblock %}
