@@ -15,6 +15,7 @@
       class="landing-auth"
       id="auth-panel"
       data-otp-cooldown="{{ sms.cooldown }}"
+      data-messenger-verify="{% url 'core:messenger_verify_code' %}"
     >
       {% csrf_token %}
       {% if signup.phone %}
@@ -80,6 +81,36 @@
       {% endif %}
 
       <p class="auth-status" id="auth-status" hidden></p>
+
+      <form class="auth-card messenger-code" id="messenger-code-form" hidden novalidate>
+        {% csrf_token %}
+        <p class="auth-kicker">ورود با پیام‌رسان</p>
+        <h2 class="auth-title">کد دریافتی از ربات را وارد کنید</h2>
+        <p class="messenger-code__timer" id="messenger-code-timer" dir="ltr">۰۳:۰۰</p>
+        <label class="auth-label" for="messenger-code">کد تایید</label>
+        <div class="auth-row">
+          <span class="auth-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l8 4v6c0 5-3.4 9.4-8 10.5C7.4 21.4 4 17 4 12V6l8-4zm0 6a3 3 0 0 0-3 3v1H8v6h8v-6h-1v-1a3 3 0 0 0-3-3zm0 2a1 1 0 0 1 1 1v1h-2v-1a1 1 0 0 1 1-1z"/></svg>
+          </span>
+          <input
+            class="auth-input"
+            id="messenger-code"
+            name="code"
+            type="text"
+            inputmode="numeric"
+            maxlength="6"
+            autocomplete="one-time-code"
+            placeholder="کد ۶ رقمی"
+            dir="ltr"
+            required
+          >
+        </div>
+        <button class="auth-btn" type="submit" id="messenger-code-btn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.2 16.2 5 12l1.4-1.4 2.8 2.8 8.4-8.4L19 6.4z"/></svg>
+          <span>تکمیل ثبت‌نام / ورود</span>
+        </button>
+        <a class="auth-alt" id="messenger-code-reopen" href="#" target="_blank" rel="noopener">دریافت مجدد کد / باز کردن مجدد بات</a>
+      </form>
 
       {% if bale.enabled %}
       <button

@@ -1,8 +1,10 @@
 """Temporary deep-link tokens that bind a Killbox account to Telegram/Bale."""
 from __future__ import annotations
 
+import hashlib
 import hmac
 import secrets
+import time
 
 from django.conf import settings
 from django.core.cache import cache
@@ -10,9 +12,14 @@ from django.core.cache import cache
 AUTH_PREFIX = 'auth_'
 LINK_TTL = 5 * 60
 SIGNUP_TTL = 10 * 60
+OTP_TTL = 3 * 60
+OTP_LENGTH = 6
+MAX_OTP_ATTEMPTS = 5
+MAX_OTP_IP = 20
 PLATFORMS = ('telegram', 'bale')
 LINKED_TEXT = 'حساب کاربری شما با موفقیت به کیل‌باکس متصل شد!'
 CLAIM_SECRET_HEADER = 'X-Killbox-Bot-Secret'
+_FA_DIGITS = str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', '01234567890123456789')
 
 
 def mint_token() -> str:
@@ -101,22 +108,29 @@ def bind_signup_chat(token: str, chat_id, platform: str) -> bool:
     return True
 
 
-def complete_signup(chat_id, platform: str, *, phone: str, messenger_user_id) -> dict | None:
+def complete_signup(chat_id, platform: str, *, phone: str, messenger_user_id) -> tuple[dict | None, str]:
     token = cache.get(chat_key(platform, chat_id))
-    state = ticket_state(str(token or ''))
+    ident = str(token or '')
+    state = ticket_state(ident)
     if not state or state.get('kind') != 'signup':
-        return None
+        return None, ''
     state.update(
         {
-            'status': 'ok',
             'phone': phone,
-            'chat_id': chat_id,
+            'chat_id': str(chat_id),
             'messenger_user_id': messenger_user_id,
             'used': False,
         }
     )
-    cache.set(token_key(str(token)), state, SIGNUP_TTL)
-    return state
+    cache.set(token_key(ident), state, SIGNUP_TTL)
+    code = issue_login_code(
+        ticket=ident,
+        phone=phone,
+        chat_id=chat_id,
+        platform=platform,
+        kind='signup',
+    )
+    return ticket_state(ident), code
 
 
 def signup_token_for_chat(platform: str, chat_id) -> str:
@@ -197,6 +211,138 @@ def claim_secret_for(platform: str) -> str:
     if platform == 'bale':
         return str(getattr(settings, 'BALE_WEBHOOK_SECRET', '') or '')
     return str(getattr(settings, 'TELEGRAM_WEBHOOK_SECRET', '') or '')
+
+
+def otp_find_key(digest: str) -> str:
+    return f'kb:ms:otp:find:{digest}'
+
+
+def otp_ip_key(ip: str) -> str:
+    return f'kb:ms:otp:ip:{(ip or "unknown").strip() or "unknown"}'
+
+
+def normalize_otp(raw: str) -> str:
+    value = str(raw or '').translate(_FA_DIGITS).strip()
+    return value if value.isdigit() else ''
+
+
+def _otp_digest(code: str) -> str:
+    secret = str(getattr(settings, 'SECRET_KEY', '') or 'killbox-otp')
+    return hmac.new(
+        secret.encode('utf-8'),
+        f'kb-ms-otp:{code}'.encode('utf-8'),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def code_message(code: str) -> str:
+    return (
+        'شماره شما با موفقیت تایید شد.\n'
+        'کد تایید شما برای ورود به کیل‌باکس:\n\n'
+        f'<code>{code}</code>\n\n'
+        'این کد تا ۳ دقیقه معتبر است. به سایت برگردید و کد را وارد کنید.'
+    )
+
+
+def issue_login_code(
+    *,
+    ticket: str,
+    phone: str,
+    chat_id,
+    platform: str,
+    kind: str = 'signup',
+    user_id=None,
+) -> str:
+    ident = normalize_token(ticket)
+    if not ident:
+        return ''
+    state = ticket_state(ident) or {}
+    old_digest = str(state.get('digest') or '')
+    if old_digest:
+        cache.delete(otp_find_key(old_digest))
+    code = f'{secrets.randbelow(10 ** OTP_LENGTH):0{OTP_LENGTH}d}'
+    digest = _otp_digest(code)
+    state.update(
+        {
+            'kind': kind,
+            'status': 'code_sent',
+            'platform': platform,
+            'phone': phone,
+            'chat_id': str(chat_id),
+            'digest': digest,
+            'attempts': 0,
+            'issued_at': int(time.time()),
+        }
+    )
+    if user_id:
+        state['user_id'] = int(user_id)
+    cache.set(token_key(ident), state, OTP_TTL)
+    cache.set(otp_find_key(digest), ident, OTP_TTL)
+    cache.set(chat_key(platform, chat_id), ident, OTP_TTL)
+    return code
+
+
+def consume_login_code(code: str, *, ticket: str = '', ip: str = '') -> dict:
+    otp = normalize_otp(code)
+    if not otp or len(otp) != OTP_LENGTH:
+        return {
+            'ok': False,
+            'status': 400,
+            'message': f'کد تایید باید {OTP_LENGTH} رقم باشد.',
+        }
+    hits = int(cache.get(otp_ip_key(ip)) or 0)
+    if hits >= MAX_OTP_IP:
+        return {
+            'ok': False,
+            'status': 429,
+            'message': 'تعداد تلاش بیش از حد مجاز است. کمی بعد دوباره امتحان کن.',
+        }
+    cache.set(otp_ip_key(ip), hits + 1, 10 * 60)
+    digest = _otp_digest(otp)
+    ident = normalize_token(ticket)
+    state = ticket_state(ident) if ident else None
+    if not state or str(state.get('digest') or '') != digest:
+        found = str(cache.get(otp_find_key(digest)) or '')
+        if found and found != ident:
+            ident = found
+            state = ticket_state(ident)
+    if not state or state.get('status') != 'code_sent' or not state.get('digest'):
+        return {
+            'ok': False,
+            'status': 400,
+            'message': 'کد تایید منقضی شده یا صادر نشده است.',
+        }
+    if not hmac.compare_digest(str(state.get('digest') or ''), digest):
+        attempts = int(state.get('attempts') or 0) + 1
+        if attempts >= MAX_OTP_ATTEMPTS:
+            cache.delete(token_key(ident))
+            cache.delete(otp_find_key(str(state.get('digest') or '')))
+            return {
+                'ok': False,
+                'status': 400,
+                'message': 'تعداد تلاش برای این کد تمام شد. دوباره از ربات کد بگیر.',
+            }
+        state['attempts'] = attempts
+        cache.set(token_key(ident), state, OTP_TTL)
+        return {'ok': False, 'status': 400, 'message': 'کد تایید نادرست است.'}
+    if not cache.add(used_key(ident), '1', OTP_TTL + 60):
+        return {'ok': False, 'status': 400, 'message': 'این کد قبلاً استفاده شده است.'}
+    phone = str(state.get('phone') or '')
+    platform = str(state.get('platform') or '')
+    chat = str(state.get('chat_id') or '')
+    cache.delete(token_key(ident))
+    cache.delete(otp_find_key(digest))
+    if platform and chat:
+        cache.delete(chat_key(platform, chat))
+    if not phone or platform not in PLATFORMS:
+        return {'ok': False, 'status': 400, 'message': 'کد تایید نامعتبر است.'}
+    return {
+        'ok': True,
+        'phone': phone,
+        'platform': platform,
+        'chat_id': chat,
+        'kind': state.get('kind') or 'signup',
+    }
 
 
 def verify_claim_secret(request, platform: str) -> bool:

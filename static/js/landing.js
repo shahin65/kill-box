@@ -378,11 +378,18 @@ function bindMessengerAuth() {
     return;
   }
   window.__kbMessengerAuthBound = true;
-  var poll = 0;
+  var timerTick = 0;
+  var lastStart = { btn: null, url: '', label: '', ttl: 180 };
 
   document.addEventListener('click', function (event) {
     var node = event.target;
     if (!node || typeof node.closest !== 'function') {
+      return;
+    }
+    var check = node.closest('[data-messenger-check]');
+    if (check) {
+      event.preventDefault();
+      checkMessengerLink(check);
       return;
     }
     var btn = node.closest('[data-messenger-start]');
@@ -439,6 +446,12 @@ function bindMessengerAuth() {
           );
           return;
         }
+        lastStart = {
+          btn: btn,
+          url: data.url,
+          label: label,
+          ttl: Number(data.ttl || 180),
+        };
         openMessengerWindow(data.url, popup, btn, label);
         showMessengerStatus(
           btn,
@@ -447,7 +460,13 @@ function bindMessengerAuth() {
           data.url,
           label
         );
-        startMessengerPoll(btn, label);
+        if (data.mode === 'link') {
+          btn.disabled = false;
+          showLinkCheck(btn);
+          return;
+        }
+        showMessengerCode(data.url, label, Number(data.ttl || 180));
+        btn.disabled = false;
       })
       .catch(function () {
         closeMessengerPopup(popup);
@@ -455,6 +474,14 @@ function bindMessengerAuth() {
         showMessengerStatus(btn, 'ارتباط با سرور برقرار نشد.', true);
       });
   });
+
+  var codeForm = document.getElementById('messenger-code-form');
+  if (codeForm) {
+    codeForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      submitMessengerCode();
+    });
+  }
 
   function closeMessengerPopup(popup) {
     if (popup && !popup.closed) {
@@ -478,56 +505,176 @@ function bindMessengerAuth() {
     }
   }
 
-  function startMessengerPoll(btn, label) {
-    window.clearInterval(poll);
-    var tries = 0;
-    var statusUrl = btn.getAttribute('data-messenger-status');
-    poll = window.setInterval(function () {
-      tries += 1;
-      if (tries > 90) {
-        window.clearInterval(poll);
-        btn.disabled = false;
-        showMessengerStatus(btn, 'زمان تایید ' + label + ' تمام شد. دوباره تلاش کنید.', true);
+  function showLinkCheck(btn) {
+    var check = document.getElementById('messenger-link-check');
+    if (!check) {
+      return;
+    }
+    check.hidden = false;
+    check.disabled = false;
+    check.setAttribute('data-messenger-status', btn.getAttribute('data-messenger-status') || '');
+    check.setAttribute('data-messenger-label', btn.getAttribute('data-messenger-label') || '');
+  }
+
+  function checkMessengerLink(check) {
+    var statusUrl = check.getAttribute('data-messenger-status');
+    var label = check.getAttribute('data-messenger-label') || 'پیام‌رسان';
+    if (!statusUrl) {
+      return;
+    }
+    check.disabled = true;
+    fetch(statusUrl, {
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    })
+      .then(function (response) {
+        return response.json();
+      })
+      .then(function (data) {
+        check.disabled = false;
+        if (!data || !data.success) {
+          showMessengerStatus(check, (data && data.message) || 'هنوز متصل نشده. بعد از استارت دوباره بررسی کن.', true);
+          return;
+        }
+        showMessengerStatus(check, data.message || (label + ' متصل شد.'), false);
+        check.hidden = true;
+        var btn = lastStart.btn;
+        if (btn) {
+          btn.classList.add('is-on');
+          btn.disabled = true;
+          var caption = btn.querySelector('span');
+          if (caption) {
+            caption.textContent = label + ' متصل است';
+          }
+        }
+      })
+      .catch(function () {
+        check.disabled = false;
+        showMessengerStatus(check, 'ارتباط با سرور برقرار نشد.', true);
+      });
+  }
+
+  function showMessengerCode(url, label, ttl) {
+    var form = document.getElementById('messenger-code-form');
+    var reopen = document.getElementById('messenger-code-reopen');
+    var input = document.getElementById('messenger-code');
+    if (!form) {
+      return;
+    }
+    form.hidden = false;
+    form.classList.remove('is-expired');
+    if (reopen) {
+      reopen.href = url || '#';
+      reopen.textContent = 'دریافت مجدد کد / باز کردن مجدد بات ' + (label || '');
+    }
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+    startCodeTimer(ttl);
+  }
+
+  function startCodeTimer(ttl) {
+    window.clearInterval(timerTick);
+    var node = document.getElementById('messenger-code-timer');
+    var form = document.getElementById('messenger-code-form');
+    var left = Math.max(1, Number(ttl || 180));
+    function paint() {
+      if (!node) {
         return;
       }
-      fetch(statusUrl, {
-        credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      var mins = Math.floor(left / 60);
+      var secs = left % 60;
+      node.textContent =
+        String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+    }
+    paint();
+    timerTick = window.setInterval(function () {
+      left -= 1;
+      if (left <= 0) {
+        window.clearInterval(timerTick);
+        left = 0;
+        paint();
+        if (form) {
+          form.classList.add('is-expired');
+        }
+        showMessengerStatus(
+          lastStart.btn,
+          'اعتبار کد تمام شد. دوباره بات را باز کن و شماره را بفرست.',
+          true,
+          lastStart.url,
+          lastStart.label
+        );
+        return;
+      }
+      paint();
+    }, 1000);
+  }
+
+  function submitMessengerCode() {
+    var form = document.getElementById('messenger-code-form');
+    var input = document.getElementById('messenger-code');
+    var submit = document.getElementById('messenger-code-btn');
+    var panel = document.getElementById('auth-panel');
+    var url =
+      (panel && panel.getAttribute('data-messenger-verify')) ||
+      '/auth/messenger/verify-code/';
+    var code = input ? String(input.value || '').trim() : '';
+    if (!code) {
+      showMessengerStatus(lastStart.btn, 'کد تایید را وارد کن.', true);
+      return;
+    }
+    if (submit) {
+      submit.disabled = true;
+    }
+    var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf ? csrf.value : '',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({ code: code }),
+      credentials: 'same-origin',
+    })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          data.status = response.status;
+          return data;
+        });
       })
-        .then(function (response) {
-          return response.json();
-        })
-        .then(function (data) {
-          if (!data || !data.success) {
-            if (data && data.pending === false) {
-              window.clearInterval(poll);
-              btn.disabled = false;
-              showMessengerStatus(btn, data.message || 'اتصال انجام نشد.', true);
-            }
-            return;
+      .then(function (data) {
+        if (submit) {
+          submit.disabled = false;
+        }
+        if (!data || !data.success) {
+          showMessengerStatus(
+            lastStart.btn,
+            (data && data.message) || 'کد تایید نادرست است.',
+            true
+          );
+          return;
+        }
+        window.clearInterval(timerTick);
+        showMessengerStatus(lastStart.btn, data.message || 'ورود تکمیل شد.', false);
+        if (form) {
+          form.hidden = true;
+        }
+        if (data.redirect) {
+          if (window.__kbGo) {
+            window.__kbGo(data.redirect);
+          } else {
+            window.location.assign(data.redirect);
           }
-          window.clearInterval(poll);
-          showMessengerStatus(btn, data.message || ('اتصال ' + label + ' تکمیل شد.'), false);
-          if (data.mode === 'link') {
-            btn.classList.add('is-on');
-            btn.disabled = true;
-            var caption = btn.querySelector('span');
-            if (caption) {
-              caption.textContent = label + ' متصل است';
-            }
-            return;
-          }
-          btn.disabled = false;
-          if (data.redirect) {
-            if (window.__kbGo) {
-              window.__kbGo(data.redirect);
-            } else {
-              window.location.assign(data.redirect);
-            }
-          }
-        })
-        .catch(function () {});
-    }, 2000);
+        }
+      })
+      .catch(function () {
+        if (submit) {
+          submit.disabled = false;
+        }
+        showMessengerStatus(lastStart.btn, 'ارتباط با سرور برقرار نشد.', true);
+      });
   }
 
   function showMessengerStatus(btn, message, isError, url, label) {

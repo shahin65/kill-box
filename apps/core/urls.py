@@ -35,6 +35,7 @@ urlpatterns = [
     path('auth/bale/status/', views.bale_status, name='bale_status'),
     path('auth/bale/webhook/<str:secret>/', views.bale_webhook, name='bale_webhook'),
     path('auth/messenger/claim/', views.messenger_claim, name='messenger_claim'),
+    path('auth/messenger/verify-code/', views.messenger_verify_code, name='messenger_verify_code'),
     path('auth/telegram/start/', views.telegram_start, name='telegram_start'),
     path('auth/telegram/status/', views.telegram_status, name='telegram_status'),
     path('auth/telegram/webhook/', views.telegram_webhook, name='telegram_webhook'),

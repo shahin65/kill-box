@@ -20,8 +20,10 @@ from apps.core.bale import (
     ticket_state,
 )
 from apps.core.messenger_link import (
+    OTP_TTL,
     create_link_token,
     consume_link_token,
+    consume_login_code,
     create_signup_ticket,
     deep_link as messenger_deep_link,
     ticket_state as messenger_ticket_state,
@@ -501,6 +503,7 @@ def bale_start(request):
                 'success': True,
                 'mode': 'link',
                 'url': messenger_deep_link('bale', token),
+                'ttl': OTP_TTL,
                 'message': 'در بله استارت را بزن تا حساب کیل‌باکس وصل شود.',
             }
         )
@@ -517,7 +520,8 @@ def bale_start(request):
             'success': True,
             'mode': 'signup',
             'url': messenger_deep_link('bale', ticket),
-            'message': 'در بله استارت را بزن و شماره همین حساب را به اشتراک بگذار.',
+            'ttl': OTP_TTL,
+            'message': 'در بله استارت را بزن، شماره را بفرست و کد را در سایت وارد کن.',
         }
     )
 
@@ -554,26 +558,21 @@ def bale_status(request):
         return JsonResponse(
             {'success': False, 'pending': True, 'message': 'در انتظار تایید بله…'}
         )
-    if state.get('status') != 'ok' or not state.get('phone'):
+    if state.get('status') == 'code_sent':
         return JsonResponse(
             {
                 'success': False,
                 'pending': True,
-                'message': 'در بله استارت را بزن و شماره را به اشتراک بگذار.',
+                'awaiting_code': True,
+                'ttl': OTP_TTL,
+                'message': 'کد تایید بله را در سایت وارد کن.',
             }
         )
-    admit_member(
-        request,
-        state['phone'],
-        bale_chat_id=str(state.get('chat_id') or ''),
-    )
-    request.session.pop('bale_ticket', None)
     return JsonResponse(
         {
-            'success': True,
-            'mode': 'signup',
-            'redirect': reverse('core:home'),
-            'message': 'ثبت‌نام با بله تکمیل شد.',
+            'success': False,
+            'pending': True,
+            'message': 'در بله استارت را بزن و شماره را به اشتراک بگذار.',
         }
     )
 
@@ -604,6 +603,7 @@ def telegram_start(request):
                 'success': True,
                 'mode': 'link',
                 'url': messenger_deep_link('telegram', token),
+                'ttl': OTP_TTL,
                 'message': 'در تلگرام استارت را بزن تا حساب کیل‌باکس وصل شود.',
             }
         )
@@ -620,7 +620,8 @@ def telegram_start(request):
             'success': True,
             'mode': 'signup',
             'url': messenger_deep_link('telegram', ticket),
-            'message': 'در تلگرام استارت را بزن و شماره همین حساب را به اشتراک بگذار.',
+            'ttl': OTP_TTL,
+            'message': 'در تلگرام استارت را بزن، شماره را بفرست و کد را در سایت وارد کن.',
         }
     )
 
@@ -657,26 +658,62 @@ def telegram_status(request):
         return JsonResponse(
             {'success': False, 'pending': True, 'message': 'در انتظار تایید تلگرام…'}
         )
-    if state.get('status') != 'ok' or not state.get('phone'):
+    if state.get('status') == 'code_sent':
         return JsonResponse(
             {
                 'success': False,
                 'pending': True,
-                'message': 'در تلگرام استارت را بزن و شماره را به اشتراک بگذار.',
+                'awaiting_code': True,
+                'ttl': OTP_TTL,
+                'message': 'کد تایید تلگرام را در سایت وارد کن.',
             }
         )
-    admit_member(
-        request,
-        state['phone'],
-        telegram_chat_id=str(state.get('chat_id') or ''),
+    return JsonResponse(
+        {
+            'success': False,
+            'pending': True,
+            'message': 'در تلگرام استارت را بزن و شماره را به اشتراک بگذار.',
+        }
     )
+
+
+@require_POST
+def messenger_verify_code(request):
+    if is_member(request):
+        return JsonResponse(
+            {'success': False, 'message': 'قبلاً وارد حساب شده‌ای.'},
+            status=400,
+        )
+    payload = _json_body(request)
+    if payload is None:
+        return JsonResponse(
+            {'success': False, 'message': 'بدنهٔ درخواست نامعتبر است.'},
+            status=400,
+        )
+    ticket = request.session.get('telegram_ticket') or request.session.get('bale_ticket') or ''
+    result = consume_login_code(
+        str(payload.get('code') or ''),
+        ticket=str(ticket),
+        ip=request.META.get('REMOTE_ADDR', ''),
+    )
+    if not result.get('ok'):
+        return JsonResponse(
+            {'success': False, 'message': result.get('message') or 'کد نامعتبر است.'},
+            status=int(result.get('status') or 400),
+        )
+    kwargs = {}
+    if result.get('platform') == 'telegram':
+        kwargs['telegram_chat_id'] = str(result.get('chat_id') or '')
+    elif result.get('platform') == 'bale':
+        kwargs['bale_chat_id'] = str(result.get('chat_id') or '')
+    admit_member(request, result['phone'], **kwargs)
     request.session.pop('telegram_ticket', None)
+    request.session.pop('bale_ticket', None)
     return JsonResponse(
         {
             'success': True,
-            'mode': 'signup',
+            'message': 'ورود با پیام‌رسان تکمیل شد.',
             'redirect': reverse('core:home'),
-            'message': 'ثبت‌نام با تلگرام تکمیل شد.',
         }
     )
 

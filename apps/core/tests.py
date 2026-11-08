@@ -1,3 +1,4 @@
+import re
 from io import BytesIO, StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -10,6 +11,19 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
+
+
+def _otp_from_bot(mocked_api):
+    for call in reversed(mocked_api.call_args_list):
+        args = call[0]
+        if not args or args[0] != 'sendMessage':
+            continue
+        payload = args[1] if len(args) > 1 else {}
+        text = str((payload or {}).get('text') or '')
+        match = re.search(r'<code>(\d{6})</code>', text)
+        if match:
+            return match.group(1)
+    return ''
 
 
 class LandingAuthTests(TestCase):
@@ -96,11 +110,34 @@ class LandingAuthTests(TestCase):
             }
         )
         status = self.client.get(reverse('core:bale_status'))
-        body = status.json()
+        self.assertFalse(status.json()['success'])
+        self.assertTrue(status.json().get('awaiting_code'))
+        self.assertFalse(get_user_model().objects.filter(username='09121234567').exists())
+        code = _otp_from_bot(mocked_api)
+        self.assertEqual(len(code), 6)
+        send = mocked_api.call_args[0][1]
+        self.assertEqual(send.get('parse_mode'), 'HTML')
+        self.assertIn('<code>%s</code>' % code, send['text'])
+        verify = self.client.post(
+            reverse('core:messenger_verify_code'),
+            data='{"code":"%s"}' % code,
+            content_type='application/json',
+        )
+        body = verify.json()
         self.assertTrue(body['success'])
         self.assertEqual(body['redirect'], reverse('core:home'))
         home = self.client.get(reverse('core:home'))
         self.assertEqual(home.status_code, 200)
+        replay = self.client.post(
+            reverse('core:logout'),
+        )
+        self.client.post(reverse('core:guest_enter'))
+        again = self.client.post(
+            reverse('core:messenger_verify_code'),
+            data='{"code":"%s"}' % code,
+            content_type='application/json',
+        )
+        self.assertFalse(again.json()['success'])
 
     @override_settings(BALE_BOT_TOKEN='test-token', BALE_BOT_USERNAME='killbox_bot')
     @patch('apps.core.bale.api')
@@ -225,11 +262,30 @@ class LandingAuthTests(TestCase):
             }
         )
         status = self.client.get(reverse('core:telegram_status'))
-        body = status.json()
+        self.assertFalse(status.json()['success'])
+        self.assertTrue(status.json().get('awaiting_code'))
+        code = _otp_from_bot(mocked_api)
+        self.assertEqual(len(code), 6)
+        wrong = self.client.post(
+            reverse('core:messenger_verify_code'),
+            data='{"code":"000000"}',
+            content_type='application/json',
+        )
+        self.assertFalse(wrong.json()['success'])
+        verify = self.client.post(
+            reverse('core:messenger_verify_code'),
+            data='{"code":"%s"}' % code,
+            content_type='application/json',
+        )
+        body = verify.json()
         self.assertTrue(body['success'])
         self.assertEqual(body['redirect'], reverse('core:home'))
         home = self.client.get(reverse('core:home'))
         self.assertEqual(home.status_code, 200)
+        profile = get_user_model().objects.get(username='09129876543')
+        from apps.core.models import MemberProfile
+
+        self.assertEqual(MemberProfile.objects.get(user=profile).telegram_chat_id, '77')
 
     @override_settings(
         TELEGRAM_BOT_TOKEN='test-token',
@@ -554,6 +610,9 @@ class ProfileHudTests(TestCase):
         self.assertNotContains(page, 'data-admitted="1"')
         self.assertNotContains(page, 'landing-welcome')
         self.assertContains(page, reverse('core:home'))
+        self.assertContains(page, 'messenger-code-form')
+        self.assertContains(page, 'auth/messenger/verify-code/')
+        self.assertContains(page, 'autocomplete="one-time-code"')
 
     def test_root_is_home_and_old_home_path_redirects(self):
         self.client.post(reverse('core:guest_enter'))

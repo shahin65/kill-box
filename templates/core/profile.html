@@ -216,6 +216,9 @@
       <div class="profile-messengers">
         <p class="profile-social__title">اتصال پیام‌رسان</p>
         <p class="auth-status" id="messenger-link-status" hidden></p>
+        <button class="auth-alt" type="button" id="messenger-link-check" data-messenger-check hidden>
+          بررسی اتصال
+        </button>
         {% if telegram.link_enabled %}
         <button
           class="profile-action{% if telegram_linked %} is-on{% endif %}"

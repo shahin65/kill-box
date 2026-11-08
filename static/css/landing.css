@@ -440,6 +440,20 @@ body.is-docked {
   display: none !important;
 }
 
+.messenger-code__timer {
+  margin: 0;
+  color: #c4a574;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-align: center;
+  text-shadow: 0 0 12px rgba(196, 165, 116, 0.35);
+}
+
+.messenger-code.is-expired .messenger-code__timer {
+  color: #ffb4a8;
+}
+
 .auth-card {
   display: grid;
   gap: 0.45rem;

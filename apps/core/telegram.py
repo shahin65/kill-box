@@ -13,6 +13,7 @@ from django.conf import settings
 
 from apps.core.messenger_link import (
     bind_signup_chat,
+    code_message,
     complete_signup,
     resolve_start_link,
     create_signup_ticket,
@@ -37,7 +38,6 @@ OWN_CONTACT_ONLY = (
     'فقط شمارهٔ همین حساب تلگرام پذیرفته می‌شود. '
     'از دکمهٔ اشتراک‌گذاری شماره استفاده کن، نه ارسال مخاطب دیگران.'
 )
-DONE_TEXT = 'شماره تایید شد. به سایت کیل‌باکس برگرد؛ ثبت‌نام در حال تکمیل است.'
 NEED_SITE = 'برای شروع ثبت‌نام، از دکمهٔ تلگرام در سایت کیل‌باکس وارد این بات شو.'
 
 _poller_lock = threading.Lock()
@@ -258,13 +258,13 @@ def _on_contact(chat_id, from_id, contact: dict) -> None:
             },
         )
         return
-    state = complete_signup(
+    state, code = complete_signup(
         chat_id,
         'telegram',
         phone=phone,
         messenger_user_id=from_id,
     )
-    if not state:
+    if not state or not code:
         api('sendMessage', {'chat_id': chat_id, 'text': NEED_SITE})
         return
     state['masked_phone'] = mask_mobile(phone)
@@ -272,7 +272,8 @@ def _on_contact(chat_id, from_id, contact: dict) -> None:
         'sendMessage',
         {
             'chat_id': chat_id,
-            'text': DONE_TEXT,
+            'text': code_message(code),
+            'parse_mode': 'HTML',
             'reply_markup': {'remove_keyboard': True},
         },
     )
