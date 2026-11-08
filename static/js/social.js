@@ -1,7 +1,14 @@
 function bindSocialPage() {
-  bindStoryComposer();
+  if (typeof window.__kbDestroyPostViews === 'function') {
+    window.__kbDestroyPostViews();
+  }
+  if (typeof window.__kbDestroyComposerExtras === 'function') {
+    window.__kbDestroyComposerExtras();
+  }
+  if (typeof window.__kbBindMediaForms === 'function') {
+    window.__kbBindMediaForms();
+  }
   bindStoryViewer();
-  bindPostComposer();
   bindSocialActions();
   bindChat();
   bindFriends();
@@ -9,6 +16,12 @@ function bindSocialPage() {
   bindPostReader();
   if (typeof window.__kbBindFeedMedia === 'function') {
     window.__kbBindFeedMedia();
+  }
+  if (typeof window.__kbBindComposerExtras === 'function') {
+    window.__kbBindComposerExtras();
+  }
+  if (typeof window.__kbBindPostViews === 'function') {
+    window.__kbBindPostViews();
   }
 }
 
@@ -26,6 +39,9 @@ function csrfToken() {
   var node = document.querySelector('[name=csrfmiddlewaretoken]');
   return node ? node.value : '';
 }
+
+window.__kbPostForm = postForm;
+window.__kbFlashSocial = flashSocial;
 
 function postForm(url, data) {
   var body = data instanceof FormData ? data : new URLSearchParams(data || {});
@@ -84,512 +100,10 @@ function flashSocial(message) {
   }, 3200);
 }
 
-function videoDuration(file) {
-  if (!file || !String(file.type || '').startsWith('video/')) {
-    return Promise.resolve(0);
-  }
-  return new Promise(function (resolve, reject) {
-    var video = document.createElement('video');
-    video.preload = 'metadata';
-    video.onloadedmetadata = function () {
-      var duration = video.duration || 0;
-      URL.revokeObjectURL(video.src);
-      resolve(duration);
-    };
-    video.onerror = function () {
-      URL.revokeObjectURL(video.src);
-      reject(new Error('ویدیو قابل خواندن نبود.'));
-    };
-    video.src = URL.createObjectURL(file);
-  });
-}
-
-function showStatus(id, message, isError) {
-  var node = document.getElementById(id);
-  if (!node) {
-    return;
-  }
-  node.hidden = !message;
-  node.textContent = message || '';
-  node.classList.toggle('is-error', !!isError);
-}
-
-function bindStoryComposer() {
-  var form = document.getElementById('story-form');
-  var card = document.querySelector('[data-story-create]');
-  if (!form || !card || form.getAttribute('data-kb-bound')) {
-    return;
-  }
-  form.setAttribute('data-kb-bound', '1');
-  form.addEventListener('submit', function (event) {
-    event.preventDefault();
-    var file = document.getElementById('story-file').files[0];
-    if (!file) {
-      return;
-    }
-    if (file.size > 50 * 1024 * 1024) {
-      showStatus('story-status', 'حجم فایل نباید بیشتر از ۵۰ مگابایت باشد.', true);
-      return;
-    }
-    videoDuration(file)
-      .then(function () {
-        var data = new FormData();
-        data.append('media', file);
-        data.append('overlay', document.getElementById('story-overlay').value || '');
-        var posterFn = window.__kbExtractVideoPoster;
-        return (posterFn ? posterFn(file) : Promise.resolve(null)).then(function (blob) {
-          if (blob) {
-            data.append('thumbnail', blob, 'poster.webp');
-          }
-          return postForm(card.getAttribute('data-story-create'), data);
-        });
-      })
-      .then(function (payload) {
-        if (!payload) {
-          return;
-        }
-        if (!payload.success) {
-          showStatus('story-status', payload.message, true);
-          return;
-        }
-        if (window.__kbSoftReload) {
-          window.__kbSoftReload();
-        } else {
-          window.location.reload();
-        }
-      })
-      .catch(function (err) {
-        showStatus('story-status', err.message || 'ارسال استوری ناموفق بود.', true);
-      });
-  });
-}
-
 function bindStoryViewer() {
-  if (window.__kbStoryViewerBound) {
-    return;
+  if (typeof window.__kbBindStoryViewer === 'function') {
+    window.__kbBindStoryViewer();
   }
-  window.__kbStoryViewerBound = true;
-  var groups = [];
-  var groupIndex = 0;
-  var itemIndex = 0;
-  var duration = 5000;
-  var paused = false;
-  var holding = false;
-  var pressAt = 0;
-  var pressX = 0;
-  var barToken = 0;
-
-  function dialog() {
-    return document.getElementById('story-viewer');
-  }
-
-  function loadGroups() {
-    var dataNode = document.getElementById('story-data');
-    if (!dataNode) {
-      return [];
-    }
-    try {
-      return JSON.parse(dataNode.textContent || '[]');
-    } catch (err) {
-      return [];
-    }
-  }
-
-  function currentItem() {
-    return groups[groupIndex] && groups[groupIndex].stories[itemIndex];
-  }
-
-  function unseenIndexes(group) {
-    var idxs = [];
-    (group.stories || []).forEach(function (row, idx) {
-      if (!row.seen) {
-        idxs.push(idx);
-      }
-    });
-    return idxs;
-  }
-
-  function paintLike(item) {
-    var btn = document.getElementById('story-like');
-    var count = document.getElementById('story-like-count');
-    if (count) {
-      count.textContent = String(item.likes || 0);
-    }
-    if (btn) {
-      btn.classList.toggle('is-on', !!item.liked);
-    }
-  }
-
-  function paintComments(item) {
-    var box = document.getElementById('story-comments');
-    if (!box) {
-      return;
-    }
-    box.innerHTML = (item.comments || [])
-      .map(function (row) {
-        return '<p><strong>' + escapeHtml(row.name) + '</strong> ' + escapeHtml(row.text) + '</p>';
-      })
-      .join('');
-  }
-
-  function paintRings() {
-    document.querySelectorAll('[data-story-open]').forEach(function (btn) {
-      var idx = Number(btn.getAttribute('data-story-open') || 0);
-      var group = groups[idx];
-      if (!group) {
-        return;
-      }
-      var unseen = unseenIndexes(group).length > 0;
-      btn.classList.toggle('is-unseen', unseen);
-      btn.classList.toggle('is-seen', !unseen);
-    });
-  }
-
-  function markSeen(item) {
-    if (!item) {
-      return;
-    }
-    var wasSeen = !!item.seen;
-    item.seen = true;
-    paintRings();
-    if (!wasSeen && document.body.getAttribute('data-kb-member') === '1') {
-      postForm('/social/stories/' + item.id + '/seen/');
-    }
-  }
-
-  function storyVideo() {
-    return document.querySelector('#story-stage video');
-  }
-
-  function pauseFeedVideos() {
-    document.querySelectorAll('[data-kb-video]').forEach(function (video) {
-      if (!video.paused) {
-        video.pause();
-      }
-    });
-  }
-
-  function pauseStory() {
-    if (paused) {
-      return;
-    }
-    paused = true;
-    var box = dialog();
-    if (box) {
-      box.classList.add('is-paused');
-    }
-    var video = storyVideo();
-    if (video && !video.paused) {
-      video.pause();
-    }
-  }
-
-  function resumeStory() {
-    if (!paused) {
-      return;
-    }
-    paused = false;
-    var box = dialog();
-    if (box) {
-      box.classList.remove('is-paused');
-    }
-    var video = storyVideo();
-    if (video) {
-      var play = video.play();
-      if (play && play.catch) {
-        play.catch(function () {});
-      }
-    }
-  }
-
-  function onBarDone(event) {
-    if (event && event.target && !event.target.classList.contains('is-active')) {
-      return;
-    }
-    next();
-  }
-
-  function armProgress(ms) {
-    duration = ms;
-    var bars = document.getElementById('story-bars');
-    if (!bars) {
-      return;
-    }
-    var token = (barToken += 1);
-    bars.innerHTML = groups[groupIndex].stories
-      .map(function (_, idx) {
-        var cls = idx < itemIndex ? ' is-done' : idx === itemIndex ? ' is-active' : '';
-        return '<span><i class="' + cls.trim() + '" data-bar="' + idx + '"></i></span>';
-      })
-      .join('');
-    var active = bars.querySelector('.is-active');
-    if (!active) {
-      return;
-    }
-    active.style.setProperty('--dur', ms / 1000 + 's');
-    active.addEventListener('animationend', function (event) {
-      if (token !== barToken) {
-        return;
-      }
-      onBarDone(event);
-    });
-  }
-
-  function showItem() {
-    var box = dialog();
-    var item = currentItem();
-    if (!box || !item) {
-      if (box && box.close) {
-        box.close();
-      }
-      return;
-    }
-    paused = false;
-    holding = false;
-    box.classList.remove('is-paused');
-    pauseFeedVideos();
-    var stage = document.getElementById('story-stage');
-    var poster = item.poster || '';
-    var muteHtml = typeof window.__kbMuteMarkup === 'function' ? window.__kbMuteMarkup() : '';
-    if (item.kind === 'video') {
-      duration = Math.max(1000, Math.round((Number(item.duration) || 15) * 1000));
-      stage.innerHTML =
-        '<div class="kb-media is-video is-story" data-kb-media style="aspect-ratio:9/16;' +
-        (poster ? "--kb-poster:url('" + escapeHtml(poster) + "');" : '') +
-        '"><video class="kb-media__el" src="' +
-        escapeHtml(item.url) +
-        '"' +
-        (poster ? ' poster="' + escapeHtml(poster) + '"' : '') +
-        ' muted playsinline webkit-playsinline preload="metadata" data-kb-story-video></video>' +
-        muteHtml +
-        '</div>';
-      var video = stage.querySelector('video');
-      if (video) {
-        video.muted = true;
-        video.playsInline = true;
-        video.setAttribute('webkit-playsinline', '');
-        video.onloadedmetadata = function () {
-          if (!video.duration || !isFinite(video.duration)) {
-            return;
-          }
-          duration = Math.max(1000, Math.round(video.duration * 1000));
-          armProgress(duration);
-        };
-        video.onended = function () {
-          next();
-        };
-        var play = video.play();
-        if (play && play.catch) {
-          play.catch(function () {});
-        }
-      }
-      armProgress(duration);
-    } else {
-      duration = 5000;
-      stage.innerHTML =
-        '<div class="kb-media is-story" data-kb-media style="aspect-ratio:9/16">' +
-        '<img class="kb-media__el" src="' +
-        escapeHtml(item.url) +
-        '" alt="" decoding="async" draggable="false"></div>';
-      armProgress(duration);
-    }
-    document.getElementById('story-overlay-text').textContent = item.overlay || '';
-    paintLike(item);
-    paintComments(item);
-    markSeen(item);
-    if (typeof window.__kbBindFeedMedia === 'function') {
-      window.__kbBindFeedMedia();
-    }
-  }
-
-  function closeViewer() {
-    barToken += 1;
-    paused = false;
-    holding = false;
-    var video = storyVideo();
-    if (video) {
-      video.pause();
-    }
-    var box = dialog();
-    if (box) {
-      box.classList.remove('is-paused');
-      if (box.close) {
-        box.close();
-      }
-    }
-    if (typeof window.__kbSyncFeedVideos === 'function') {
-      window.__kbSyncFeedVideos();
-    }
-  }
-
-  function next() {
-    if (!groups[groupIndex]) {
-      return;
-    }
-    if (itemIndex + 1 < groups[groupIndex].stories.length) {
-      itemIndex += 1;
-      showItem();
-      return;
-    }
-    var total = groups.length;
-    var step;
-    for (step = 1; step <= total; step += 1) {
-      var idx = (groupIndex + step) % total;
-      var unseen = unseenIndexes(groups[idx]);
-      if (unseen.length) {
-        groupIndex = idx;
-        itemIndex = unseen[0];
-        showItem();
-        return;
-      }
-    }
-    closeViewer();
-  }
-
-  function prev() {
-    if (itemIndex > 0) {
-      itemIndex -= 1;
-      showItem();
-      return true;
-    }
-    if (groupIndex > 0) {
-      groupIndex -= 1;
-      itemIndex = groups[groupIndex].stories.length - 1;
-      showItem();
-      return true;
-    }
-    return false;
-  }
-
-  document.addEventListener('click', function (event) {
-    var node = event.target;
-    if (node && node.nodeType !== 1) {
-      node = node.parentElement;
-    }
-    if (!node || typeof node.closest !== 'function') {
-      return;
-    }
-    var openBtn = node.closest('[data-story-open]');
-    if (openBtn) {
-      event.preventDefault();
-      groups = loadGroups();
-      groupIndex = Number(openBtn.getAttribute('data-story-open') || 0);
-      var openedFrom = groupIndex;
-      var unseen = groups[groupIndex] ? unseenIndexes(groups[groupIndex]) : [];
-      if (unseen.length) {
-        itemIndex = unseen[0];
-      } else {
-        itemIndex = 0;
-        var hop = 1;
-        while (hop <= groups.length) {
-          var wrapIdx = (openedFrom + hop) % groups.length;
-          var wrapUnseen = unseenIndexes(groups[wrapIdx] || { stories: [] });
-          if (wrapUnseen.length) {
-            groupIndex = wrapIdx;
-            itemIndex = wrapUnseen[0];
-            break;
-          }
-          hop += 1;
-        }
-      }
-      var box = dialog();
-      if (!box || !groups[groupIndex]) {
-        return;
-      }
-      if (box.showModal) {
-        box.showModal();
-      }
-      showItem();
-      return;
-    }
-    if (node.closest('[data-story-close]')) {
-      closeViewer();
-      return;
-    }
-    if (node.closest('#story-like')) {
-      var item = currentItem();
-      if (!item) {
-        return;
-      }
-      postForm('/social/stories/' + item.id + '/like/').then(function (payload) {
-        if (!payload.success) {
-          flashSocial(payload.message || 'لایک انجام نشد.');
-          return;
-        }
-        item.liked = payload.liked;
-        item.likes = payload.likes;
-        paintLike(item);
-      });
-    }
-  });
-  document.addEventListener('pointerdown', function (event) {
-    var box = dialog();
-    var node = event.target;
-    if (!box || !box.open || !node || typeof node.closest !== 'function') {
-      return;
-    }
-    if (node.closest('.story-viewer__actions') || node.closest('[data-story-close]') || node.closest('.story-viewer__comments') || node.closest('[data-kb-mute]')) {
-      return;
-    }
-    if (!node.closest('#story-stage') && !node.closest('.story-viewer__overlay') && !node.closest('.story-viewer__bars')) {
-      return;
-    }
-    holding = true;
-    pressAt = Date.now();
-    pressX = event.clientX;
-    try {
-      event.preventDefault();
-    } catch (err) {}
-    pauseStory();
-  });
-  document.addEventListener('pointerup', function (event) {
-    if (!holding) {
-      return;
-    }
-    holding = false;
-    var held = Date.now() - pressAt;
-    if (held < 220) {
-      var stage = document.getElementById('story-stage');
-      var rect = stage ? stage.getBoundingClientRect() : { left: 0, width: window.innerWidth };
-      var x = pressX - rect.left;
-      if (x < rect.width * 0.35) {
-        if (!prev()) {
-          resumeStory();
-        }
-      } else {
-        next();
-      }
-      return;
-    }
-    resumeStory();
-  });
-  document.addEventListener('pointercancel', function () {
-    if (!holding) {
-      return;
-    }
-    holding = false;
-    resumeStory();
-  });
-  document.addEventListener('submit', function (event) {
-    if (!event.target || event.target.id !== 'story-comment-form') {
-      return;
-    }
-    event.preventDefault();
-    var item = currentItem();
-    var input = document.getElementById('story-comment');
-    if (!item || !input || !input.value.trim()) {
-      return;
-    }
-    postForm('/social/stories/' + item.id + '/comment/', { text: input.value }).then(function (payload) {
-      if (!payload.success) {
-        flashSocial(payload.message || 'کامنت ارسال نشد.');
-        return;
-      }
-      item.comments = payload.comments;
-      input.value = '';
-      paintComments(item);
-    });
-  });
 }
 
 function bindHomeSwipe() {
@@ -723,6 +237,9 @@ function bindHomeSwipe() {
       if (!view || !box || pairLocked(box)) {
         return;
       }
+      if (typeof window.__kbOverlayKind === 'function' && window.__kbOverlayKind()) {
+        return;
+      }
       if (event.target.closest('.home-swipe__nav, .home-swipe__acts, [data-like-post], [data-kb-mute]')) {
         return;
       }
@@ -785,270 +302,11 @@ function bindHomeSwipe() {
 }
 
 function bindPostReader() {
-  if (window.__kbPostReaderBound) {
-    return;
-  }
-  window.__kbPostReaderBound = true;
-  var posts = [];
-  var index = 0;
-  var startY = 0;
-  var deltaY = 0;
-  var dragging = false;
-
-  function loadPosts() {
-    var node = document.getElementById('post-reader-data');
-    if (!node) {
-      return [];
-    }
-    try {
-      return JSON.parse(node.textContent || '[]');
-    } catch (err) {
-      return [];
-    }
-  }
-
-  function box() {
-    return document.getElementById('post-reader');
-  }
-
-  function paint() {
-    var stage = document.getElementById('post-reader-stage');
-    var item = posts[index];
-    if (!stage || !item) {
-      return;
-    }
-    var media = item.url
-      ? typeof window.__kbMediaMarkup === 'function'
-        ? window.__kbMediaMarkup(item, { className: 'post-reader__media', ratio: '4/5', lazy: false })
-        : item.kind === 'video'
-          ? '<video class="post-reader__media" src="' + escapeHtml(item.url) + '" muted loop playsinline webkit-playsinline preload="metadata" data-kb-video></video>'
-          : '<img class="post-reader__media" src="' + escapeHtml(item.url) + '" alt="" decoding="async" draggable="false">'
-      : '';
-    var caption = item.caption ? '<p>' + escapeHtml(item.caption) + '</p>' : '';
-    var comments = (item.comment_list || [])
-      .map(function (row) {
-        return '<li><strong>' + escapeHtml(row.name) + '</strong> ' + escapeHtml(row.text) + '</li>';
-      })
-      .join('');
-    stage.innerHTML =
-      '<article class="post-reader__card">' +
-      '<div class="post-reader__user"><img class="post-reader__avatar" src="' +
-      escapeHtml(item.avatar || '') +
-      '" alt="" width="64" height="64"><span>' +
-      escapeHtml(item.name) +
-      '</span></div>' +
-      media +
-      caption +
-      '<div class="post-reader__bar">' +
-      '<button class="story-act' +
-      (item.liked ? ' is-on' : '') +
-      '" type="button" data-like-post="' +
-      item.id +
-      '"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.4 10.4 19C5.4 14.4 2 11.3 2 7.6A4.4 4.4 0 0 1 6.4 3.2 4.8 4.8 0 0 1 12 5.6a4.8 4.8 0 0 1 5.6-2.4A4.4 4.4 0 0 1 22 7.6c0 3.7-3.4 6.8-8.4 11.4z"/></svg><span>' +
-      item.likes +
-      '</span></button>' +
-      (item.detail_url
-        ? '<a class="story-act" href="' +
-          escapeHtml(item.detail_url) +
-          '" data-kb-nav>صفحه پست</a>'
-        : '') +
-      '</div>' +
-      '<ul class="comment-list post-reader__comments">' +
-      (comments || '<li>کامنتی نیست.</li>') +
-      '</ul>' +
-      '<form class="post-reader__comment" data-comment-post="' +
-      item.id +
-      '"><input type="text" maxlength="280" placeholder="کامنت…"><button class="story-act" type="submit">ارسال</button></form></article>';
-    if (typeof window.__kbBindFeedMedia === 'function') {
-      window.__kbBindFeedMedia();
-    }
-  }
-
-  function go(next) {
-    if (!posts.length) {
-      return;
-    }
-    index = Math.max(0, Math.min(posts.length - 1, next));
-    paint();
-  }
-
-  document.addEventListener('click', function (event) {
-    var node = event.target;
-    if (node && node.nodeType !== 1) {
-      node = node.parentElement;
-    }
-    if (!node || typeof node.closest !== 'function') {
-      return;
-    }
-    if (node.closest('[data-like-post], [data-comment-post], .home-swipe__nav, .home-swipe__dot, [data-kb-mute]')) {
-      return;
-    }
-    var openBtn = node.closest('[data-post-open]');
-    if (openBtn) {
-      event.preventDefault();
-      event.stopPropagation();
-      posts = loadPosts();
-      index = Number(openBtn.getAttribute('data-post-open') || 0);
-      var dialog = box();
-      if (!dialog || !posts[index]) {
-        return;
-      }
-      if (dialog.showModal) {
-        dialog.showModal();
-      }
-      paint();
-      return;
-    }
-    if (node.closest('[data-post-close]')) {
-      var closed = box();
-      if (closed && closed.close) {
-        closed.close();
-      }
-      if (typeof window.__kbSyncFeedVideos === 'function') {
-        window.__kbSyncFeedVideos();
-      }
-      return;
-    }
-    if (node.closest('[data-post-reader-next]')) {
-      event.preventDefault();
-      go(index + 1);
-      return;
-    }
-    if (node.closest('[data-post-reader-prev]')) {
-      event.preventDefault();
-      go(index - 1);
-      return;
-    }
-    var dialogOpen = box();
-    if (
-      dialogOpen &&
-      dialogOpen.open &&
-      node.closest('#post-reader-stage') &&
-      !node.closest('[data-like-post], [data-comment-post], .post-reader__bar, .comment-list, a, [data-kb-mute]')
-    ) {
-      go(index + 1);
-    }
-  });
-  window.__kbPaintPostReader = paint;
-  window.__kbUpdatePostComments = function (postId, comments) {
-    posts.forEach(function (row) {
-      if (String(row.id) === String(postId)) {
-        row.comment_list = comments;
-        row.comments = comments.length;
-      }
-    });
-    paint();
-  };
-  window.__kbUpdatePostLike = function (postId, payload) {
-    posts.forEach(function (row) {
-      if (String(row.id) === String(postId)) {
-        row.liked = payload.liked;
-        row.likes = payload.likes;
-      }
-    });
-    var reader = box();
-    if (reader && reader.open) {
-      paint();
-    }
-  };
-  document.addEventListener(
-    'pointerdown',
-    function (event) {
-      var dialog = box();
-      if (!dialog || !dialog.open) {
-        return;
-      }
-      if (!event.target.closest || !event.target.closest('#post-reader-stage')) {
-        return;
-      }
-      if (event.target.closest('[data-like-post], [data-comment-post], .post-reader__bar, .comment-list, a, [data-kb-mute]')) {
-        return;
-      }
-      dragging = true;
-      startY = event.clientY;
-      deltaY = 0;
-    },
-    true
-  );
-  document.addEventListener(
-    'pointermove',
-    function (event) {
-      if (!dragging) {
-        return;
-      }
-      deltaY = event.clientY - startY;
-    },
-    true
-  );
-  document.addEventListener(
-    'pointerup',
-    function () {
-      if (!dragging) {
-        return;
-      }
-      dragging = false;
-      if (deltaY < -40) {
-        go(index + 1);
-      } else if (deltaY > 40) {
-        go(index - 1);
-      }
-    },
-    true
-  );
-}
-
-function bindPostComposer() {
-  var form = document.getElementById('post-form');
-  var card = document.querySelector('[data-post-create]');
-  if (!form || !card || form.getAttribute('data-kb-bound')) {
-    return;
-  }
-  form.setAttribute('data-kb-bound', '1');
-  form.addEventListener('submit', function (event) {
-    event.preventDefault();
-    sendPost();
-  });
-
-  function sendPost() {
-    var file = document.getElementById('post-file').files[0];
-    if (!file) {
-      return;
-    }
-    videoDuration(file)
-      .then(function (duration) {
-        if (duration > 60.4) {
-          throw new Error('مدت فیلم پست نباید بیشتر از یک دقیقه باشد.');
-        }
-        var data = new FormData();
-        data.append('media', file);
-        data.append('caption', document.getElementById('post-caption').value || '');
-        var posterFn = window.__kbExtractVideoPoster;
-        return (posterFn ? posterFn(file) : Promise.resolve(null)).then(function (blob) {
-          if (blob) {
-            data.append('thumbnail', blob, 'poster.webp');
-          }
-          return postForm(card.getAttribute('data-post-create'), data);
-        });
-      })
-      .then(function (payload) {
-        if (!payload) {
-          return;
-        }
-        if (!payload.success) {
-          showStatus('post-status', payload.message, true);
-          return;
-        }
-        if (window.__kbSoftReload) {
-          window.__kbSoftReload();
-        } else {
-          window.location.reload();
-        }
-      })
-      .catch(function (err) {
-        showStatus('post-status', err.message || 'انتشار پست ناموفق بود.', true);
-      });
+  if (typeof window.__kbBindReelsViewer === 'function') {
+    window.__kbBindReelsViewer();
   }
 }
+
 
 function bindSocialActions() {
   if (window.__kbSocialActionsBound) {
@@ -1061,10 +319,14 @@ function bindSocialActions() {
       return;
     }
     event.preventDefault();
-    var input = form.querySelector('input');
+    var input = form.querySelector('textarea, input[type="text"]') || form.querySelector('input:not([type="hidden"])');
+    var gifField = form.querySelector('[name="gif_id"]');
+    var parentField = form.querySelector('[name="parent_id"]');
     var postId = form.getAttribute('data-comment-post');
     postForm('/social/posts/' + postId + '/comment/', {
       text: input ? input.value : '',
+      gif_id: gifField ? gifField.value : '',
+      parent_id: parentField ? parentField.value : '',
     }).then(function (payload) {
       if (!payload.success) {
         flashSocial(payload.message || 'کامنت ارسال نشد.');
@@ -1072,7 +334,15 @@ function bindSocialActions() {
       }
       if (input) {
         input.value = '';
+        input.placeholder = 'کامنت…';
       }
+      if (gifField) {
+        gifField.value = '';
+      }
+      if (parentField) {
+        parentField.value = '';
+      }
+      form.classList.remove('has-gif', 'is-replying');
       var reader = document.getElementById('post-reader');
       if (reader && reader.open && window.__kbPaintPostReader) {
         window.__kbUpdatePostComments(postId, payload.comments || []);
@@ -1088,6 +358,113 @@ function bindSocialActions() {
   document.addEventListener('click', function (event) {
     var node = event.target;
     if (!node || typeof node.closest !== 'function') {
+      return;
+    }
+    var save = node.closest('[data-save-post]');
+    if (save) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (save.getAttribute('data-kb-busy') === '1') {
+        return;
+      }
+      var wasOn = save.classList.contains('is-on');
+      save.setAttribute('data-kb-busy', '1');
+      save.classList.toggle('is-on', !wasOn);
+      save.setAttribute('aria-pressed', wasOn ? 'false' : 'true');
+      postForm('/social/posts/' + save.getAttribute('data-save-post') + '/save/').then(function (payload) {
+        save.removeAttribute('data-kb-busy');
+        if (!payload.success) {
+          save.classList.toggle('is-on', wasOn);
+          save.setAttribute('aria-pressed', wasOn ? 'true' : 'false');
+          flashSocial(payload.message || 'ذخیره انجام نشد.');
+          return;
+        }
+        save.classList.toggle('is-on', !!payload.saved);
+        save.setAttribute('aria-pressed', payload.saved ? 'true' : 'false');
+        if (window.__kbUpdatePostSave) {
+          window.__kbUpdatePostSave(save.getAttribute('data-save-post'), payload);
+        }
+      });
+      return;
+    }
+    var more = node.closest('[data-saved-more]');
+    if (more) {
+      event.preventDefault();
+      if (more.getAttribute('data-kb-busy') === '1') {
+        return;
+      }
+      more.setAttribute('data-kb-busy', '1');
+      var page = more.getAttribute('data-saved-more');
+      fetch('/social/saved/?page=' + encodeURIComponent(page), {
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+      })
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (payload) {
+          more.removeAttribute('data-kb-busy');
+          if (!payload.success) {
+            return;
+          }
+          var feed = document.getElementById('saved-feed');
+          var dataNode = document.getElementById('post-reader-data');
+          var rows = [];
+          if (dataNode) {
+            try {
+              rows = JSON.parse(dataNode.textContent || '[]');
+            } catch (err) {
+              rows = [];
+            }
+          }
+          (payload.posts || []).forEach(function (post) {
+            rows.push(post);
+            if (!feed) {
+              return;
+            }
+            var article = document.createElement('article');
+            article.className = 'post-card';
+            article.setAttribute('data-post-id', String(post.id));
+            article.setAttribute('data-post-open', String(rows.length - 1));
+            article.setAttribute('data-kb-view-post', String(post.id));
+            article.innerHTML =
+              '<header class="post-card__head"><strong>' +
+              escapeHtml(post.name) +
+              '</strong></header>' +
+              (post.url
+                ? '<div class="kb-media post-card__media" style="aspect-ratio:4/5"><img class="kb-media__el" src="' +
+                  escapeHtml(post.poster || post.url) +
+                  '" alt="" loading="lazy" decoding="async"></div>'
+                : '') +
+              (post.caption ? '<p class="post-card__caption">' + escapeHtml(post.caption) + '</p>' : '') +
+              '<div class="post-card__bar"><button type="button" data-like-post="' +
+              post.id +
+              '">لایک ' +
+              escapeHtml(post.likes) +
+              '</button><span class="story-act" data-kb-views="' +
+              post.id +
+              '">' +
+              escapeHtml(post.views_label || post.views || 0) +
+              '</span><button class="story-act is-on" type="button" data-save-post="' +
+              post.id +
+              '" aria-pressed="true">ذخیره</button></div>';
+            feed.appendChild(article);
+          });
+          if (dataNode) {
+            dataNode.textContent = JSON.stringify(rows);
+          }
+          if (payload.has_more && payload.next_page) {
+            more.setAttribute('data-saved-more', String(payload.next_page));
+          } else {
+            more.remove();
+          }
+          if (typeof window.__kbBindPostViews === 'function') {
+            window.__kbBindPostViews();
+          }
+        })
+        .catch(function () {
+          more.removeAttribute('data-kb-busy');
+        });
       return;
     }
     var like = node.closest('[data-like-post]');

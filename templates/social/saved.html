@@ -1,0 +1,40 @@
+{% extends "core/app_base.html" %}
+{% load static %}
+
+{% block title %}ذخیره‌شده‌ها · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block panel %}
+<section class="profile-card social-card" data-kb-saved>
+  {% csrf_token %}
+  <p class="auth-kicker">پروفایل</p>
+  <h1 class="auth-title">ذخیره‌شده‌ها</h1>
+  <p class="profile-copy">فقط تو این فهرست را می‌بینی.</p>
+  <div class="post-feed" id="saved-feed">
+    {% for post in posts %}
+    <article class="post-card" data-post-id="{{ post.id }}" data-post-open="{{ forloop.counter0 }}" data-kb-view-post="{{ post.id }}">
+      <header class="post-card__head">
+        <strong>{{ post.name }}</strong>
+      </header>
+      {% include "social/_media.html" with item=post extra_class="post-card__media" ratio="4/5" %}
+      {% if post.caption %}<p class="post-card__caption">{{ post.caption }}</p>{% endif %}
+      <div class="post-card__bar">
+        <button class="story-act{% if post.liked %} is-on{% endif %}" type="button" data-like-post="{{ post.id }}">لایک {{ post.likes }}</button>
+        <span class="story-act" data-kb-views="{{ post.id }}">{{ post.views_label }}</span>
+        <button class="story-act is-on" type="button" data-save-post="{{ post.id }}" aria-label="حذف از ذخیره‌شده‌ها" aria-pressed="true">ذخیره</button>
+      </div>
+    </article>
+    {% empty %}
+    <div class="kb-empty">
+      <p>هنوز پستی ذخیره نکرده‌ای.</p>
+      <a class="auth-btn" href="{% url 'social:explore' %}" data-kb-nav>رفتن به اکسپلور</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% if has_more %}
+  <button class="auth-btn" type="button" data-saved-more="{{ next_page }}">بارگذاری بیشتر</button>
+  {% endif %}
+  {{ posts|json_script:"post-reader-data" }}
+  {% include "social/_post_reader.html" %}
+</section>
+{% endblock %}

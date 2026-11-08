@@ -33,12 +33,24 @@ class MemberProfile(models.Model):
     codm_uid = models.CharField(max_length=24, blank=True, default='')
     codm_nickname = models.CharField(max_length=32, blank=True, default='')
     codm_level = models.PositiveIntegerField(null=True, blank=True)
+    telegram_chat_id = models.CharField(max_length=32, blank=True, default='', db_index=True)
+    bale_chat_id = models.CharField(max_length=32, blank=True, default='', db_index=True)
 
     class Meta:
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(rank__gte=0) & models.Q(rank__lte=6),
                 name='memberprofile_rank_range',
+            ),
+            models.UniqueConstraint(
+                fields=('telegram_chat_id',),
+                condition=~models.Q(telegram_chat_id=''),
+                name='memberprofile_telegram_chat_unique',
+            ),
+            models.UniqueConstraint(
+                fields=('bale_chat_id',),
+                condition=~models.Q(bale_chat_id=''),
+                name='memberprofile_bale_chat_unique',
             ),
         ]
 

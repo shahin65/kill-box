@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone as dt_timezone
 
-from django.db.models import Case, Count, DateTimeField, F, IntegerField, Prefetch, Q, Value, When
+from django.db import IntegrityError, transaction
+from django.db.models import Case, Count, DateTimeField, Exists, F, IntegerField, OuterRef, Prefetch, Q, Value, When
 from django.utils import timezone
 
 from apps.core.identity import (
@@ -19,6 +20,8 @@ from apps.social.models import (
     Post,
     PostComment,
     PostLike,
+    PostView,
+    SavedPost,
     Story,
     StoryComment,
     StoryView,
@@ -26,6 +29,30 @@ from apps.social.models import (
 
 STORY_TTL = timedelta(hours=24)
 STORY_DAILY_CAP = 15
+COMMENT_MAX = 280
+_FA_DIGITS = str.maketrans('0123456789.', '۰۱۲۳۴۵۶۷۸۹٫')
+
+
+def format_count(value) -> str:
+    try:
+        number = int(value or 0)
+    except (TypeError, ValueError):
+        number = 0
+    if number >= 1_000_000:
+        text = f'{number / 1_000_000:.1f}'.rstrip('0').rstrip('.')
+        label = f'{text}M'
+    elif number >= 1000:
+        text = f'{number / 1000:.1f}'.rstrip('0').rstrip('.')
+        label = f'{text}K'
+    else:
+        label = str(number)
+    return label.translate(_FA_DIGITS)
+
+
+def visible_comment_text(value: str) -> str:
+    import re
+
+    return re.sub(r'[\s\u200b\u200c\u200d\ufeff\u00a0]+', '', str(value or ''))
 
 
 def display_name(user) -> str:
@@ -259,6 +286,13 @@ def serialize_post(post, request) -> dict:
                 liked = any(row.user_id == viewer.pk for row in likes)
             else:
                 liked = post.likes.filter(user=viewer).exists()
+    saved = getattr(post, 'saved_flag', None)
+    if saved is None:
+        saved = getattr(post, '_kb_saved', None)
+    if saved is None and viewer:
+        saved = SavedPost.objects.filter(user=viewer, post_id=post.pk).exists()
+    saved = bool(saved)
+    views = int(getattr(post, 'views_count', 0) or 0)
     return {
         'id': post.pk,
         'author_id': post.author_id,
@@ -270,14 +304,32 @@ def serialize_post(post, request) -> dict:
         'caption': post.caption or '',
         'likes': like_count,
         'comments': comment_count,
-        'comment_list': [
-            {'name': display_name(row.user), 'text': row.text} for row in comment_rows[-8:]
-        ],
+        'comment_list': [serialize_comment(row, viewer) for row in comment_rows[-12:]],
         'liked': liked,
+        'saved': saved,
+        'views': views,
+        'views_label': format_count(views),
         'mine': bool(viewer and post.author_id == viewer.pk),
         'following': bool(getattr(post, 'is_following', 0)),
         'share_url': request.build_absolute_uri(f'/social/posts/{post.pk}/'),
         'detail_url': f'/social/posts/{post.pk}/',
+    }
+
+
+def serialize_comment(row, viewer=None) -> dict:
+    gif_url = row.gif_url if getattr(row, 'gif_url', '') else ''
+    return {
+        'id': row.pk,
+        'name': display_name(row.user),
+        'text': row.text or '',
+        'parent_id': row.parent_id,
+        'kind': row.content_type or PostComment.TEXT,
+        'gif_url': gif_url,
+        'gif_preview_url': row.gif_preview_url or gif_url,
+        'gif_width': row.gif_width or 0,
+        'gif_height': row.gif_height or 0,
+        'alt': row.gif_alt or 'GIF',
+        'mine': bool(viewer and row.user_id == viewer.pk),
     }
 
 
@@ -307,6 +359,12 @@ def ranked_posts_queryset(viewer=None):
             ),
             like_n=Count('likes', distinct=True),
             comment_n=Count('comments', distinct=True),
+            saved_flag=Exists(
+                SavedPost.objects.filter(
+                    user_id=getattr(viewer, 'pk', None) or -1,
+                    post_id=OuterRef('pk'),
+                )
+            ),
         )
         .annotate(
             hot_score=F('like_n') + F('comment_n'),
@@ -325,10 +383,9 @@ def latest_posts(request, limit=10):
     viewer = viewer_of(request)
     posts = list(ranked_posts_queryset(viewer)[:limit])
     if viewer and posts:
+        ids = [post.pk for post in posts]
         liked_ids = set(
-            PostLike.objects.filter(
-                user=viewer, post_id__in=[post.pk for post in posts]
-            ).values_list('post_id', flat=True)
+            PostLike.objects.filter(user=viewer, post_id__in=ids).values_list('post_id', flat=True)
         )
         for post in posts:
             post._kb_liked = post.pk in liked_ids
@@ -349,6 +406,13 @@ def ranked_stories_queryset(viewer=None):
                     'user', 'user__member_profile'
                 ),
             ),
+        )
+        .annotate(
+            view_n=Count(
+                'views',
+                distinct=True,
+                filter=~Q(views__user_id=F('author_id')),
+            )
         )
     )
     if not viewer:
@@ -415,6 +479,9 @@ def serialize_story_groups(request, *, friend_first=False, story_limit=None, gro
                     {'name': display_name(item.user), 'text': item.text}
                     for item in row.comments.all()
                 ],
+                'views': int(getattr(row, 'view_n', 0) or 0),
+                'views_label': format_count(getattr(row, 'view_n', 0)),
+                'mine': bool(viewer and row.author_id == viewer.pk),
             }
             for row in items
         ]
@@ -520,3 +587,44 @@ def open_friend_thread(user, peer):
         status=ChatThread.ACCEPTED,
     )
     return chat
+
+
+def record_post_view(post, *, user=None, session_key='') -> tuple[bool, int]:
+    current = int(getattr(post, 'views_count', 0) or 0)
+    if user and post.author_id == user.pk:
+        return False, current
+    if user:
+        payload = {'post': post, 'user': user, 'session_key': ''}
+    else:
+        key = str(session_key or '')[:40]
+        if not key:
+            return False, current
+        payload = {'post': post, 'user': None, 'session_key': key}
+    try:
+        with transaction.atomic():
+            PostView.objects.create(**payload)
+    except IntegrityError:
+        return False, current
+    Post.objects.filter(pk=post.pk).update(views_count=F('views_count') + 1)
+    post.refresh_from_db(fields=['views_count'])
+    return True, int(post.views_count or 0)
+
+
+def comment_rows_for(post, viewer=None):
+    rows = post.comments.select_related('user', 'user__member_profile').order_by('created_at')
+    return [serialize_comment(row, viewer) for row in rows]
+
+
+def saved_posts_queryset(user):
+    return (
+        SavedPost.objects.filter(user=user)
+        .select_related('post', 'post__author', 'post__author__member_profile')
+        .prefetch_related(
+            'post__likes',
+            Prefetch(
+                'post__comments',
+                queryset=PostComment.objects.select_related('user', 'user__member_profile'),
+            )
+        )
+        .order_by('-created_at', '-pk')
+    )

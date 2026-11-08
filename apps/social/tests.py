@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
@@ -36,6 +37,7 @@ def _png(name='shot.png'):
 
 class SocialFeatureTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.media = TemporaryDirectory()
         self.addCleanup(self.media.cleanup)
         self.override = override_settings(MEDIA_ROOT=self.media.name, MEDIA_URL='/media/')
@@ -201,6 +203,47 @@ class SocialFeatureTests(TestCase):
             {'اول', 'دوم'},
         )
 
+    def test_identical_post_upload_is_idempotent(self):
+        self.client.force_login(self.alpha)
+        first = self.client.post(
+            reverse('social:post_create'),
+            {'media': _png('dup.png'), 'caption': 'یکسان'},
+        )
+        self.assertTrue(first.json()['success'])
+        second = self.client.post(
+            reverse('social:post_create'),
+            {'media': _png('dup.png'), 'caption': 'یکسان'},
+        )
+        self.assertTrue(second.json()['success'])
+        self.assertTrue(second.json().get('duplicate'))
+        self.assertEqual(second.json()['id'], first.json()['id'])
+        self.assertEqual(Post.objects.count(), 1)
+
+    def test_in_flight_post_upload_is_blocked(self):
+        from apps.core.uploads import begin_upload, file_fingerprint
+
+        self.client.force_login(self.alpha)
+        uploaded = _png('busy.png')
+        fingerprint = file_fingerprint(uploaded, 'post|busy')
+        begin_upload(self.alpha.pk, 'post', fingerprint)
+        blocked = self.client.post(
+            reverse('social:post_create'),
+            {'media': _png('busy.png'), 'caption': 'busy'},
+        )
+        self.assertEqual(blocked.status_code, 409)
+        self.assertEqual(Post.objects.count(), 0)
+
+    def test_composer_pages_include_upload_progress(self):
+        self.client.force_login(self.alpha)
+        posts = self.client.get(reverse('social:posts'))
+        stories = self.client.get(reverse('social:stories'))
+        self.assertContains(posts, 'data-kb-media-form')
+        self.assertContains(posts, 'kb-upload-bar')
+        self.assertContains(posts, 'data-upload-retry')
+        self.assertContains(posts, 'js/upload.js')
+        self.assertContains(stories, 'data-kb-media-form')
+        self.assertContains(stories, 'kb-upload-preview')
+
     def test_private_message_request_reject_and_follow(self):
         self.client.force_login(self.alpha)
         send = self.client.post(
@@ -312,12 +355,17 @@ class SocialFeatureTests(TestCase):
         self.assertTrue(posted.thumbnail.name.endswith('.webp'))
         self.assertContains(home, 'id="post-reader"')
         self.assertContains(home, 'post-reader__close')
+        self.assertContains(home, 'post-reader__feed')
+        self.assertContains(home, 'data-kb-reels')
         self.assertContains(home, 'پست قبلی')
         self.assertContains(home, 'پست بعدی')
         self.assertContains(home, 'post-reader__nav-btn')
         self.assertNotContains(home, 'برای پست بعدی بکش')
         self.assertContains(home, 'is-unseen')
         self.assertContains(home, 'story-viewer__icon')
+        self.assertContains(home, 'story-viewer__bars')
+        self.assertContains(home, 'story-viewer__backdrop')
+        self.assertContains(home, 'id="story-user-name"')
         self.assertGreaterEqual(home.content.decode().count('home-swipe__slide'), 1)
         own_story = Story.objects.filter(author=self.alpha).get()
         seen = self.client.post(reverse('social:story_seen', args=[own_story.pk]))
@@ -330,6 +378,9 @@ class SocialFeatureTests(TestCase):
         self.assertContains(explore, 'data-post-open')
         self.assertContains(explore, 'is-friend')
         self.assertContains(explore, 'data-post-reader-next')
+        self.assertContains(explore, 'story-viewer.js')
+        self.assertContains(explore, 'reels-viewer.js')
+        self.assertContains(explore, 'overlay-history.js')
         inbox = self.client.get(reverse('social:inbox'))
         self.assertEqual(inbox.status_code, 200)
         self.assertFalse(

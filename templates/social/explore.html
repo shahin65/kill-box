@@ -27,7 +27,7 @@
   </div>
   <div class="explore-grid">
     {% for post in posts %}
-    <button class="explore-tile" type="button" data-post-open="{{ forloop.counter0 }}">
+    <button class="explore-tile" type="button" data-post-open="{{ forloop.counter0 }}" data-kb-view-post="{{ post.id }}">
       {% if post.url %}
         {% if post.kind == 'video' and post.poster %}
         <img src="{{ post.poster }}" alt="" loading="lazy" decoding="async">

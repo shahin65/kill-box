@@ -14,13 +14,22 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.core import telegram as telegram_bot
 from apps.core.bale import (
+    bale_bot_ready,
     bale_public_context,
-    create_ticket,
-    deep_link,
     handle_update,
     ticket_state,
 )
+from apps.core.messenger_link import (
+    create_link_token,
+    consume_link_token,
+    create_signup_ticket,
+    deep_link as messenger_deep_link,
+    ticket_state as messenger_ticket_state,
+    verify_claim_secret,
+)
+from apps.core.telegram import telegram_bot_ready
 from apps.core.avatar import AvatarError, save_member_avatar
+from apps.core.uploads import abort_upload, begin_upload, file_fingerprint, finish_upload
 from apps.core.session import (
     AUTH_REQUIRED_MESSAGE,
     admit_guest,
@@ -349,9 +358,21 @@ def legal_image_upload(request):
         return JsonResponse({'error': {'message': 'فقط تصویر مجاز است.'}}, status=400)
     if uploaded.size > 6 * 1024 * 1024:
         return JsonResponse({'error': {'message': 'حجم تصویر زیاد است.'}}, status=400)
-    name = get_valid_filename(uploaded.name or 'image.png')
-    path = default_storage.save(f'legal/{name}', uploaded)
-    return JsonResponse({'url': default_storage.url(path)})
+    fingerprint = file_fingerprint(uploaded, 'legal')
+    lock, existing, state = begin_upload(request.user.pk, 'legal', fingerprint)
+    if state == 'busy':
+        return JsonResponse({'error': {'message': 'همین فایل در حال ارسال است.'}}, status=409)
+    if state == 'done':
+        return JsonResponse({'url': existing})
+    try:
+        name = get_valid_filename(uploaded.name or 'image.png')
+        path = default_storage.save(f'legal/{name}', uploaded)
+        url = default_storage.url(path)
+    except Exception:
+        abort_upload(lock)
+        raise
+    finish_upload(lock, url)
+    return JsonResponse({'url': url})
 
 
 @require_POST
@@ -373,6 +394,18 @@ def avatar_upload(request):
         'size': request.POST.get('crop_size', ''),
     }
     has_crop = all(str(crop[key]).strip() != '' for key in crop)
+    fingerprint = file_fingerprint(
+        uploaded,
+        'avatar|%s|%s|%s' % (crop['x'], crop['y'], crop['size']),
+    )
+    lock, existing, state = begin_upload(request.user.pk, 'avatar', fingerprint)
+    if state == 'busy':
+        return JsonResponse(
+            {'success': False, 'message': 'همین فایل در حال ارسال است.'},
+            status=409,
+        )
+    if state == 'done':
+        return JsonResponse({'success': True, 'url': existing, 'message': 'آواتار ذخیره شد.', 'duplicate': True})
     try:
         url = save_member_avatar(
             ensure_member_profile(request.user),
@@ -380,7 +413,12 @@ def avatar_upload(request):
             crop if has_crop else None,
         )
     except AvatarError as exc:
+        abort_upload(lock)
         return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+    except Exception:
+        abort_upload(lock)
+        raise
+    finish_upload(lock, url)
     return JsonResponse(
         {
             'success': True,
@@ -450,18 +488,35 @@ def guest_enter(request):
 
 @require_POST
 def bale_start(request):
+    if is_member(request):
+        if not bale_bot_ready():
+            return JsonResponse(
+                {'success': False, 'message': 'اتصال بله هنوز فعال نیست.'},
+                status=503,
+            )
+        token = create_link_token(request.user, 'bale')
+        request.session['bale_link_token'] = token
+        return JsonResponse(
+            {
+                'success': True,
+                'mode': 'link',
+                'url': messenger_deep_link('bale', token),
+                'message': 'در بله استارت را بزن تا حساب کیل‌باکس وصل شود.',
+            }
+        )
     context = bale_public_context()
     if not context['enabled']:
         return JsonResponse(
             {'success': False, 'message': 'ثبت‌نام بله هنوز فعال نیست.'},
             status=503,
         )
-    ticket = create_ticket()
+    ticket = create_signup_ticket('bale')
     request.session['bale_ticket'] = ticket
     return JsonResponse(
         {
             'success': True,
-            'url': deep_link(ticket),
+            'mode': 'signup',
+            'url': messenger_deep_link('bale', ticket),
             'message': 'در بله استارت را بزن و شماره همین حساب را به اشتراک بگذار.',
         }
     )
@@ -469,6 +524,30 @@ def bale_start(request):
 
 @require_GET
 def bale_status(request):
+    if is_member(request):
+        token = request.session.get('bale_link_token') or ''
+        profile = ensure_member_profile(request.user)
+        if profile.bale_chat_id:
+            request.session.pop('bale_link_token', None)
+            return JsonResponse(
+                {
+                    'success': True,
+                    'mode': 'link',
+                    'message': 'حساب بله به کیل‌باکس متصل شد.',
+                }
+            )
+        if token and not messenger_ticket_state(token):
+            request.session.pop('bale_link_token', None)
+            return JsonResponse(
+                {
+                    'success': False,
+                    'pending': False,
+                    'message': 'لینک اتصال منقضی شد. دوباره تلاش کن.',
+                }
+            )
+        return JsonResponse(
+            {'success': False, 'pending': True, 'message': 'در انتظار تایید بله…'}
+        )
     ticket = request.session.get('bale_ticket') or ''
     state = ticket_state(ticket)
     if not state:
@@ -483,11 +562,16 @@ def bale_status(request):
                 'message': 'در بله استارت را بزن و شماره را به اشتراک بگذار.',
             }
         )
-    admit_member(request, state['phone'])
+    admit_member(
+        request,
+        state['phone'],
+        bale_chat_id=str(state.get('chat_id') or ''),
+    )
     request.session.pop('bale_ticket', None)
     return JsonResponse(
         {
             'success': True,
+            'mode': 'signup',
             'redirect': reverse('core:home'),
             'message': 'ثبت‌نام با بله تکمیل شد.',
         }
@@ -507,18 +591,35 @@ def bale_webhook(request, secret: str):
 
 @require_POST
 def telegram_start(request):
+    if is_member(request):
+        if not telegram_bot_ready():
+            return JsonResponse(
+                {'success': False, 'message': 'اتصال تلگرام هنوز فعال نیست.'},
+                status=503,
+            )
+        token = create_link_token(request.user, 'telegram')
+        request.session['telegram_link_token'] = token
+        return JsonResponse(
+            {
+                'success': True,
+                'mode': 'link',
+                'url': messenger_deep_link('telegram', token),
+                'message': 'در تلگرام استارت را بزن تا حساب کیل‌باکس وصل شود.',
+            }
+        )
     context = telegram_bot.telegram_public_context()
     if not context['enabled']:
         return JsonResponse(
             {'success': False, 'message': 'ثبت‌نام تلگرام هنوز فعال نیست.'},
             status=503,
         )
-    ticket = telegram_bot.create_ticket()
+    ticket = create_signup_ticket('telegram')
     request.session['telegram_ticket'] = ticket
     return JsonResponse(
         {
             'success': True,
-            'url': telegram_bot.deep_link(ticket),
+            'mode': 'signup',
+            'url': messenger_deep_link('telegram', ticket),
             'message': 'در تلگرام استارت را بزن و شماره همین حساب را به اشتراک بگذار.',
         }
     )
@@ -526,6 +627,30 @@ def telegram_start(request):
 
 @require_GET
 def telegram_status(request):
+    if is_member(request):
+        token = request.session.get('telegram_link_token') or ''
+        profile = ensure_member_profile(request.user)
+        if profile.telegram_chat_id:
+            request.session.pop('telegram_link_token', None)
+            return JsonResponse(
+                {
+                    'success': True,
+                    'mode': 'link',
+                    'message': 'حساب تلگرام به کیل‌باکس متصل شد.',
+                }
+            )
+        if token and not messenger_ticket_state(token):
+            request.session.pop('telegram_link_token', None)
+            return JsonResponse(
+                {
+                    'success': False,
+                    'pending': False,
+                    'message': 'لینک اتصال منقضی شد. دوباره تلاش کن.',
+                }
+            )
+        return JsonResponse(
+            {'success': False, 'pending': True, 'message': 'در انتظار تایید تلگرام…'}
+        )
     ticket = request.session.get('telegram_ticket') or ''
     state = telegram_bot.ticket_state(ticket)
     if not state:
@@ -540,15 +665,41 @@ def telegram_status(request):
                 'message': 'در تلگرام استارت را بزن و شماره را به اشتراک بگذار.',
             }
         )
-    admit_member(request, state['phone'])
+    admit_member(
+        request,
+        state['phone'],
+        telegram_chat_id=str(state.get('chat_id') or ''),
+    )
     request.session.pop('telegram_ticket', None)
     return JsonResponse(
         {
             'success': True,
+            'mode': 'signup',
             'redirect': reverse('core:home'),
             'message': 'ثبت‌نام با تلگرام تکمیل شد.',
         }
     )
+
+
+@csrf_exempt
+@require_POST
+def messenger_claim(request):
+    payload = _json_body(request) or {}
+    platform = str(payload.get('platform') or '').strip().lower()
+    if not verify_claim_secret(request, platform):
+        return JsonResponse({'ok': False, 'message': 'مجوز نامعتبر است.'}, status=403)
+    result = consume_link_token(
+        token=str(payload.get('token') or ''),
+        chat_id=payload.get('chat_id'),
+        platform=platform,
+    )
+    status = 200 if result.get('ok') else 400
+    body = {
+        'ok': bool(result.get('ok')),
+        'code': result.get('code') or '',
+        'message': result.get('message') or '',
+    }
+    return JsonResponse(body, status=status)
 
 
 @csrf_exempt

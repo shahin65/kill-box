@@ -4,15 +4,23 @@ from __future__ import annotations
 import hmac
 import json
 import logging
-import secrets
 import threading
 import time
 import urllib.error
 import urllib.request
 
 from django.conf import settings
-from django.core.cache import cache
 
+from apps.core.messenger_link import (
+    bind_signup_chat,
+    complete_signup,
+    resolve_start_link,
+    create_signup_ticket,
+    deep_link as make_deep_link,
+    signup_token_for_chat,
+    start_payload,
+    ticket_state as shared_ticket_state,
+)
 from apps.sms.otp import mask_mobile, normalize_mobile
 
 logger = logging.getLogger(__name__)
@@ -20,7 +28,6 @@ logger = logging.getLogger(__name__)
 TELEGRAM_ORIGIN = 'https://api.telegram.org'
 WEBHOOK_SECRET_HEADER = 'X-Telegram-Bot-Api-Secret-Token'
 PROXY_SECRET_HEADER = 'X-Killbox-Proxy-Secret'
-TICKET_TTL = 10 * 60
 START_TEXT = (
     'سرباز، به منطقه عملیاتی کیل‌باکس خوش اومدی.\n\n'
     'برای تکمیل ثبت‌نام، شماره موبایلی که روی همین حساب تلگرام ثبت شده را به اشتراک بگذار.'
@@ -37,37 +44,34 @@ _poller_lock = threading.Lock()
 _poller_started = False
 
 
+def telegram_bot_ready() -> bool:
+    username = str(getattr(settings, 'TELEGRAM_BOT_USERNAME', '') or '').lstrip('@')
+    return bool(getattr(settings, 'TELEGRAM_BOT_TOKEN', '') and username)
+
+
 def telegram_public_context() -> dict:
     from apps.core.siteconfig import get_signup_settings
 
     username = str(getattr(settings, 'TELEGRAM_BOT_USERNAME', '') or '').lstrip('@')
+    ready = telegram_bot_ready()
     return {
-        'enabled': bool(
-            getattr(settings, 'TELEGRAM_BOT_TOKEN', '')
-            and username
-            and get_signup_settings().telegram_signup
-        ),
+        'enabled': bool(ready and get_signup_settings().telegram_signup),
+        'link_enabled': ready,
         'username': username,
         'deep_link': f'https://t.me/{username}' if username else '',
     }
 
 
 def create_ticket() -> str:
-    ticket = secrets.token_urlsafe(18).replace('-', 'x').replace('_', 'y')[:24]
-    cache.set(_ticket_key(ticket), {'status': 'pending'}, TICKET_TTL)
-    return ticket
+    return create_signup_ticket('telegram')
 
 
 def deep_link(ticket: str) -> str:
-    username = str(getattr(settings, 'TELEGRAM_BOT_USERNAME', '') or '').lstrip('@')
-    return f'https://t.me/{username}?start={ticket}'
+    return make_deep_link('telegram', ticket)
 
 
 def ticket_state(ticket: str) -> dict | None:
-    if not ticket:
-        return None
-    state = cache.get(_ticket_key(ticket))
-    return state if isinstance(state, dict) else None
+    return shared_ticket_state(ticket)
 
 
 def handle_update(update: dict) -> None:
@@ -196,20 +200,39 @@ def _poll_loop() -> None:
 
 
 def _on_start(chat_id, text: str) -> None:
-    parts = text.split(maxsplit=1)
-    payload = parts[1].strip() if len(parts) > 1 else ''
-    state = ticket_state(payload)
+    token = start_payload(text)
+    linked = resolve_start_link(token=token, chat_id=chat_id, platform='telegram')
+    if linked is not None:
+        api(
+            'sendMessage',
+            {
+                'chat_id': chat_id,
+                'text': linked.get('message') or NEED_SITE,
+                'reply_markup': {'remove_keyboard': True},
+            },
+        )
+        return
+    state = ticket_state(token)
+    if state and state.get('kind') == 'signup' and state.get('status') == 'pending':
+        bind_signup_chat(token, chat_id, 'telegram')
+        _ask_contact(chat_id, START_TEXT)
+        return
     if state and state.get('status') == 'pending':
-        state['chat_id'] = chat_id
-        cache.set(_ticket_key(payload), state, TICKET_TTL)
-        cache.set(_chat_key(chat_id), payload, TICKET_TTL)
+        bind_signup_chat(token, chat_id, 'telegram')
         _ask_contact(chat_id, START_TEXT)
         return
-    ticket = cache.get(_chat_key(chat_id))
-    if ticket and ticket_state(str(ticket)):
+    ticket = signup_token_for_chat('telegram', chat_id)
+    if ticket and ticket_state(ticket):
         _ask_contact(chat_id, START_TEXT)
         return
-    _ask_contact(chat_id, NEED_SITE)
+    api(
+        'sendMessage',
+        {
+            'chat_id': chat_id,
+            'text': NEED_SITE,
+            'reply_markup': {'remove_keyboard': True},
+        },
+    )
 
 
 def _on_contact(chat_id, from_id, contact: dict) -> None:
@@ -235,20 +258,16 @@ def _on_contact(chat_id, from_id, contact: dict) -> None:
             },
         )
         return
-    ticket = cache.get(_chat_key(chat_id))
-    state = ticket_state(str(ticket or ''))
+    state = complete_signup(
+        chat_id,
+        'telegram',
+        phone=phone,
+        messenger_user_id=from_id,
+    )
     if not state:
         api('sendMessage', {'chat_id': chat_id, 'text': NEED_SITE})
         return
-    state.update(
-        {
-            'status': 'ok',
-            'phone': phone,
-            'masked_phone': mask_mobile(phone),
-            'telegram_user_id': from_id,
-        }
-    )
-    cache.set(_ticket_key(str(ticket)), state, TICKET_TTL)
+    state['masked_phone'] = mask_mobile(phone)
     api(
         'sendMessage',
         {
@@ -276,14 +295,6 @@ def _contact_keyboard() -> dict:
         'resize_keyboard': True,
         'one_time_keyboard': True,
     }
-
-
-def _ticket_key(ticket: str) -> str:
-    return f'tg:ticket:{ticket}'
-
-
-def _chat_key(chat_id) -> str:
-    return f'tg:chat:{chat_id}'
 
 
 def set_webhook(url: str = '') -> dict:

@@ -10,18 +10,37 @@
   <p class="auth-kicker">شبکه‌های اجتماعی</p>
   <h1 class="auth-title">پست</h1>
   <p class="profile-copy">عکس یا فیلم حداکثر یک دقیقه.</p>
-  <form class="composer" id="post-form">
+  <form
+    class="composer"
+    id="post-form"
+    data-kb-media-form
+    data-create-url="{% url 'social:post_create' %}"
+    data-status="post-status"
+    data-max-image="8388608"
+    data-max-video="41943040"
+    data-max-seconds="60"
+  >
     <label class="composer-file">
-      <input id="post-file" type="file" accept="image/*,video/mp4,video/webm" required>
+      <input id="post-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" required>
       <span>انتخاب عکس یا فیلم</span>
     </label>
+    <div class="kb-upload-preview" hidden>
+      <img class="kb-upload-preview__img" alt="پیش‌نمایش" hidden>
+      <video class="kb-upload-preview__vid" muted playsinline hidden></video>
+      <button class="story-act" type="button" data-upload-clear>لغو انتخاب</button>
+    </div>
     <textarea id="post-caption" maxlength="2200" placeholder="کپشن پست"></textarea>
+    <div class="kb-upload-bar" hidden>
+      <span class="kb-upload-bar__fill"></span>
+      <span class="kb-upload-bar__label"></span>
+    </div>
     <button class="auth-btn" type="submit">انتشار پست</button>
+    <button class="auth-alt" type="button" data-upload-retry hidden>تلاش مجدد</button>
   </form>
   <p class="auth-status" id="post-status" hidden></p>
   <div class="post-feed">
     {% for post in posts %}
-    <article class="post-card" data-post-id="{{ post.id }}">
+    <article class="post-card" data-post-id="{{ post.id }}" data-post-open="{{ forloop.counter0 }}" data-kb-view-post="{{ post.id }}">
       <header class="post-card__head">
         <a href="{% url 'social:thread' post.author_id %}" data-kb-nav>{{ post.name }}</a>
         {% if not post.mine %}
@@ -33,6 +52,8 @@
       <div class="post-card__bar">
         <button type="button" data-like-post="{{ post.id }}">لایک {{ post.likes }}</button>
         <a href="{% url 'social:post_detail' post.id %}" data-kb-nav>کامنت {{ post.comments }}</a>
+        <span class="story-act" data-kb-views="{{ post.id }}">{{ post.views_label }}</span>
+        <button class="story-act{% if post.saved %} is-on{% endif %}" type="button" data-save-post="{{ post.id }}" aria-pressed="{% if post.saved %}true{% else %}false{% endif %}">ذخیره</button>
         <button type="button" data-share="{{ post.share_url }}">اشتراک</button>
       </div>
     </article>
@@ -40,5 +61,7 @@
     <p class="profile-copy">هنوز پستی نیست.</p>
     {% endfor %}
   </div>
+  {{ posts|json_script:"post-reader-data" }}
+  {% include "social/_post_reader.html" %}
 </section>
 {% endblock %}

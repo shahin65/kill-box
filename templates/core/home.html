@@ -88,7 +88,7 @@
         </button>
         <div class="home-swipe__track">
           {% for post in home_posts %}
-          <article class="home-swipe__slide" data-post-open="{{ forloop.counter0 }}">
+          <article class="home-swipe__slide" data-post-open="{{ forloop.counter0 }}" data-kb-view-post="{{ post.id }}">
             <div class="home-swipe__user">
               <img class="home-swipe__avatar" src="{{ post.avatar }}" alt="" width="64" height="64" draggable="false">
               <strong>{{ post.name }}</strong>
@@ -109,6 +109,10 @@
               <button class="story-act" type="button" data-post-open="{{ forloop.counter0 }}" title="کامنت">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h16v12H7l-3 3z"/></svg>
                 <span>{{ post.comments }}</span>
+              </button>
+              <span class="story-act" title="بازدید" data-kb-views="{{ post.id }}">{{ post.views_label }}</span>
+              <button class="story-act{% if post.saved %} is-on{% endif %}" type="button" data-save-post="{{ post.id }}" title="ذخیره" aria-pressed="{% if post.saved %}true{% else %}false{% endif %}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h12v18l-6-3.4L6 21z"/></svg>
               </button>
             </div>
           </article>

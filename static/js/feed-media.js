@@ -59,8 +59,8 @@
     var reader = doc.getElementById('post-reader');
     var story = doc.getElementById('story-viewer');
     return {
-      reader: !!(reader && reader.open),
-      story: !!(story && story.open),
+      reader: !!(reader && (reader.open || reader.classList.contains('is-open'))),
+      story: !!(story && (story.open || story.classList.contains('is-open'))),
       readerNode: reader,
       storyNode: story,
     };
@@ -122,7 +122,7 @@
       video.playsInline = true;
       video.setAttribute('webkit-playsinline', '');
       video.preload = 'metadata';
-      video.loop = true;
+      video.loop = !video.hasAttribute('data-kb-reel-video');
       if (inOpenOverlay(video, state)) {
         video._kbRatio = 1;
       }

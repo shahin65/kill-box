@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="{% static 'css/base.css' %}?v=9">
   <link rel="stylesheet" href="{% static 'css/neon-bg.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=73">
-  <link rel="stylesheet" href="{% static 'css/social.css' %}?v=26">
+  <link rel="stylesheet" href="{% static 'css/social.css' %}?v=31">
   <link rel="stylesheet" href="{% static 'css/arena.css' %}?v=11">
   {% block extra_css %}{% endblock %}
   {% endif %}
@@ -376,7 +376,10 @@
       cacheMap.delete(destKey(url));
       loadShell(url, false);
     };
-    win.addEventListener('popstate', function () {
+    win.addEventListener('popstate', function (event) {
+      if (typeof win.__kbOverlayPop === 'function' && win.__kbOverlayPop(event)) {
+        return;
+      }
       var url = absUrl(win.location.href);
       if (!url || !canSwap(url)) {
         return;
@@ -398,10 +401,17 @@
   <div id="kb-shell">{% block body %}{% endblock %}</div>
   <div id="kb-chrome-dock">{% block chrome_dock %}{% endblock %}</div>
   {% if not kb_partial %}
+  {% include "social/_gif_picker.html" %}
   {% block extra_js %}
-  <script src="{% static 'js/landing.js' %}?v=49" defer></script>
-  <script src="{% static 'js/feed-media.js' %}?v=1" defer></script>
-  <script src="{% static 'js/social.js' %}?v=14" defer></script>
+  <script src="{% static 'js/upload.js' %}?v=1" defer></script>
+  <script src="{% static 'js/landing.js' %}?v=52" defer></script>
+  <script src="{% static 'js/overlay-history.js' %}?v=1" defer></script>
+  <script src="{% static 'js/feed-media.js' %}?v=2" defer></script>
+  <script src="{% static 'js/story-viewer.js' %}?v=2" defer></script>
+  <script src="{% static 'js/reels-viewer.js' %}?v=2" defer></script>
+  <script src="{% static 'js/post-views.js' %}?v=1" defer></script>
+  <script src="{% static 'js/composer-extras.js' %}?v=1" defer></script>
+  <script src="{% static 'js/social.js' %}?v=17" defer></script>
   <script src="{% static 'js/live.js' %}?v=4" defer></script>
   {% endblock %}
   <script src="{% static 'js/translate.js' %}?v=2" defer></script>

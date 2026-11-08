@@ -10,13 +10,32 @@
   <p class="auth-kicker">شبکه‌های اجتماعی</p>
   <h1 class="auth-title">استوری</h1>
   <p class="profile-copy">عکس یا فیلم تا ۵۰ مگابایت. ویدیو به ۹:۱۶، H.264 و حداکثر ۱۵ ثانیه فشرده می‌شود و اگر طولانی‌تر باشد به چند استوری پشت‌سرهم تبدیل می‌شود. هر کاربر تا ۱۵ استوری فعال در ۲۴ ساعت دارد.</p>
-  <form class="composer" id="story-form">
+  <form
+    class="composer"
+    id="story-form"
+    data-kb-media-form
+    data-create-url="{% url 'social:story_create' %}"
+    data-status="story-status"
+    data-max-image="8388608"
+    data-max-video="52428800"
+    data-max-seconds="0"
+  >
     <label class="composer-file">
-      <input id="story-file" type="file" accept="image/*,video/mp4,video/webm" required>
+      <input id="story-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" required>
       <span>انتخاب عکس یا فیلم</span>
     </label>
+    <div class="kb-upload-preview" hidden>
+      <img class="kb-upload-preview__img" alt="پیش‌نمایش" hidden>
+      <video class="kb-upload-preview__vid" muted playsinline hidden></video>
+      <button class="story-act" type="button" data-upload-clear>لغو انتخاب</button>
+    </div>
     <input id="story-overlay" type="text" maxlength="80" placeholder="متن روی استوری">
+    <div class="kb-upload-bar" hidden>
+      <span class="kb-upload-bar__fill"></span>
+      <span class="kb-upload-bar__label"></span>
+    </div>
     <button class="auth-btn" type="submit">ارسال استوری</button>
+    <button class="auth-alt" type="button" data-upload-retry hidden>تلاش مجدد</button>
   </form>
   <p class="auth-status" id="story-status" hidden></p>
   <div class="story-tray">

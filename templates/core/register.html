@@ -86,8 +86,9 @@
         class="auth-alt auth-alt--bale"
         type="button"
         id="auth-bale-btn"
-        data-start="{% url 'core:bale_start' %}"
-        data-status="{% url 'core:bale_status' %}"
+        data-messenger-start="{% url 'core:bale_start' %}"
+        data-messenger-status="{% url 'core:bale_status' %}"
+        data-messenger-label="بله"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 5v-5H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm3 4v2h10V8H7zm0 4v2h7v-2H7z"/></svg>
         <span>ثبت‌نام از طریق اپلیکیشن بله</span>
@@ -104,8 +105,9 @@
         class="auth-alt auth-alt--telegram"
         type="button"
         id="auth-telegram-btn"
-        data-start="{% url 'core:telegram_start' %}"
-        data-status="{% url 'core:telegram_status' %}"
+        data-messenger-start="{% url 'core:telegram_start' %}"
+        data-messenger-status="{% url 'core:telegram_status' %}"
+        data-messenger-label="تلگرام"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4 3 10.3 15 12 3 13.7z"/></svg>
         <span>ثبت‌نام از طریق تلگرام</span>

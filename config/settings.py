@@ -98,6 +98,9 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+if 'mysql' in DATABASES['default'].get('ENGINE', ''):
+    options = DATABASES['default'].setdefault('OPTIONS', {})
+    options.setdefault('charset', 'utf8mb4')
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -216,6 +219,7 @@ TELEGRAM_PROXY_SECRET = os.getenv('TELEGRAM_PROXY_SECRET', '')
 TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET', '')
 TELEGRAM_WEBHOOK_URL = os.getenv('TELEGRAM_WEBHOOK_URL', '')
 PUBLIC_SITE_URL = os.getenv('PUBLIC_SITE_URL', '').rstrip('/')
+MESSENGER_CLAIM_SECRET = os.getenv('MESSENGER_CLAIM_SECRET', '')
 
 # Melipayamak Console OTP — dedicated URL only; never hardcode.
 MELIPAYAMAK_API_URL = os.getenv('MELIPAYAMAK_API_URL', '')
@@ -225,3 +229,12 @@ MELIPAYAMAK_DRY_RUN = os.getenv('MELIPAYAMAK_DRY_RUN', 'True').lower() in {
     'yes',
     'on',
 }
+
+GIF_PROVIDER = os.getenv('GIF_PROVIDER', 'tenor').strip().lower() or 'tenor'
+GIF_API_KEY = os.getenv('GIF_API_KEY', '')
+GIF_API_BASE_URL = os.getenv('GIF_API_BASE_URL', '').rstrip('/')
+GIF_RATING = os.getenv('GIF_RATING', 'g')
+try:
+    GIF_DEFAULT_LIMIT = int(os.getenv('GIF_DEFAULT_LIMIT', '12') or 12)
+except (TypeError, ValueError):
+    GIF_DEFAULT_LIMIT = 12

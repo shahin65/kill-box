@@ -69,6 +69,7 @@ class LandingAuthTests(TestCase):
         start = self.client.post(reverse('core:bale_start'))
         self.assertEqual(start.status_code, 200)
         self.assertTrue(start.json()['success'])
+        self.assertIn('auth_', start.json()['url'])
         ticket = self.client.session['bale_ticket']
         from apps.core.bale import handle_update
 
@@ -77,7 +78,7 @@ class LandingAuthTests(TestCase):
                 'message': {
                     'chat': {'id': 44},
                     'from': {'id': 44},
-                    'text': '/start ' + ticket,
+                    'text': '/start auth_' + ticket,
                 }
             }
         )
@@ -114,7 +115,7 @@ class LandingAuthTests(TestCase):
                 'message': {
                     'chat': {'id': 9},
                     'from': {'id': 9},
-                    'text': '/start ' + ticket,
+                    'text': '/start auth_' + ticket,
                 }
             }
         )
@@ -197,6 +198,7 @@ class LandingAuthTests(TestCase):
         start = self.client.post(reverse('core:telegram_start'))
         self.assertEqual(start.status_code, 200)
         self.assertTrue(start.json()['success'])
+        self.assertIn('auth_', start.json()['url'])
         ticket = self.client.session['telegram_ticket']
         from apps.core.telegram import handle_update
 
@@ -205,7 +207,7 @@ class LandingAuthTests(TestCase):
                 'message': {
                     'chat': {'id': 77},
                     'from': {'id': 77},
-                    'text': '/start ' + ticket,
+                    'text': '/start auth_' + ticket,
                 }
             }
         )
@@ -245,7 +247,7 @@ class LandingAuthTests(TestCase):
                 'message': {
                     'chat': {'id': 5},
                     'from': {'id': 5},
-                    'text': '/start ' + ticket,
+                    'text': '/start auth_' + ticket,
                 }
             }
         )
@@ -349,6 +351,179 @@ class LandingAuthTests(TestCase):
             },
         )
         self.assertIn('Webhook set', out.getvalue())
+
+
+class MessengerLinkTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        User = get_user_model()
+        self.user = User.objects.create_user(username='09121112222')
+        self.other = User.objects.create_user(username='09121113333')
+
+    @override_settings(
+        TELEGRAM_BOT_TOKEN='test-token',
+        TELEGRAM_BOT_USERNAME='KillBoxAuthBot',
+        TELEGRAM_API_BASE_URL='https://tg-proxy.example',
+        TELEGRAM_PROXY_SECRET='proxy-secret',
+    )
+    @patch('apps.core.telegram.api')
+    def test_logged_in_telegram_start_binds_chat(self, mocked_api):
+        mocked_api.return_value = {'ok': True, 'result': True}
+        self.client.force_login(self.user)
+        start = self.client.post(reverse('core:telegram_start'))
+        self.assertTrue(start.json()['success'])
+        self.assertEqual(start.json()['mode'], 'link')
+        self.assertTrue(start.json()['url'].startswith('https://t.me/KillBoxAuthBot?start=auth_'))
+        token = self.client.session['telegram_link_token']
+        from apps.core.models import MemberProfile
+        from apps.core.telegram import handle_update
+
+        handle_update(
+            {
+                'message': {
+                    'chat': {'id': 9001},
+                    'from': {'id': 9001},
+                    'text': '/start auth_' + token,
+                }
+            }
+        )
+        profile = MemberProfile.objects.get(user=self.user)
+        self.assertEqual(profile.telegram_chat_id, '9001')
+        status = self.client.get(reverse('core:telegram_status'))
+        self.assertTrue(status.json()['success'])
+        self.assertEqual(status.json()['mode'], 'link')
+        send = mocked_api.call_args[0][1]
+        self.assertIn('موفقیت', send['text'])
+
+    @override_settings(
+        BALE_BOT_TOKEN='test-token',
+        BALE_BOT_USERNAME='killbox_bot',
+    )
+    @patch('apps.core.bale.api')
+    def test_logged_in_bale_start_binds_chat(self, mocked_api):
+        mocked_api.return_value = {'ok': True, 'result': True}
+        self.client.force_login(self.user)
+        start = self.client.post(reverse('core:bale_start'))
+        token = self.client.session['bale_link_token']
+        from apps.core.bale import handle_update
+        from apps.core.models import MemberProfile
+
+        handle_update(
+            {
+                'message': {
+                    'chat': {'id': 44},
+                    'from': {'id': 44},
+                    'text': '/start auth_' + token,
+                }
+            }
+        )
+        self.assertEqual(MemberProfile.objects.get(user=self.user).bale_chat_id, '44')
+
+    @override_settings(
+        TELEGRAM_BOT_TOKEN='test-token',
+        TELEGRAM_BOT_USERNAME='KillBoxAuthBot',
+    )
+    @patch('apps.core.telegram.api')
+    def test_link_token_cannot_be_replayed(self, mocked_api):
+        mocked_api.return_value = {'ok': True, 'result': True}
+        self.client.force_login(self.user)
+        start = self.client.post(reverse('core:telegram_start'))
+        token = self.client.session['telegram_link_token']
+        from apps.core.telegram import handle_update
+
+        payload = {
+            'message': {
+                'chat': {'id': 11},
+                'from': {'id': 11},
+                'text': '/start auth_' + token,
+            }
+        }
+        handle_update(payload)
+        payload['message']['chat']['id'] = 12
+        payload['message']['from']['id'] = 12
+        handle_update(payload)
+        from apps.core.models import MemberProfile
+
+        profile = MemberProfile.objects.get(user=self.user)
+        self.assertEqual(profile.telegram_chat_id, '11')
+        last = mocked_api.call_args[0][1]
+        self.assertIn('استفاده', last['text'])
+
+    @override_settings(
+        TELEGRAM_BOT_TOKEN='test-token',
+        TELEGRAM_BOT_USERNAME='KillBoxAuthBot',
+    )
+    @patch('apps.core.telegram.api')
+    def test_expired_or_missing_token_is_rejected(self, mocked_api):
+        mocked_api.return_value = {'ok': True, 'result': True}
+        from apps.core.telegram import handle_update
+
+        handle_update(
+            {
+                'message': {
+                    'chat': {'id': 3},
+                    'from': {'id': 3},
+                    'text': '/start auth_notreal',
+                }
+            }
+        )
+        send = mocked_api.call_args[0][1]
+        self.assertIn('سایت', send['text'])
+
+    @override_settings(MESSENGER_CLAIM_SECRET='claim-secret')
+    def test_claim_api_requires_secret_and_links(self):
+        from apps.core.messenger_link import create_link_token
+        from apps.core.models import MemberProfile
+        from apps.core.session import ensure_member_profile
+
+        ensure_member_profile(self.user)
+        token = create_link_token(self.user, 'telegram')
+        denied = self.client.post(
+            reverse('core:messenger_claim'),
+            data='{"token":"%s","chat_id":"77","platform":"telegram"}' % token,
+            content_type='application/json',
+        )
+        self.assertEqual(denied.status_code, 403)
+        ok = self.client.post(
+            reverse('core:messenger_claim'),
+            data='{"token":"%s","chat_id":"77","platform":"telegram"}' % token,
+            content_type='application/json',
+            HTTP_X_KILLBOX_BOT_SECRET='claim-secret',
+        )
+        self.assertEqual(ok.status_code, 200)
+        self.assertTrue(ok.json()['ok'])
+        self.assertEqual(MemberProfile.objects.get(user=self.user).telegram_chat_id, '77')
+        replay = self.client.post(
+            reverse('core:messenger_claim'),
+            data='{"token":"%s","chat_id":"88","platform":"telegram"}' % token,
+            content_type='application/json',
+            HTTP_X_KILLBOX_BOT_SECRET='claim-secret',
+        )
+        self.assertEqual(replay.status_code, 400)
+        self.assertFalse(replay.json()['ok'])
+
+    @override_settings(
+        TELEGRAM_BOT_TOKEN='test-token',
+        TELEGRAM_BOT_USERNAME='KillBoxAuthBot',
+        TELEGRAM_API_BASE_URL='https://tg-proxy.example',
+    )
+    def test_telegram_proxy_base_still_used(self):
+        from apps.core.telegram import telegram_api_base
+
+        self.assertEqual(telegram_api_base(), 'https://tg-proxy.example')
+
+    def test_profile_shows_connect_when_bots_ready(self):
+        self.client.force_login(self.user)
+        with override_settings(
+            TELEGRAM_BOT_TOKEN='test-token',
+            TELEGRAM_BOT_USERNAME='KillBoxAuthBot',
+            BALE_BOT_TOKEN='bale-token',
+            BALE_BOT_USERNAME='killbox_bot',
+        ):
+            page = self.client.get(reverse('core:profile'))
+        self.assertContains(page, 'اتصال به تلگرام')
+        self.assertContains(page, 'اتصال به بله')
+        self.assertContains(page, 'data-messenger-start')
 
 
 class ProfileHudTests(TestCase):
@@ -553,6 +728,33 @@ class AvatarUploadTests(TestCase):
             self.assertEqual(image.format, 'WEBP')
         profile = self.client.get(reverse('core:profile'))
         self.assertContains(profile, '/media/avatars/')
+        self.assertContains(profile, 'avatar-upload-bar')
+        self.assertContains(profile, 'js/upload.js')
+
+    def test_identical_avatar_upload_is_idempotent(self):
+        self._login_member()
+        payload = {
+            'avatar': _png_file(80, 40, name='face.png'),
+            'crop_x': '20',
+            'crop_y': '0',
+            'crop_size': '40',
+        }
+        first = self.client.post(reverse('core:avatar_upload'), data=payload)
+        self.assertTrue(first.json()['success'])
+        second = self.client.post(
+            reverse('core:avatar_upload'),
+            data={
+                'avatar': _png_file(80, 40, name='face.png'),
+                'crop_x': '20',
+                'crop_y': '0',
+                'crop_size': '40',
+            },
+        )
+        self.assertTrue(second.json()['success'])
+        self.assertTrue(second.json().get('duplicate'))
+        self.assertEqual(second.json()['url'], first.json()['url'])
+        saved = Path(self.media.name) / 'avatars'
+        self.assertEqual(len(list(saved.glob('*.webp'))), 1)
 
 
 class XpProgressionTests(TestCase):
@@ -682,6 +884,8 @@ class DockAndLegalTests(TestCase):
         self.assertContains(page, 'شرایط استفاده از خدمات')
         self.assertContains(page, 'kb-rich-editor')
         self.assertContains(page, 'js/admin_legal.js')
+        self.assertContains(page, 'js/admin_upload.js')
+        self.assertContains(page, 'css/admin_upload.css')
 
     def test_member_profile_has_uid_bio_invite_and_logout(self):
         User = get_user_model()

@@ -55,7 +55,7 @@ def admit_guest(request) -> None:
     request.session.pop(PHONE_KEY, None)
 
 
-def admit_member(request, phone: str) -> None:
+def admit_member(request, phone: str, *, telegram_chat_id='', bale_chat_id='') -> None:
     from apps.core.identity import apply_referral, assign_public_id
 
     User = get_user_model()
@@ -71,6 +71,21 @@ def admit_member(request, phone: str) -> None:
     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
     profile = ensure_member_profile(user)
     assign_public_id(profile)
+    from apps.core.models import MemberProfile
+
+    fields = []
+    telegram_id = str(telegram_chat_id or '')
+    bale_id = str(bale_chat_id or '')
+    if telegram_id and not profile.telegram_chat_id:
+        if not MemberProfile.objects.filter(telegram_chat_id=telegram_id).exclude(pk=profile.pk).exists():
+            profile.telegram_chat_id = telegram_id
+            fields.append('telegram_chat_id')
+    if bale_id and not profile.bale_chat_id:
+        if not MemberProfile.objects.filter(bale_chat_id=bale_id).exclude(pk=profile.pk).exists():
+            profile.bale_chat_id = bale_id
+            fields.append('bale_chat_id')
+    if fields:
+        profile.save(update_fields=fields)
     if created:
         apply_referral(user, request)
 
@@ -103,6 +118,10 @@ def hud_context(request) -> dict:
     codm_nickname = ''
     codm_level = None
     notices = {'inbox': 0, 'stories': 0, 'posts': 0, 'total': 0}
+    telegram_linked = False
+    bale_linked = False
+    telegram_ctx = {'enabled': False, 'link_enabled': False, 'username': ''}
+    bale_ctx = {'enabled': False, 'link_enabled': False, 'username': ''}
     if member:
         from apps.core.identity import profile_display_name, touch_presence
 
@@ -126,13 +145,19 @@ def hud_context(request) -> dict:
         if not phone:
             phone = request.user.get_username()
         path = (getattr(request, 'path', '') or '').rstrip('/')
+        telegram_linked = bool(profile.telegram_chat_id)
+        bale_linked = bool(profile.bale_chat_id)
         if path == '/profile':
+            from apps.core.bale import bale_public_context
+            from apps.core.telegram import telegram_public_context
             from apps.social.services import follow_counts, notice_counts
 
             counts = follow_counts(request.user)
             followers = counts['followers']
             following = counts['following']
             notices = notice_counts(request.user)
+            telegram_ctx = telegram_public_context()
+            bale_ctx = bale_public_context()
     return {
         'is_guest': guest,
         'is_member': member,
@@ -155,6 +180,10 @@ def hud_context(request) -> dict:
         'codm_nickname': codm_nickname,
         'codm_level': codm_level,
         'notices': notices,
+        'telegram_linked': telegram_linked,
+        'bale_linked': bale_linked,
+        'telegram': telegram_ctx,
+        'bale': bale_ctx,
     }
 
 

@@ -5,7 +5,7 @@
 {% block body_class %}is-landing is-home is-profile is-docked{% if is_guest %} is-guest{% endif %}{% endblock %}
 
 {% block panel %}
-<article class="profile-card social-card post-card" data-post-id="{{ item.id }}">
+<article class="profile-card social-card post-card" data-post-id="{{ item.id }}" data-kb-view-post="{{ item.id }}">
   {% csrf_token %}
   <header class="post-card__head">
     <strong>{{ item.name }}</strong>
@@ -15,11 +15,20 @@
   {% if item.caption %}<p class="post-card__caption">{{ item.caption }}</p>{% endif %}
   <div class="post-card__bar">
     <button type="button" data-like-post="{{ item.id }}">لایک {{ item.likes }}</button>
+    <span class="story-act" data-kb-views="{{ item.id }}">{{ item.views_label }}</span>
+    <button class="story-act{% if item.saved %} is-on{% endif %}" type="button" data-save-post="{{ item.id }}" aria-pressed="{% if item.saved %}true{% else %}false{% endif %}">ذخیره</button>
     <button type="button" data-share="{{ item.share_url }}">اشتراک</button>
   </div>
   <ul class="comment-list">
     {% for row in item.comments %}
-    <li><strong>{{ row.name }}</strong> {{ row.text }}</li>
+    <li{% if row.parent_id %} class="is-reply"{% endif %}>
+      <strong>{{ row.name }}</strong> {{ row.text }}
+      {% if row.gif_url %}
+      <span class="kb-gif" style="aspect-ratio: {{ row.gif_width|default:240 }}/{{ row.gif_height|default:180 }}">
+        <img src="{{ row.gif_preview_url|default:row.gif_url }}" alt="{{ row.alt|default:'GIF' }}" loading="lazy" decoding="async" width="{{ row.gif_width|default:240 }}" height="{{ row.gif_height|default:180 }}">
+      </span>
+      {% endif %}
+    </li>
     {% empty %}
     <li>کامنتی نیست.</li>
     {% endfor %}

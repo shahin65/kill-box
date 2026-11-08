@@ -69,6 +69,8 @@ class StoryView(models.Model):
     story = models.ForeignKey(Story, on_delete=models.CASCADE, related_name='views')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_story_views')
     created_at = models.DateTimeField(auto_now_add=True)
+    watch_ms = models.PositiveIntegerField(default=0)
+    completed = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
@@ -103,9 +105,55 @@ class Post(models.Model):
     media = models.FileField(upload_to=post_upload_to)
     thumbnail = models.ImageField(upload_to=post_thumb_upload_to, blank=True)
     caption = models.CharField(max_length=2200, blank=True)
+    views_count = models.PositiveBigIntegerField(default=0, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        ordering = ('-created_at',)
+
+
+class PostView(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='view_rows')
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='kb_post_views',
+        null=True,
+        blank=True,
+    )
+    session_key = models.CharField(max_length=40, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('post', 'user'),
+                condition=models.Q(user__isnull=False),
+                name='social_postview_user_unique',
+            ),
+            models.UniqueConstraint(
+                fields=('post', 'session_key'),
+                condition=models.Q(user__isnull=True) & ~models.Q(session_key=''),
+                name='social_postview_session_unique',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=('post', 'created_at')),
+        ]
+
+
+class SavedPost(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_saved_posts')
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='saves')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=('user', 'post'), name='social_savedpost_unique'),
+        ]
+        indexes = [
+            models.Index(fields=('user', '-created_at')),
+        ]
         ordering = ('-created_at',)
 
 
@@ -121,9 +169,29 @@ class PostLike(models.Model):
 
 
 class PostComment(models.Model):
+    TEXT = 'text'
+    GIF = 'gif'
+    MIXED = 'mixed'
+    KIND_CHOICES = ((TEXT, 'text'), (GIF, 'gif'), (MIXED, 'mixed'))
+
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_post_comments')
-    text = models.CharField(max_length=280)
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        related_name='replies',
+        null=True,
+        blank=True,
+    )
+    text = models.CharField(max_length=280, blank=True, default='')
+    content_type = models.CharField(max_length=8, choices=KIND_CHOICES, default=TEXT)
+    gif_provider = models.CharField(max_length=16, blank=True, default='')
+    gif_id = models.CharField(max_length=64, blank=True, default='')
+    gif_url = models.URLField(max_length=500, blank=True, default='')
+    gif_preview_url = models.URLField(max_length=500, blank=True, default='')
+    gif_width = models.PositiveSmallIntegerField(null=True, blank=True)
+    gif_height = models.PositiveSmallIntegerField(null=True, blank=True)
+    gif_alt = models.CharField(max_length=120, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -5,8 +5,7 @@ document.addEventListener('DOMContentLoaded', function () {
 function bindPage() {
   bindGuestChrome();
   bindLandingAuth();
-  bindMessengerAuth('auth-bale-btn', 'بله');
-  bindMessengerAuth('auth-telegram-btn', 'تلگرام');
+  bindMessengerAuth();
   bindRankDialog();
   bindSiteMenu();
   bindAvatarUpload();
@@ -23,7 +22,7 @@ function bindPage() {
 window.__kbBindPage = bindPage;
 
 var KB_AUTH_GUARD =
-  '[data-like-post], #story-like, [data-follow], [data-comment-post], [data-kb-auth], #story-form, #post-form, #story-comment-form, #live-chat-form, #live-donate-form, [data-accept], [data-reject], [data-block], .event-fee-btn, .composer';
+  '[data-like-post], [data-save-post], [data-gif-open], [data-story-viewers], [data-comment-del], [data-comment-reply], #story-like, [data-follow], [data-comment-post], [data-kb-auth], #story-form, #post-form, #story-comment-form, #live-chat-form, #live-donate-form, [data-accept], [data-reject], [data-block], .event-fee-btn, .composer';
 
 function kbIsMember() {
   return document.body.getAttribute('data-kb-member') === '1';
@@ -374,26 +373,40 @@ function bindLandingAuth() {
   }
 }
 
-function bindMessengerAuth(buttonId, label) {
-  var btn = document.getElementById(buttonId);
-  var status = document.getElementById('auth-status');
-  var sendForm = document.getElementById('auth-send-form');
-  if (!btn || btn.disabled) {
+function bindMessengerAuth() {
+  if (window.__kbMessengerAuthBound) {
     return;
   }
-  var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+  window.__kbMessengerAuthBound = true;
   var poll = 0;
 
-  btn.addEventListener('click', function () {
+  document.addEventListener('click', function (event) {
+    var node = event.target;
+    if (!node || typeof node.closest !== 'function') {
+      return;
+    }
+    var btn = node.closest('[data-messenger-start]');
+    if (!btn || btn.disabled) {
+      return;
+    }
+    event.preventDefault();
+    var label = btn.getAttribute('data-messenger-label') || 'پیام‌رسان';
+    if (btn.getAttribute('data-messenger-link') === '1' && !kbIsMember()) {
+      if (typeof window.__kbPromptAuth === 'function') {
+        window.__kbPromptAuth();
+      }
+      return;
+    }
     var popup = null;
     try {
-      popup = window.open('about:blank', 'killbox-' + buttonId);
+      popup = window.open('about:blank', 'killbox-' + (btn.id || label));
     } catch (err) {
       popup = null;
     }
     btn.disabled = true;
-    showStatus('در حال اتصال به ' + label + '…', false);
-    fetch(btn.getAttribute('data-start'), {
+    showMessengerStatus(btn, 'در حال اتصال به ' + label + '…', false);
+    var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+    fetch(btn.getAttribute('data-messenger-start'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -404,37 +417,52 @@ function bindMessengerAuth(buttonId, label) {
       credentials: 'same-origin',
     })
       .then(function (response) {
-        return response.json();
+        return response.json().then(function (data) {
+          data.status = response.status;
+          return data;
+        });
       })
       .then(function (data) {
-        if (!data || !data.success || !data.url) {
-          closePopup(popup);
+        if (data.status === 401 && typeof window.__kbPromptAuth === 'function') {
+          closeMessengerPopup(popup);
           btn.disabled = false;
-          showStatus((data && data.message) || ('اتصال به ' + label + ' ناموفق بود.'), true);
+          window.__kbPromptAuth();
           return;
         }
-        openMessenger(data.url, popup);
-        showStatus(
-          data.message || ('در ' + label + ' استارت را بزن و شماره را به اشتراک بگذار.'),
+        if (!data || !data.success || !data.url) {
+          closeMessengerPopup(popup);
+          btn.disabled = false;
+          showMessengerStatus(
+            btn,
+            (data && data.message) || ('اتصال به ' + label + ' ناموفق بود.'),
+            true
+          );
+          return;
+        }
+        openMessengerWindow(data.url, popup, btn, label);
+        showMessengerStatus(
+          btn,
+          data.message || ('در ' + label + ' استارت را بزن.'),
           false,
-          data.url
+          data.url,
+          label
         );
-        startPoll(btn.getAttribute('data-status'));
+        startMessengerPoll(btn, label);
       })
       .catch(function () {
-        closePopup(popup);
+        closeMessengerPopup(popup);
         btn.disabled = false;
-        showStatus('ارتباط با سرور برقرار نشد.', true);
+        showMessengerStatus(btn, 'ارتباط با سرور برقرار نشد.', true);
       });
   });
 
-  function closePopup(popup) {
+  function closeMessengerPopup(popup) {
     if (popup && !popup.closed) {
       popup.close();
     }
   }
 
-  function openMessenger(url, popup) {
+  function openMessengerWindow(url, popup, btn, label) {
     if (popup && !popup.closed) {
       popup.location.replace(url);
       try {
@@ -444,31 +472,53 @@ function bindMessengerAuth(buttonId, label) {
       }
       return;
     }
-    var jump = window.open(url, 'killbox-' + buttonId);
+    var jump = window.open(url, 'killbox-' + (btn.id || label));
     if (!jump) {
-      showStatus('بازوی ' + label + ' باز نشد. از لینک زیر وارد شو.', true, url);
+      showMessengerStatus(btn, 'بازوی ' + label + ' باز نشد. از لینک زیر وارد شو.', true, url, label);
     }
   }
 
-  function startPoll(url) {
+  function startMessengerPoll(btn, label) {
     window.clearInterval(poll);
     var tries = 0;
+    var statusUrl = btn.getAttribute('data-messenger-status');
     poll = window.setInterval(function () {
       tries += 1;
       if (tries > 90) {
         window.clearInterval(poll);
         btn.disabled = false;
-        showStatus('زمان تایید ' + label + ' تمام شد. دوباره تلاش کنید.', true);
+        showMessengerStatus(btn, 'زمان تایید ' + label + ' تمام شد. دوباره تلاش کنید.', true);
         return;
       }
-      fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      fetch(statusUrl, {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      })
         .then(function (response) {
           return response.json();
         })
         .then(function (data) {
-          if (data && data.success && data.redirect) {
-            window.clearInterval(poll);
-            showStatus(data.message || ('ثبت‌نام با ' + label + ' تکمیل شد.'), false);
+          if (!data || !data.success) {
+            if (data && data.pending === false) {
+              window.clearInterval(poll);
+              btn.disabled = false;
+              showMessengerStatus(btn, data.message || 'اتصال انجام نشد.', true);
+            }
+            return;
+          }
+          window.clearInterval(poll);
+          showMessengerStatus(btn, data.message || ('اتصال ' + label + ' تکمیل شد.'), false);
+          if (data.mode === 'link') {
+            btn.classList.add('is-on');
+            btn.disabled = true;
+            var caption = btn.querySelector('span');
+            if (caption) {
+              caption.textContent = label + ' متصل است';
+            }
+            return;
+          }
+          btn.disabled = false;
+          if (data.redirect) {
             if (window.__kbGo) {
               window.__kbGo(data.redirect);
             } else {
@@ -480,8 +530,13 @@ function bindMessengerAuth(buttonId, label) {
     }, 2000);
   }
 
-  function showStatus(message, isError, url) {
+  function showMessengerStatus(btn, message, isError, url, label) {
+    var status =
+      document.getElementById('auth-status') || document.getElementById('messenger-link-status');
     if (!status) {
+      if (typeof window.__kbFlashSocial === 'function') {
+        window.__kbFlashSocial(message);
+      }
       return;
     }
     status.hidden = !message;
@@ -497,7 +552,7 @@ function bindMessengerAuth(buttonId, label) {
       link.href = url;
       link.target = '_blank';
       link.rel = 'noopener';
-      link.textContent = 'اگر ' + label + ' باز نشد، اینجا را بزن.';
+      link.textContent = 'اگر ' + (label || 'پیام‌رسان') + ' باز نشد، اینجا را بزن.';
       status.appendChild(link);
     }
   }
@@ -626,6 +681,9 @@ function bindAvatarUpload() {
   window.__kbAvatarBound = true;
 
   var sourceFile = null;
+  var lastCrop = null;
+  var avatarBusy = false;
+  var avatarHolder = { xhr: null };
   var natural = { w: 0, h: 0 };
   var pan = { x: 0, y: 0 };
   var drag = null;
@@ -655,10 +713,20 @@ function bindAvatarUpload() {
     var fileInput = event.target;
     var file = fileInput.files && fileInput.files[0];
     fileInput.value = '';
-    if (!file) {
+    if (!file || avatarBusy) {
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
+    if (window.__kbUpload) {
+      if (!window.__kbUpload.isImage(file)) {
+        showAvatarStatus('فقط تصویر JPG، PNG، WEBP یا GIF مجاز است.', true);
+        return;
+      }
+      var check = window.__kbUpload.validateFile(file, { maxImage: 8 * 1024 * 1024 });
+      if (!check.ok) {
+        showAvatarStatus(check.message, true);
+        return;
+      }
+    } else if (file.size > 8 * 1024 * 1024) {
       showAvatarStatus('حجم تصویر نباید بیشتر از ۸ مگابایت باشد.', true);
       return;
     }
@@ -761,13 +829,59 @@ function bindAvatarUpload() {
     };
   }
 
-  function uploadAvatar(file, crop) {
-    var host = card();
-    var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (!file || !host) {
+  function paintAvatarProgress(percent, label) {
+    var bar = document.getElementById('avatar-upload-bar');
+    var fill = bar && bar.querySelector('.kb-upload-bar__fill');
+    var text = bar && bar.querySelector('.kb-upload-bar__label');
+    if (!bar) {
       return;
     }
-    showAvatarStatus('در حال بهینه‌سازی و ذخیره آواتار…', false);
+    bar.hidden = percent == null && !label;
+    if (fill) {
+      fill.style.transform = 'scaleX(' + Math.max(0, Math.min(1, (percent || 0) / 100)) + ')';
+    }
+    if (text) {
+      text.textContent = label || '';
+    }
+  }
+
+  function setAvatarBusy(on) {
+    avatarBusy = !!on;
+    var apply = document.getElementById('avatar-crop-apply');
+    if (apply) {
+      apply.disabled = !!on;
+      apply.classList.toggle('is-busy', !!on);
+    }
+    var uploadLabel = document.querySelector('.profile-avatar-upload');
+    if (uploadLabel) {
+      uploadLabel.classList.toggle('is-busy', !!on);
+    }
+  }
+
+  function failAvatar(message) {
+    setAvatarBusy(false);
+    paintAvatarProgress(0, '');
+    showAvatarStatus(message || 'آپلود آواتار ناموفق بود.', true);
+    var retry = document.getElementById('avatar-retry');
+    if (retry) {
+      retry.hidden = false;
+    }
+  }
+
+  function uploadAvatar(file, crop) {
+    var host = card();
+    if (!file || !host || avatarBusy) {
+      return;
+    }
+    lastCrop = crop || null;
+    sourceFile = file;
+    var retry = document.getElementById('avatar-retry');
+    if (retry) {
+      retry.hidden = true;
+    }
+    setAvatarBusy(true);
+    paintAvatarProgress(0, 'در حال بارگذاری: ۰٪');
+    showAvatarStatus('', false);
     var body = new FormData();
     body.append('avatar', file);
     if (crop && crop.size) {
@@ -775,23 +889,26 @@ function bindAvatarUpload() {
       body.append('crop_y', String(Math.round(crop.y)));
       body.append('crop_size', String(Math.round(crop.size)));
     }
-    fetch(host.getAttribute('data-avatar-upload'), {
-      method: 'POST',
-      headers: {
-        'X-CSRFToken': csrf ? csrf.value : '',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: body,
-      credentials: 'same-origin',
-    })
-      .then(function (response) {
-        return response.json();
-      })
+    var send = window.__kbUpload && window.__kbUpload.send
+      ? window.__kbUpload.send(host.getAttribute('data-avatar-upload'), body, {
+          holder: avatarHolder,
+          onProgress: function (percent) {
+            if (percent >= 100) {
+              paintAvatarProgress(100, 'در حال ذخیره‌سازی و پردازش…');
+              return;
+            }
+            paintAvatarProgress(percent, 'در حال بارگذاری: ' + percent + '٪');
+          },
+        })
+      : Promise.reject(new Error('ماژول آپلود در دسترس نیست.'));
+    send
       .then(function (data) {
         if (!data || !data.success) {
-          showAvatarStatus((data && data.message) || 'آپلود آواتار ناموفق بود.', true);
+          failAvatar((data && data.message) || 'آپلود آواتار ناموفق بود.');
           return;
         }
+        setAvatarBusy(false);
+        paintAvatarProgress(100, 'ذخیره شد.');
         var next = data.url + (data.url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + Date.now();
         document.querySelectorAll('.profile-avatar, .topbar-profile img').forEach(function (img) {
           img.src = next;
@@ -799,8 +916,11 @@ function bindAvatarUpload() {
         });
         showAvatarStatus(data.message || 'آواتار ذخیره شد.', false);
       })
-      .catch(function () {
-        showAvatarStatus('ارتباط با سرور برقرار نشد.', true);
+      .catch(function (err) {
+        if (err && err.code === 'abort') {
+          return;
+        }
+        failAvatar((err && err.message) || 'ارتباط با سرور برقرار نشد.');
       });
   }
 
@@ -830,6 +950,13 @@ function bindAvatarUpload() {
         event.preventDefault();
         uploadAvatar(sourceFile, currentCrop());
         closeCrop();
+        return;
+      }
+      if (node.closest('#avatar-retry')) {
+        event.preventDefault();
+        if (sourceFile) {
+          uploadAvatar(sourceFile, lastCrop);
+        }
       }
     },
     true

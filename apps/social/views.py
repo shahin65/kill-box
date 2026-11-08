@@ -1,9 +1,12 @@
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
+from apps.core.identity import member_avatar_url
 from apps.core.session import hud_context, is_member, member_required_response
+from apps.core.uploads import abort_upload, begin_upload, file_fingerprint, finish_upload
 from apps.social.media import (
     IMAGE_STORY_SECONDS,
     POST_MAX_SECONDS,
@@ -15,6 +18,8 @@ from apps.social.media import (
     prepare_story_videos,
     prepare_video,
 )
+from apps.social.gifs import GifError, lookup_gif, search_gifs
+from apps.social.limits import too_fast
 from apps.social.models import (
     ActivityNotice,
     Block,
@@ -25,19 +30,23 @@ from apps.social.models import (
     Post,
     PostComment,
     PostLike,
+    SavedPost,
     Story,
     StoryComment,
     StoryLike,
     StoryView,
 )
 from apps.social.services import (
+    COMMENT_MAX,
     STORY_DAILY_CAP,
     STORY_TTL,
     are_friends,
+    comment_rows_for,
     daily_suggestions,
     display_name,
     find_by_public_id,
     follow_counts,
+    format_count,
     friends_list,
     friendship_between,
     incoming_requests,
@@ -50,11 +59,15 @@ from apps.social.services import (
     pair_users,
     purge_expired_stories,
     push_notice,
+    record_post_view,
     retract_notice,
+    saved_posts_queryset,
     serialize_story_groups,
     stories_today,
     thread_for,
     threads_for,
+    visible_comment_text,
+    viewer_of,
 )
 
 
@@ -138,6 +151,12 @@ def story_create(request):
         return _json_error('فایل استوری انتخاب نشده است.')
     overlay = str(request.POST.get('overlay') or '')[:80]
     uploaded_thumb = request.FILES.get('thumbnail')
+    fingerprint = file_fingerprint(uploaded, f'story|{overlay}')
+    lock, existing, state = begin_upload(request.user.pk, 'story', fingerprint)
+    if state == 'busy':
+        return _json_error('همین فایل در حال ارسال است.', status=409)
+    if state == 'done':
+        return _json_ok('استوری ارسال شد.', id=existing, duplicate=True)
     expires_at = timezone.now() + STORY_TTL
     try:
         kind = classify(uploaded)
@@ -161,25 +180,32 @@ def story_create(request):
                     first = clips[0]
                     clips[0] = (first[0], custom, first[2])
     except MediaError as exc:
+        abort_upload(lock)
         return _json_error(str(exc))
     if len(clips) > remaining:
+        abort_upload(lock)
         return _json_error(
             f'این ویدیو به {len(clips)} استوری تبدیل می‌شود و فقط {remaining} جای خالی مانده است.'
         )
     created_ids = []
-    for stored, thumb, duration in clips:
-        story = Story(
-            author=request.user,
-            kind=kind,
-            overlay=overlay,
-            duration=duration,
-            expires_at=expires_at,
-        )
-        story.media.save(stored.name, stored, save=False)
-        if thumb:
-            story.thumbnail.save(thumb.name, thumb, save=False)
-        story.save()
-        created_ids.append(story.pk)
+    try:
+        for stored, thumb, duration in clips:
+            story = Story(
+                author=request.user,
+                kind=kind,
+                overlay=overlay,
+                duration=duration,
+                expires_at=expires_at,
+            )
+            story.media.save(stored.name, stored, save=False)
+            if thumb:
+                story.thumbnail.save(thumb.name, thumb, save=False)
+            story.save()
+            created_ids.append(story.pk)
+    except Exception:
+        abort_upload(lock)
+        raise
+    finish_upload(lock, created_ids[0])
     message = 'استوری ارسال شد.'
     if len(created_ids) > 1:
         message = f'{len(created_ids)} استوری پشت‌سرهم از ویدیو ساخته شد.'
@@ -224,9 +250,85 @@ def story_seen(request, pk):
     bounced = _gate(request)
     if bounced:
         return bounced
+    if too_fast(request, 'story-seen', 80):
+        return _json_error('کمی صبر کن.', status=429)
     story = get_object_or_404(Story, pk=pk, expires_at__gt=timezone.now())
-    StoryView.objects.get_or_create(story=story, user=request.user)
-    return _json_ok()
+    try:
+        watch_ms = int(request.POST.get('watch_ms') or 0)
+    except (TypeError, ValueError):
+        watch_ms = 0
+    completed = str(request.POST.get('completed') or '') in {'1', 'true', 'True'}
+    is_owner = story.author_id == request.user.pk
+    if not is_owner and watch_ms < 2000 and not completed:
+        return _json_ok(created=False)
+    defaults = {
+        'watch_ms': max(0, watch_ms),
+        'completed': completed,
+    }
+    _, created = StoryView.objects.get_or_create(
+        story=story,
+        user=request.user,
+        defaults=defaults,
+    )
+    if not created:
+        row = StoryView.objects.filter(story=story, user=request.user).first()
+        if row:
+            fields = []
+            if watch_ms > row.watch_ms:
+                row.watch_ms = watch_ms
+                fields.append('watch_ms')
+            if completed and not row.completed:
+                row.completed = True
+                fields.append('completed')
+            if fields:
+                row.save(update_fields=fields)
+    views = (
+        StoryView.objects.filter(story=story).exclude(user_id=story.author_id).count()
+        if is_owner
+        else 0
+    )
+    return _json_ok(created=created, views=views, views_label=format_count(views))
+
+
+@require_GET
+def story_viewers(request, pk):
+    bounced = _gate(request)
+    if bounced:
+        return bounced
+    story = get_object_or_404(Story, pk=pk)
+    if story.author_id != request.user.pk:
+        return _json_error('فقط صاحب استوری می‌تواند بینندگان را ببیند.', status=403)
+    try:
+        offset = max(0, int(request.GET.get('offset') or 0))
+    except (TypeError, ValueError):
+        offset = 0
+    limit = 20
+    qs = (
+        StoryView.objects.filter(story=story)
+        .exclude(user_id=story.author_id)
+        .select_related('user', 'user__member_profile')
+        .order_by('-created_at', '-pk')
+    )
+    total = qs.count()
+    rows = []
+    for row in qs[offset : offset + limit]:
+        user = row.user
+        if not user or not user.is_active:
+            continue
+        rows.append(
+            {
+                'name': display_name(user),
+                'username': getattr(user, 'username', '') or '',
+                'avatar': member_avatar_url(user),
+                'at': row.created_at.isoformat(),
+            }
+        )
+    return _json_ok(
+        viewers=rows,
+        total=total,
+        offset=offset,
+        has_more=offset + limit < total,
+    )
 
 
 def posts(request):
@@ -269,6 +371,12 @@ def post_create(request):
     if not uploaded:
         return _json_error('فایل پست انتخاب نشده است.')
     caption = str(request.POST.get('caption') or '')[:2200]
+    fingerprint = file_fingerprint(uploaded, f'post|{caption}')
+    lock, existing, state = begin_upload(request.user.pk, 'post', fingerprint)
+    if state == 'busy':
+        return _json_error('همین فایل در حال ارسال است.', status=409)
+    if state == 'done':
+        return _json_ok('پست منتشر شد.', id=existing, duplicate=True)
     try:
         kind = classify(uploaded)
         if kind == 'image':
@@ -276,13 +384,19 @@ def post_create(request):
         else:
             stored = prepare_video(uploaded, POST_MAX_SECONDS, POST_VIDEO_MAX_BYTES)
     except MediaError as exc:
+        abort_upload(lock)
         return _json_error(str(exc))
-    thumb = make_thumbnail(kind, stored, request.FILES.get('thumbnail'))
-    post = Post(author=request.user, kind=kind, caption=caption)
-    post.media.save(stored.name, stored, save=False)
-    if thumb:
-        post.thumbnail.save(thumb.name, thumb, save=False)
-    post.save()
+    try:
+        thumb = make_thumbnail(kind, stored, request.FILES.get('thumbnail'))
+        post = Post(author=request.user, kind=kind, caption=caption)
+        post.media.save(stored.name, stored, save=False)
+        if thumb:
+            post.thumbnail.save(thumb.name, thumb, save=False)
+        post.save()
+    except Exception:
+        abort_upload(lock)
+        raise
+    finish_upload(lock, post.pk)
     return _json_ok('پست منتشر شد.', id=post.pk)
 
 
@@ -302,21 +416,152 @@ def post_like(request, pk):
 
 
 @require_POST
+def post_view(request, pk):
+    bounced = _gate(request, members_only=False)
+    if bounced:
+        return bounced
+    if too_fast(request, 'post-view', 90):
+        return _json_error('کمی صبر کن.', status=429)
+    post = get_object_or_404(Post, pk=pk)
+    user = viewer_of(request)
+    session_key = ''
+    if not user:
+        if not request.session.session_key:
+            request.session.create()
+        session_key = request.session.session_key or ''
+    created, views = record_post_view(post, user=user, session_key=session_key)
+    return _json_ok(created=created, views=views, views_label=format_count(views))
+
+
+@require_POST
+def post_save(request, pk):
+    bounced = _gate(request)
+    if bounced:
+        return bounced
+    if too_fast(request, 'post-save', 40):
+        return _json_error('کمی صبر کن.', status=429)
+    post = get_object_or_404(Post, pk=pk)
+    row = SavedPost.objects.filter(user=request.user, post=post).first()
+    if row:
+        row.delete()
+        return _json_ok(saved=False)
+    try:
+        SavedPost.objects.create(user=request.user, post=post)
+    except IntegrityError:
+        return _json_ok(saved=True)
+    return _json_ok(saved=True)
+
+
+def saved_posts(request):
+    bounced = _gate(request)
+    if bounced:
+        return bounced
+    try:
+        page = max(1, int(request.GET.get('page') or 1))
+    except (TypeError, ValueError):
+        page = 1
+    page_size = 12
+    qs = saved_posts_queryset(request.user)
+    start = (page - 1) * page_size
+    rows = list(qs[start : start + page_size + 1])
+    has_more = len(rows) > page_size
+    rows = rows[:page_size]
+    posts = []
+    for row in rows:
+        row.post._kb_saved = True
+        posts.append(serialize_post(row.post, request))
+    extra = {
+        'posts': posts,
+        'page': page,
+        'has_more': has_more,
+        'next_page': page + 1 if has_more else None,
+    }
+    if _wants_json(request) and request.GET.get('page'):
+        return _json_ok(**extra)
+    return _page(request, 'social/saved.html', extra)
+
+
+@require_GET
+def gif_search(request):
+    bounced = _gate(request)
+    if bounced:
+        return bounced
+    if too_fast(request, 'gif-search', 30):
+        return _json_error('کمی صبر کن.', status=429)
+    query = str(request.GET.get('q') or '').strip()[:80]
+    pos = str(request.GET.get('pos') or '')[:80]
+    try:
+        payload = search_gifs(query, pos)
+    except GifError:
+        return _json_error('سرویس GIF در دسترس نیست.', status=503)
+    return _json_ok(
+        results=payload.get('results') or [],
+        next=payload.get('next') or '',
+        disabled=bool(payload.get('disabled')),
+    )
+
+
+@require_POST
 def post_comment(request, pk):
     bounced = _gate(request)
     if bounced:
         return bounced
-    text = str(request.POST.get('text') or '').strip()[:280]
-    if not text:
-        return _json_error('متن کامنت خالی است.')
+    if too_fast(request, 'post-comment', 20):
+        return _json_error('کمی صبر کن.', status=429)
+    text = str(request.POST.get('text') or '')[:COMMENT_MAX]
+    gif_id = str(request.POST.get('gif_id') or '').strip()[:64]
+    parent_id = str(request.POST.get('parent_id') or '').strip()
     post = get_object_or_404(Post, pk=pk)
-    PostComment.objects.create(post=post, user=request.user, text=text)
+    parent = None
+    if parent_id:
+        try:
+            parent = PostComment.objects.get(pk=int(parent_id), post=post, parent__isnull=True)
+        except (ValueError, TypeError, PostComment.DoesNotExist):
+            return _json_error('پاسخ نامعتبر است.')
+    gif = None
+    if gif_id:
+        try:
+            gif = lookup_gif(gif_id)
+        except GifError:
+            return _json_error('این GIF قابل استفاده نیست.')
+    clean = visible_comment_text(text)
+    if not clean and not gif:
+        return _json_error('متن کامنت خالی است.')
+    kind = PostComment.TEXT
+    if gif and clean:
+        kind = PostComment.MIXED
+    elif gif:
+        kind = PostComment.GIF
+    PostComment.objects.create(
+        post=post,
+        user=request.user,
+        parent=parent,
+        text=text.strip()[:COMMENT_MAX] if clean else '',
+        content_type=kind,
+        gif_provider=(gif or {}).get('provider') or '',
+        gif_id=(gif or {}).get('id') or '',
+        gif_url=(gif or {}).get('url') or '',
+        gif_preview_url=(gif or {}).get('preview_url') or '',
+        gif_width=(gif or {}).get('width'),
+        gif_height=(gif or {}).get('height'),
+        gif_alt=(gif or {}).get('alt') or '',
+    )
     push_notice(post.author, request.user, ActivityNotice.POST_COMMENT, post.pk)
-    comments = [
-        {'name': display_name(row.user), 'text': row.text}
-        for row in post.comments.select_related('user')
-    ]
+    comments = comment_rows_for(post, request.user)
     return _json_ok(comments=comments)
+
+
+@require_POST
+def comment_delete(request, pk):
+    bounced = _gate(request)
+    if bounced:
+        return bounced
+    row = get_object_or_404(PostComment, pk=pk)
+    if row.user_id != request.user.pk and not request.user.is_staff:
+        return _json_error('اجازه حذف این کامنت را نداری.', status=403)
+    post = row.post
+    row.delete()
+    return _json_ok(comments=comment_rows_for(post, request.user))
 
 
 def inbox(request):
