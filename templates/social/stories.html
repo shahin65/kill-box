@@ -24,10 +24,14 @@
       <input id="story-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" required>
       <span>انتخاب عکس یا فیلم</span>
     </label>
-    <div class="kb-upload-preview" hidden>
-      <img class="kb-upload-preview__img" alt="پیش‌نمایش" hidden>
+    <div class="kb-upload-preview">
+      <div class="kb-upload-preview__ph">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm2.2 11.2 3.1-4 2.2 2.8 3-3.9L19 16.2H7.2zM8.2 9.1A1.3 1.3 0 1 0 8.2 6.5a1.3 1.3 0 0 0 0 2.6z"/></svg>
+        <span>پیش‌نمایش</span>
+      </div>
+      <img class="kb-upload-preview__img" alt="" hidden>
       <video class="kb-upload-preview__vid" muted playsinline hidden></video>
-      <button class="story-act" type="button" data-upload-clear>لغو انتخاب</button>
+      <button class="story-act" type="button" data-upload-clear hidden>لغو انتخاب</button>
     </div>
     <input id="story-overlay" type="text" maxlength="80" placeholder="متن روی استوری">
     <div class="kb-upload-bar" hidden>

@@ -55,6 +55,33 @@
     }
   }
 
+  function syncMuteButton(video) {
+    var wrap = mediaWrap(video);
+    var btn = wrap ? wrap.querySelector('[data-kb-mute]') : null;
+    if (!btn) {
+      return;
+    }
+    setMuteState(video, btn, !!video.muted);
+  }
+
+  function playWithSound(video) {
+    if (!video) {
+      return;
+    }
+    video.muted = false;
+    video.defaultMuted = false;
+    video.removeAttribute('muted');
+    syncMuteButton(video);
+    var play = video.play();
+    if (play && play.catch) {
+      play.catch(function () {
+        video.muted = true;
+        syncMuteButton(video);
+        tryPlay(video);
+      });
+    }
+  }
+
   function overlayOpen() {
     var reader = doc.getElementById('post-reader');
     var story = doc.getElementById('story-viewer');
@@ -117,12 +144,20 @@
     );
     var state = overlayOpen();
     doc.querySelectorAll('[data-kb-video]').forEach(function (video) {
-      video.muted = true;
-      video.defaultMuted = true;
+      var overlayClip =
+        video.hasAttribute('data-kb-reel-video') || video.hasAttribute('data-kb-story-video');
+      if (overlayClip) {
+        video.muted = false;
+        video.defaultMuted = false;
+        video.removeAttribute('muted');
+      } else {
+        video.muted = true;
+        video.defaultMuted = true;
+      }
       video.playsInline = true;
       video.setAttribute('webkit-playsinline', '');
-      video.preload = 'metadata';
-      video.loop = !video.hasAttribute('data-kb-reel-video');
+      video.preload = overlayClip ? 'auto' : 'metadata';
+      video.loop = !overlayClip;
       if (inOpenOverlay(video, state)) {
         video._kbRatio = 1;
       }
@@ -226,7 +261,9 @@
     var lazy = opts.lazy !== false;
     var poster = item.poster || '';
     var videoAttrs =
-      ' muted playsinline webkit-playsinline preload="metadata"' + (loop ? ' loop' : '');
+      ' playsinline webkit-playsinline preload="metadata"' +
+      (loop ? ' loop' : '') +
+      (opts.sound ? '' : ' muted');
     if (item.kind === 'video') {
       return (
         '<div class="kb-media is-video ' +
@@ -242,7 +279,7 @@
         (poster ? ' poster="' + escapeAttr(poster) + '"' : '') +
         videoAttrs +
         ' data-kb-video></video>' +
-        muteMarkup() +
+        muteMarkup({ sound: !!opts.sound }) +
         '</div>'
       );
     }
@@ -261,11 +298,19 @@
     );
   }
 
-  function muteMarkup() {
+  function muteMarkup(opts) {
+    var sound = !!(opts && opts.sound);
     return (
-      '<button class="kb-mute is-muted" type="button" data-kb-mute aria-pressed="true" title="صدا">' +
-      '<svg class="kb-mute__off" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4.3 3.3 3 4.6 7.4 9H3v6h4l5 5V8.6l5.4 5.4A6 6 0 0 1 17 18.9l1.4 1.4A8 8 0 0 0 21 12c0-1.4-.4-2.8-1-4l1.7-1.7-1.4-1.4zM14 3.2v2.1a6 6 0 0 1 4 4.7l2 .5A8 8 0 0 0 14 3.2zM12 7.2 9.8 9.4 12 11.6z"/></svg>' +
-      '<svg class="kb-mute__on" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9zm11 3a2.8 2.8 0 0 0-1.6-2.5v5A2.8 2.8 0 0 0 14 12zm0-7.8v2.1a6 6 0 0 1 0 11.4v2.1a8 8 0 0 0 0-15.6z"/></svg>' +
+      '<button class="kb-mute' +
+      (sound ? '' : ' is-muted') +
+      '" type="button" data-kb-mute aria-pressed="' +
+      (sound ? 'false' : 'true') +
+      '" title="' +
+      (sound ? 'بی‌صدا' : 'صدا') +
+      '">' +
+      '<svg class="kb-mute__off" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 9v6h3.4L13 20V4L7.4 9H4zm12.2 3 2.5-2.5 1.4 1.4-2.5 2.5 2.5 2.5-1.4 1.4-2.5-2.5-2.5 2.5-1.4-1.4 2.5-2.5-2.5-2.5 1.4-1.4z"/></svg>' +
+      '<svg class="kb-mute__on" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 9v6h3.4L13 20V4L7.4 9H4zm11 1.1c.9.7 1.5 1.8 1.5 2.9s-.6 2.2-1.5 2.9v-2.1c.3-.4.5-.9.5-1.3s-.2-.9-.5-1.3zm0-3.6C18.3 8.4 20.5 10 20.5 12s-2.2 3.6-5.5 5.5v-2.2c2.1-1.3 3.4-2.6 3.4-3.3s-1.3-2-3.4-3.3z"/></svg>' +
+      '<span class="visually-hidden">قطع و وصل صدا</span>' +
       '</button>'
     );
   }
@@ -288,4 +333,5 @@
   win.__kbExtractVideoPoster = extractVideoPoster;
   win.__kbSyncFeedVideos = syncFeedVideos;
   win.__kbMuteMarkup = muteMarkup;
+  win.__kbPlayWithSound = playWithSound;
 })(window, document);

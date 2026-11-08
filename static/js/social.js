@@ -125,6 +125,20 @@ function bindHomeSwipe() {
     return !!(box && box.querySelector('.home-swipe.is-pair') && window.matchMedia('(min-width: 720px)').matches);
   }
 
+  function isPeek(box) {
+    return !!(box && box.querySelector('.home-swipe.is-peek'));
+  }
+
+  function peekStep(box) {
+    var rail = box.querySelector('.home-swipe__track');
+    var slide = slidesOf(box)[0];
+    if (!rail || !slide) {
+      return 0;
+    }
+    var gap = parseFloat(window.getComputedStyle(rail).columnGap || window.getComputedStyle(rail).gap) || 0;
+    return slide.getBoundingClientRect().width + gap;
+  }
+
   function slidesOf(box) {
     return box ? box.querySelectorAll('.home-swipe__slide') : [];
   }
@@ -153,6 +167,8 @@ function bindHomeSwipe() {
     box.setAttribute('data-index', String(idx));
     if (pairLocked(box)) {
       rail.style.transform = 'none';
+    } else if (isPeek(box)) {
+      rail.style.transform = 'translateX(' + (-idx * peekStep(box) + (offset || 0)) + 'px)';
     } else {
       rail.style.transform =
         'translateX(calc(' + idx * -100 + '% + ' + (offset || 0) + 'px))';
@@ -193,6 +209,11 @@ function bindHomeSwipe() {
     return;
   }
   window.__kbHomeSwipeBound = true;
+  window.addEventListener('resize', function () {
+    hosts().forEach(function (box) {
+      paint(box, indexOf(box), 0, false);
+    });
+  });
 
   document.addEventListener('click', function (event) {
     var node = event.target;
@@ -262,7 +283,7 @@ function bindHomeSwipe() {
         return;
       }
       deltaX = event.clientX - startX;
-      if (Math.abs(deltaX) > 12) {
+      if (Math.abs(deltaX) > 28) {
         swiped = true;
         paint(active, indexOf(active), deltaX, true);
       }

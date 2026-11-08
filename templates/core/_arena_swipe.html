@@ -1,0 +1,30 @@
+{% load static %}
+<section class="home-feed home-feed--arena home-feed--float" data-kb-swipe data-index="{{ start_index|default:0 }}">
+  <div class="feed-head">
+    <h2>{{ title }}</h2>
+    {% if more_href %}
+    <a class="feed-more" href="{{ more_href }}" data-kb-nav>{{ more_label }}</a>
+    {% elif more_text %}
+    <span class="feed-more is-demo">{{ more_text }}</span>
+    {% endif %}
+  </div>
+  <div class="home-swipe is-peek">
+    <button class="home-swipe__nav is-prev" type="button" data-post-prev title="قبلی">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.8 5.2 8 12l6.8 6.8 1.4-1.4L10.8 12l5.4-5.4z"/></svg>
+    </button>
+    <div class="home-swipe__track">
+      {% for card in cards %}
+      <div class="home-swipe__slide{% if current_slug and card.slug == current_slug %} is-current{% endif %}">
+        {% include "core/_event_card.html" %}
+      </div>
+      {% endfor %}
+    </div>
+    <button class="home-swipe__nav is-next" type="button" data-post-next title="بعدی">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m9.2 5.2-1.4 1.4L13.2 12l-5.4 5.4 1.4 1.4L16 12z"/></svg>
+    </button>
+  </div>
+  <div class="home-swipe__pager">
+    <div class="home-swipe__dots" aria-hidden="true"></div>
+    <p class="home-swipe__count" dir="ltr"><span data-post-pos>{{ start_index|default:0|add:1 }}</span> / {{ cards|length }}</p>
+  </div>
+</section>

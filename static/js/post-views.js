@@ -24,7 +24,13 @@
       }
       if (payload.created) {
         doc.querySelectorAll('[data-kb-views="' + id + '"]').forEach(function (node) {
-          node.textContent = payload.views_label || String(payload.views || 0);
+          var label = payload.views_label || String(payload.views || 0);
+          var count = node.querySelector('.story-act__count');
+          if (count) {
+            count.textContent = label;
+          } else {
+            node.textContent = label;
+          }
         });
       }
     });

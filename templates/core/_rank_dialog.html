@@ -13,8 +13,10 @@
           class="rank-dialog__badge"
           src="{% static item.icon %}"
           alt=""
-          width="512"
-          height="512"
+          width="128"
+          height="128"
+          loading="lazy"
+          decoding="async"
         >
         <div class="rank-dialog__copy">
           <p class="rank-dialog__name">رنک {{ item.level }}: {{ item.title }}</p>

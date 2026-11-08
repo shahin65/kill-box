@@ -7,25 +7,34 @@
 {% block panel %}
 <section class="profile-card social-card explore-card">
   {% csrf_token %}
-  <p class="auth-kicker">خانه</p>
   <h1 class="auth-title">اکسپلور</h1>
   <div class="feed-head">
     <h2>استوری‌ها</h2>
   </div>
   <div class="story-tray">
+    <a class="story-ring story-ring--add" href="{% url 'social:stories' %}" data-kb-nav>
+      <span class="story-ring__plus" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+      </span>
+      <span>ارسال استوری</span>
+    </a>
     {% for group in story_groups %}
     <button class="story-ring{% if group.unseen %} is-unseen{% else %} is-seen{% endif %}{% if group.following %} is-following is-friend{% endif %}" type="button" data-story-open="{{ forloop.counter0 }}">
       <img src="{% if group.avatar %}{{ group.avatar }}{% elif group.cover %}{{ group.cover }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}" alt="">
       <span>{{ group.name }}</span>
     </button>
-    {% empty %}
-    <p class="profile-copy">هنوز استوری زنده‌ای نیست.</p>
     {% endfor %}
   </div>
   <div class="feed-head">
     <h2>پست‌ها</h2>
   </div>
   <div class="explore-grid">
+    <a class="explore-tile explore-tile--add" href="{% url 'social:posts' %}" data-kb-nav>
+      <span class="explore-tile__plus" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+      </span>
+      <span>ارسال پست</span>
+    </a>
     {% for post in posts %}
     <button class="explore-tile" type="button" data-post-open="{{ forloop.counter0 }}" data-kb-view-post="{{ post.id }}">
       {% if post.url %}
@@ -41,8 +50,6 @@
       <span>{{ post.caption|truncatechars:48 }}</span>
       {% endif %}
     </button>
-    {% empty %}
-    <p class="profile-copy">هنوز پستی نیست.</p>
     {% endfor %}
   </div>
   {{ posts|json_script:"post-reader-data" }}

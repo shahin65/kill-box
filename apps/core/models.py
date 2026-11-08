@@ -92,10 +92,22 @@ class SiteSettings(models.Model):
         verbose_name='درباره کیل‌باکس',
         help_text='متن صفحه درباره کیل‌باکس در بالای منوی همبرگری. می‌توانی تیتر، لینک و تصویر اضافه کنی.',
     )
+    alliance_create_min_rank = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name='حداقل رنک ساخت اتحاد',
+        help_text='۰ یعنی بدون محدودیت سطح. برای فعال‌کردن محدودیت، عدد ۱ تا ۶ را بگذار. این مقدار از پنل ادمین قابل تغییر است.',
+    )
 
     class Meta:
         verbose_name = 'تنظیمات سایت'
         verbose_name_plural = 'تنظیمات سایت'
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(alliance_create_min_rank__gte=0)
+                & models.Q(alliance_create_min_rank__lte=6),
+                name='sitesettings_alliance_create_min_rank_range',
+            ),
+        ]
 
     def __str__(self) -> str:
         return 'تنظیمات ثبت‌نام کیل‌باکس'

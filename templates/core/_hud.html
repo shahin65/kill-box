@@ -1,5 +1,6 @@
 {% load static %}
 {% url 'core:profile' as profile_url %}
+{% url 'core:shop' as shop_url %}
 <div class="topbar-hud">
   {% if request.path == profile_url %}
   <span class="topbar-profile is-current" title="پروفایل">
@@ -18,8 +19,11 @@
   {% else %}
   </a>
   {% endif %}
-  <a class="topbar-chip topbar-chip--gem" href="{{ profile_url }}" data-kb-nav title="جم">
+  <a class="topbar-chip topbar-chip--gem" href="{{ shop_url }}" data-kb-nav title="جم">
     <img src="{% static 'images/icons/gem.webp' %}?v=2" alt="" width="128" height="128">
-    <span>{{ gems }}</span>
+    <span class="topbar-chip__meta">
+      <small>تعداد جم :</small>
+      <b dir="ltr">{{ gems }}</b>
+    </span>
   </a>
 </div>

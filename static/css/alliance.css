@@ -1,0 +1,221 @@
+.kb-alliance {
+  width: min(94vw, 46rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 6rem;
+}
+
+.kb-alliance-home__banner {
+  height: 7.5rem;
+  margin: -1.1rem -1.1rem 0.9rem;
+  border-radius: 1.15rem 1.15rem 0.4rem 0.4rem;
+  background: #10140f center/cover no-repeat;
+}
+
+.kb-alliance-home__title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kb-alliance-home__title img,
+.kb-alliance-card__logo,
+.profile-alliance img {
+  width: 3.4rem;
+  height: 3.4rem;
+  object-fit: cover;
+  border-radius: 0.85rem;
+  box-shadow: 0 0 0 1px rgba(190, 255, 140, 0.25);
+}
+
+.kb-alliance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+  margin-top: 0.7rem;
+}
+
+.kb-alliance-actions form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.kb-alliance-card {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.7rem;
+  padding: 0.7rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.kb-alliance-card__art {
+  min-height: 4.6rem;
+  border-radius: 0.8rem;
+  background: #121812 center/cover no-repeat;
+  display: grid;
+  place-items: center;
+}
+
+.kb-alliance-card__body strong {
+  display: block;
+  color: #eaffd8;
+}
+
+.kb-alliance-card__body p,
+.kb-alliance-card__body small {
+  color: rgba(214, 232, 196, 0.72);
+  margin: 0.2rem 0 0;
+}
+
+.kb-alliance-search__field input,
+.kb-alliance-form input,
+.kb-alliance-form textarea,
+.kb-alliance-form select,
+.kb-alliance-chat__form input[type='text'] {
+  width: 100%;
+  border: 0;
+  border-radius: 0.8rem;
+  background: rgba(12, 20, 12, 0.88);
+  color: #eaffd8;
+  padding: 0.7rem 0.85rem;
+  font: inherit;
+  box-shadow: inset 0 0 0 1px rgba(190, 255, 140, 0.18);
+}
+
+.kb-alliance-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.kb-alliance-form label {
+  display: grid;
+  gap: 0.35rem;
+  color: #d6e8c4;
+  font-size: 0.88rem;
+}
+
+.kb-alliance-form__check {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.kb-alliance-members__list,
+.kb-alliance-manage-list,
+.kb-alliance-invites {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.kb-alliance-members__list li,
+.kb-alliance-manage-list li,
+.kb-alliance-invites li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.8rem;
+  background: rgba(8, 14, 8, 0.4);
+}
+
+.kb-alliance-members__list li.is-online strong::after {
+  content: '';
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-inline-start: 0.35rem;
+  border-radius: 50%;
+  background: #7dff6a;
+  box-shadow: 0 0 8px #7dff6a;
+}
+
+.kb-alliance-chat__log {
+  max-height: min(22rem, 40dvh);
+  overflow: auto;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.2rem 0 0.8rem;
+}
+
+.kb-alliance-chat__item {
+  background: rgba(8, 14, 8, 0.45);
+  border-radius: 0.8rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.kb-alliance-chat__item img {
+  display: block;
+  max-width: min(100%, 18rem);
+  border-radius: 0.6rem;
+  margin-top: 0.4rem;
+}
+
+.kb-alliance-chat__form {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.kb-alliance-chat__file {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.8rem;
+  padding: 0.55rem 0.7rem;
+  background: rgba(8, 14, 8, 0.55);
+  color: #d6e8c4;
+  cursor: pointer;
+}
+
+.kb-alliance-chat__file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.profile-alliance {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.85rem 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 1rem;
+  text-decoration: none;
+  color: inherit;
+  background: rgba(10, 16, 10, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(190, 255, 140, 0.16);
+}
+
+.profile-alliance strong {
+  display: block;
+  color: #eaffd8;
+}
+
+.profile-alliance small {
+  color: rgba(214, 232, 196, 0.7);
+}
+
+.kb-alliance-search__results {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+
+@media (max-width: 720px) {
+  .kb-alliance-chat__form {
+    grid-template-columns: 1fr auto;
+  }
+
+  .kb-alliance-chat__form .auth-btn {
+    grid-column: 1 / -1;
+  }
+}

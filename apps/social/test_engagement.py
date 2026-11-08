@@ -1,28 +1,38 @@
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
 
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, connection, transaction
 from django.test import Client, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from apps.social.gifs import GifError
-from apps.social.models import Post, PostComment, PostView, SavedPost, Story, StoryView
+from apps.social.models import CustomGif, Post, PostComment, PostView, SavedPost, Story, StoryView
 from apps.social.tests import _png
 
 
-def _gif():
-    return {
-        'id': 'gif123',
-        'preview_url': 'https://media.tenor.com/preview.webp',
-        'url': 'https://media.tenor.com/play.webp',
-        'width': 240,
-        'height': 180,
-        'alt': 'fire',
-        'provider': 'tenor',
+TINY_GIF = (
+    b'GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff'
+    b'\x00\x00\x00!\xf9\x04\x01\x00\x00\x00\x00,\x00'
+    b'\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;'
+)
+
+
+def _catalog_gif(**kwargs):
+    payload = {
+        'title': 'برد',
+        'tags': 'win, gg, callofduty',
+        'category': CustomGif.GAMING,
+        'order': 10,
+        'is_active': True,
     }
+    payload.update(kwargs)
+    payload.setdefault(
+        'file',
+        SimpleUploadedFile('win.gif', TINY_GIF, content_type='image/gif'),
+    )
+    return CustomGif.objects.create(**payload)
 
 
 class SocialEngagementTests(TestCase):
@@ -164,32 +174,34 @@ class SocialEngagementTests(TestCase):
         self.assertTrue(payload.json()['success'])
         self.assertEqual(PostComment.objects.get().text, 'عالی 🔥')
 
-    @patch('apps.social.views.lookup_gif', return_value=_gif())
-    def test_comment_gif_only(self, _mock):
+    def test_comment_gif_only(self):
+        gif = _catalog_gif()
         self.client.force_login(self.bravo)
         payload = self.client.post(
             reverse('social:post_comment', args=[self.post.pk]),
-            {'gif_id': 'gif123'},
+            {'gif_id': str(gif.pk)},
         )
         self.assertTrue(payload.json()['success'])
         row = PostComment.objects.get()
         self.assertEqual(row.content_type, PostComment.GIF)
-        self.assertEqual(row.gif_id, 'gif123')
-        self.assertTrue(row.gif_url.startswith('https://media.tenor.com/'))
+        self.assertEqual(row.gif_id, str(gif.pk))
+        self.assertEqual(row.gif_provider, 'killbox')
+        self.assertTrue(row.gif_url)
+        self.assertEqual(row.gif_url, row.gif_preview_url)
 
-    @patch('apps.social.views.lookup_gif', return_value=_gif())
-    def test_comment_text_and_gif(self, _mock):
+    def test_comment_text_and_gif(self):
+        gif = _catalog_gif()
         self.client.force_login(self.bravo)
         payload = self.client.post(
             reverse('social:post_comment', args=[self.post.pk]),
-            {'text': 'بزن 🎯', 'gif_id': 'gif123'},
+            {'text': 'بزن 🎯', 'gif_id': str(gif.pk)},
         )
         self.assertTrue(payload.json()['success'])
         row = PostComment.objects.get()
         self.assertEqual(row.content_type, PostComment.MIXED)
 
-    @patch('apps.social.views.lookup_gif', return_value=_gif())
-    def test_reply_with_gif(self, _mock):
+    def test_reply_with_gif(self):
+        gif = _catalog_gif()
         self.client.force_login(self.bravo)
         parent = self.client.post(
             reverse('social:post_comment', args=[self.post.pk]),
@@ -198,7 +210,7 @@ class SocialEngagementTests(TestCase):
         parent_id = parent.json()['comments'][0]['id']
         reply = self.client.post(
             reverse('social:post_comment', args=[self.post.pk]),
-            {'gif_id': 'gif123', 'parent_id': parent_id},
+            {'gif_id': str(gif.pk), 'parent_id': parent_id},
         )
         self.assertTrue(reply.json()['success'])
         child = PostComment.objects.get(parent_id=parent_id)
@@ -213,8 +225,7 @@ class SocialEngagementTests(TestCase):
         self.assertFalse(payload.json()['success'])
         self.assertEqual(PostComment.objects.count(), 0)
 
-    @patch('apps.social.views.lookup_gif', side_effect=GifError('bad'))
-    def test_invalid_gif_rejected(self, _mock):
+    def test_invalid_gif_rejected(self):
         self.client.force_login(self.bravo)
         payload = self.client.post(
             reverse('social:post_comment', args=[self.post.pk]),
@@ -260,12 +271,22 @@ class SocialEngagementTests(TestCase):
         self.assertEqual(explore.status_code, 200)
         self.assertLess(len(captured), 28)
 
-    @patch('apps.social.views.search_gifs', side_effect=GifError('down'))
-    def test_gif_provider_error_is_safe(self, _mock):
+    def test_gif_search_uses_catalog(self):
+        live = _catalog_gif(title='خنده', tags='lol, gg', order=5)
+        _catalog_gif(title='مخفی', tags='hidden', is_active=False, order=9)
         self.client.force_login(self.bravo)
-        payload = self.client.get(reverse('social:gifs'), {'q': 'win'})
-        self.assertEqual(payload.status_code, 503)
-        self.assertNotIn('down', payload.json()['message'])
+        payload = self.client.get(reverse('social:gifs'))
+        body = payload.json()
+        self.assertTrue(body['success'])
+        self.assertFalse(body['disabled'])
+        ids = [row['id'] for row in body['results']]
+        self.assertEqual(ids, [str(live.pk)])
+        self.assertEqual(body['results'][0]['url'], body['results'][0]['preview_url'])
+        self.assertIn('id', body['results'][0])
+        found = self.client.get(reverse('social:gifs'), {'q': 'gg'})
+        self.assertEqual(len(found.json()['results']), 1)
+        miss = self.client.get(reverse('social:gifs'), {'q': 'xyznope'})
+        self.assertEqual(miss.json()['results'], [])
         text = self.client.post(
             reverse('social:post_comment', args=[self.post.pk]),
             {'text': 'بدون گیف'},

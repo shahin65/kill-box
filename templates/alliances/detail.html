@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if alliance %}{{ alliance.name }} · {% endif %}اتحاد · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-alliance{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+
+{% block body %}
+  <main class="landing-stage profile-stage kb-alliance">
+    {% csrf_token %}
+    {% if hidden %}
+    <section class="profile-card">
+      <p class="auth-kicker">اتحاد خصوصی</p>
+      <h1 class="auth-title">این اتحاد قابل مشاهده نیست</h1>
+      <p class="profile-copy">فقط اعضا و دعوت‌شدگان می‌توانند این پایگاه را ببینند.</p>
+      <a class="auth-btn" href="{% url 'alliances:hub' %}" data-kb-nav>بازگشت به اتحاد</a>
+    </section>
+    {% else %}
+    <section class="profile-card kb-alliance-home">
+      {% if alliance.banner %}
+      <div class="kb-alliance-home__banner" style="background-image:url('{{ alliance.banner.url }}')"></div>
+      {% endif %}
+      <p class="auth-kicker">{{ alliance_payload.join_policy_label }}</p>
+      <div class="kb-alliance-home__title">
+        {% if alliance.logo %}
+        <img src="{{ alliance.logo.url }}" alt="" width="72" height="72">
+        {% endif %}
+        <div>
+          <h1 class="auth-title">{{ alliance.name }}</h1>
+          <p class="profile-copy">{{ alliance.description|default:"بدون توضیحات" }}</p>
+        </div>
+      </div>
+      <p class="profile-copy">{{ member_count }} / {{ alliance_payload.max_members }} عضو · حداقل رنک {{ alliance.min_rank }} · {{ min_rank_label }}</p>
+      <div class="kb-alliance-actions">
+        {% if membership %}
+        <a class="auth-btn" href="{% url 'alliances:hub' %}" data-kb-nav>خانه اتحاد</a>
+        {% elif pending_invite %}
+        <form method="post" action="{% url 'alliances:accept_invite' pending_invite.pk %}" data-alliance-action>{% csrf_token %}<button class="auth-btn" type="submit">قبول دعوت</button></form>
+        {% elif pending_request %}
+        <button class="auth-btn" type="button" disabled>درخواست در انتظار بررسی</button>
+        {% elif own_membership %}
+        <p class="profile-copy">اول باید اتحاد فعلی را ترک کنی.</p>
+        {% elif not is_member %}
+        <a class="auth-btn" href="{% url 'core:register' %}" data-kb-nav data-kb-auth>ورود برای عضویت</a>
+        {% elif alliance.join_policy == 'open' %}
+        <form method="post" action="{% url 'alliances:join' alliance.slug %}" data-alliance-action>{% csrf_token %}<button class="auth-btn" type="submit">پیوستن</button></form>
+        {% elif alliance.join_policy == 'request' %}
+        <form method="post" action="{% url 'alliances:request_join' alliance.slug %}" data-alliance-action>
+          {% csrf_token %}
+          <input type="text" name="message" maxlength="140" placeholder="پیام کوتاه (اختیاری)">
+          <button class="auth-btn" type="submit">ارسال درخواست</button>
+        </form>
+        {% else %}
+        <p class="profile-copy">عضویت فقط با دعوت ممکن است.</p>
+        {% endif %}
+        <a class="auth-alt" href="{% url 'alliances:hub' %}" data-kb-nav>همه اتحادها</a>
+      </div>
+    </section>
+    {% endif %}
+  </main>
+{% endblock %}
+
+{% block chrome_dock %}
+  {% include "core/_dock.html" %}
+{% endblock %}

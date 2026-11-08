@@ -1,4 +1,5 @@
 from django.db import IntegrityError
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -18,12 +19,13 @@ from apps.social.media import (
     prepare_story_videos,
     prepare_video,
 )
-from apps.social.gifs import GifError, lookup_gif, search_gifs
+from apps.social.gifs import PAGE_SIZE, GifError, lookup_gif, serialize_gif
 from apps.social.limits import too_fast
 from apps.social.models import (
     ActivityNotice,
     Block,
     ChatThread,
+    CustomGif,
     DirectMessage,
     Follow,
     Friendship,
@@ -46,6 +48,7 @@ from apps.social.services import (
     display_name,
     find_by_public_id,
     follow_counts,
+    invalidate_follow_counts,
     format_count,
     friends_list,
     friendship_between,
@@ -490,14 +493,22 @@ def gif_search(request):
         return _json_error('کمی صبر کن.', status=429)
     query = str(request.GET.get('q') or '').strip()[:80]
     pos = str(request.GET.get('pos') or '')[:80]
+    qs = CustomGif.objects.filter(is_active=True)
+    if query:
+        qs = qs.filter(Q(title__icontains=query) | Q(tags__icontains=query))
     try:
-        payload = search_gifs(query, pos)
-    except GifError:
-        return _json_error('سرویس GIF در دسترس نیست.', status=503)
+        offset = int(pos or 0)
+    except (TypeError, ValueError):
+        offset = 0
+    offset = max(0, offset)
+    rows = list(qs[offset : offset + PAGE_SIZE + 1])
+    has_more = len(rows) > PAGE_SIZE
+    rows = rows[:PAGE_SIZE]
+    results = [serialize_gif(row, request) for row in rows]
     return _json_ok(
-        results=payload.get('results') or [],
-        next=payload.get('next') or '',
-        disabled=bool(payload.get('disabled')),
+        results=results,
+        next=str(offset + PAGE_SIZE) if has_more else '',
+        disabled=False,
     )
 
 
@@ -521,7 +532,7 @@ def post_comment(request, pk):
     gif = None
     if gif_id:
         try:
-            gif = lookup_gif(gif_id)
+            gif = lookup_gif(gif_id, request=request)
         except GifError:
             return _json_error('این GIF قابل استفاده نیست.')
     clean = visible_comment_text(text)
@@ -764,6 +775,7 @@ def follow_toggle(request, user_id):
     rel, created = Follow.objects.get_or_create(follower=request.user, following=peer)
     if not created:
         rel.delete()
+    invalidate_follow_counts(request.user, peer)
     counts = follow_counts(peer)
     return _json_ok(
         following=created,

@@ -98,6 +98,13 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             {'fields': ('bale_signup',)},
         ),
         (
+            'اتحاد',
+            {
+                'fields': ('alliance_create_min_rank',),
+                'description': '۰ یعنی همه اعضا می‌توانند اتحاد بسازند. بعداً می‌توانی حداقل رنک را از همین‌جا ۱ تا ۶ کنی.',
+            },
+        ),
+        (
             'منوی همبرگری',
             {
                 'fields': ('about_page', 'privacy_policy', 'terms_of_service'),

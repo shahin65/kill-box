@@ -125,9 +125,13 @@
         }
         if (idx === index) {
           video.playsInline = true;
-          var play = video.play();
-          if (play && play.catch) {
-            play.catch(function () {});
+          if (typeof win.__kbPlayWithSound === 'function') {
+            win.__kbPlayWithSound(video);
+          } else {
+            var play = video.play();
+            if (play && play.catch) {
+              play.catch(function () {});
+            }
           }
         } else if (!video.paused) {
           video.pause();
@@ -139,14 +143,14 @@
       var media = '';
       if (item.url && item.kind === 'video') {
         var poster = item.poster || '';
-        var muteHtml = typeof win.__kbMuteMarkup === 'function' ? win.__kbMuteMarkup() : '';
+        var muteHtml = typeof win.__kbMuteMarkup === 'function' ? win.__kbMuteMarkup({ sound: true }) : '';
         media =
           '<div class="kb-media is-video post-reader__media" data-kb-media style="aspect-ratio:9/16;' +
           (poster ? "--kb-poster:url('" + escapeHtml(poster) + "');" : '') +
           '"><video class="kb-media__el" ' +
           (Math.abs(idx - index) <= 1 ? 'src="' + escapeHtml(item.url) + '" ' : '') +
           (poster ? 'poster="' + escapeHtml(poster) + '" ' : '') +
-          'muted playsinline webkit-playsinline preload="metadata" data-kb-reel-video></video>' +
+          'playsinline webkit-playsinline preload="auto" data-kb-reel-video data-kb-video></video>' +
           muteHtml +
           '</div>';
       } else if (item.url) {
@@ -178,25 +182,25 @@
         media +
         (item.caption ? '<p class="post-reader__caption">' + escapeHtml(item.caption) + '</p>' : '') +
         '<div class="post-reader__bar">' +
-        '<button class="story-act' +
+        '<button class="story-act story-act--stack' +
         (item.liked ? ' is-on' : '') +
         '" type="button" data-like-post="' +
         item.id +
-        '"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.4 10.4 19C5.4 14.4 2 11.3 2 7.6A4.4 4.4 0 0 1 6.4 3.2 4.8 4.8 0 0 1 12 5.6a4.8 4.8 0 0 1 5.6-2.4A4.4 4.4 0 0 1 22 7.6c0 3.7-3.4 6.8-8.4 11.4z"/></svg><span>' +
+        '"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.4 10.4 19C5.4 14.4 2 11.3 2 7.6A4.4 4.4 0 0 1 6.4 3.2 4.8 4.8 0 0 1 12 5.6a4.8 4.8 0 0 1 5.6-2.4A4.4 4.4 0 0 1 22 7.6c0 3.7-3.4 6.8-8.4 11.4z"/></svg><span class="story-act__count">' +
         item.likes +
-        '</span></button>' +
-        '<span class="story-act" data-kb-views="' +
+        '</span><span class="story-act__label">پسندیدن</span></button>' +
+        '<span class="story-act story-act--stack" data-kb-views="' +
         item.id +
-        '">' +
+        '"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5c5 0 9.3 3.1 11 7-1.7 3.9-6 7-11 7S2.7 15.9 1 12c1.7-3.9 6-7 11-7zm0 3.2A3.8 3.8 0 1 0 15.8 12 3.8 3.8 0 0 0 12 8.2z"/></svg><span class="story-act__count">' +
         escapeHtml(item.views_label || item.views || 0) +
-        '</span>' +
-        '<button class="story-act' +
+        '</span><span class="story-act__label">بازدید</span></span>' +
+        '<button class="story-act story-act--stack' +
         (item.saved ? ' is-on' : '') +
         '" type="button" data-save-post="' +
         item.id +
         '" aria-pressed="' +
         (item.saved ? 'true' : 'false') +
-        '"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h12v18l-6-3.4L6 21z"/></svg></button></div>' +
+        '"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h12v18l-6-3.4L6 21z"/></svg><span class="story-act__label">ذخیره</span></button></div>' +
         '<ul class="comment-list post-reader__comments">' +
         (comments || '<li>کامنتی نیست.</li>') +
         '</ul>' +
@@ -214,7 +218,9 @@
       }
       stage.querySelectorAll('video[data-kb-reel-video]').forEach(function (video) {
         video.loop = false;
-        video.muted = true;
+        video.muted = false;
+        video.defaultMuted = false;
+        video.removeAttribute('muted');
         video.playsInline = true;
         video.setAttribute('webkit-playsinline', '');
         video.onended = function () {
@@ -367,8 +373,8 @@
         if (!slide) {
           return;
         }
-        var like = slide.querySelector('[data-like-post] span');
         var btn = slide.querySelector('[data-like-post]');
+        var like = btn && (btn.querySelector('.story-act__count') || btn.querySelector('span'));
         if (like) {
           like.textContent = String(row.likes);
         }
@@ -382,7 +388,12 @@
         }
         var views = slide.querySelector('[data-kb-views="' + row.id + '"]');
         if (views && row.views_label) {
-          views.textContent = row.views_label;
+          var viewCount = views.querySelector('.story-act__count');
+          if (viewCount) {
+            viewCount.textContent = row.views_label;
+          } else {
+            views.textContent = row.views_label;
+          }
         }
         var list = slide.querySelector('.post-reader__comments');
         if (list && row.comment_list) {

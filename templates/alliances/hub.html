@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}اتحاد · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-alliance{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+
+{% block body %}
+  <main class="landing-stage profile-stage kb-alliance">
+    {% csrf_token %}
+    {% if alliance %}
+    <section class="profile-card kb-alliance-home">
+      {% if alliance.banner %}
+      <div class="kb-alliance-home__banner" style="background-image:url('{{ alliance.banner.url }}')"></div>
+      {% endif %}
+      <p class="auth-kicker">اتحاد تو</p>
+      <div class="kb-alliance-home__title">
+        {% if alliance.logo %}
+        <img src="{{ alliance.logo.url }}" alt="" width="72" height="72">
+        {% endif %}
+        <div>
+          <h1 class="auth-title">{{ alliance.name }}</h1>
+          <p class="profile-copy">{{ alliance.description|default:"بدون توضیحات" }}</p>
+        </div>
+      </div>
+      <p class="profile-copy">{{ alliance_payload.member_count }} / {{ alliance_payload.max_members }} عضو · {{ alliance_payload.join_policy_label }}</p>
+      <div class="kb-alliance-actions">
+        {% if can_manage %}
+        <a class="auth-btn" href="{% url 'alliances:manage' alliance.slug %}" data-kb-nav>مدیریت</a>
+        {% endif %}
+        <form method="post" action="{% url 'alliances:leave' alliance.slug %}" data-alliance-action>
+          {% csrf_token %}
+          <button class="auth-alt" type="submit">ترک اتحاد</button>
+        </form>
+      </div>
+    </section>
+    <section class="feed-card kb-alliance-members">
+      <div class="feed-head">
+        <h2>اعضا</h2>
+      </div>
+      <ul class="kb-alliance-members__list">
+        {% for row in members %}
+        <li{% if row.online %} class="is-online"{% endif %}>
+          <strong>{{ row.name }}</strong>
+          <small>{{ row.role_label }}</small>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% include "alliances/_chat.html" %}
+    {% else %}
+    <section class="profile-card">
+      <p class="auth-kicker">اتحاد</p>
+      <h1 class="auth-title">هنوز عضو اتحادی نیستی</h1>
+      <p class="profile-copy">یک اتحاد پیدا کن یا اتحاد خودت را بساز.</p>
+      <div class="kb-alliance-actions">
+        {% if is_member %}
+        {% if can_create %}
+        <a class="auth-btn" href="{% url 'alliances:create' %}" data-kb-nav>ساخت اتحاد</a>
+        {% elif create_min_level %}
+        <button class="auth-btn" type="button" disabled>ساخت اتحاد · رنک {{ create_min_level }}</button>
+        {% else %}
+        <p class="profile-copy">اول اتحاد فعلی را ترک کن، بعد اتحاد جدید بساز.</p>
+        {% endif %}
+        {% else %}
+        <a class="auth-btn" href="{% url 'core:register' %}" data-kb-nav data-kb-auth>ورود برای عضویت</a>
+        {% endif %}
+      </div>
+    </section>
+    {% if pending_invites %}
+    <section class="feed-card">
+      <div class="feed-head"><h2>دعوت‌ها</h2></div>
+      <ul class="kb-alliance-invites">
+        {% for row in pending_invites %}
+        <li>
+          <strong>{{ row.alliance.name }}</strong>
+          <div class="kb-alliance-actions">
+            <form method="post" action="{% url 'alliances:accept_invite' row.pk %}" data-alliance-action>{% csrf_token %}<button class="auth-btn" type="submit">قبول</button></form>
+            <form method="post" action="{% url 'alliances:reject_invite' row.pk %}" data-alliance-action>{% csrf_token %}<button class="auth-alt" type="submit">رد</button></form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    <section class="feed-card kb-alliance-search" data-alliance-search="{% url 'alliances:search' %}">
+      <div class="feed-head">
+        <h2>جست‌وجوی اتحاد</h2>
+      </div>
+      <label class="kb-alliance-search__field">
+        <span class="visually-hidden">جست‌وجو</span>
+        <input type="search" name="q" maxlength="48" placeholder="نام اتحاد" autocomplete="off">
+      </label>
+      <div class="kb-alliance-search__results" data-alliance-results>
+        {% for card in results %}
+        {% include "alliances/_card.html" %}
+        {% empty %}
+        <p class="profile-copy">اتحادی برای نمایش نیست.</p>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </main>
+{% endblock %}
+
+{% block chrome_dock %}
+  {% include "core/_dock.html" %}
+{% endblock %}

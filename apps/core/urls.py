@@ -17,7 +17,7 @@ urlpatterns = [
     path('profile/codm/', views.profile_codm, name='profile_codm'),
     path('settings/', views.site_settings, name='settings'),
     path('invite/', views.invite, name='invite'),
-    path('team/', views.team, name='team'),
+    path('team/', RedirectView.as_view(pattern_name='alliances:hub', permanent=False), name='team'),
     path('shop/', views.shop, name='shop'),
     path('live/', views.live_hub, name='live'),
     path('live/<slug:slug>/', views.live_hub, name='live_room'),

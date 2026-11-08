@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'apps.lab.apps.LabConfig',
     'apps.sms.apps.SmsConfig',
     'apps.social.apps.SocialConfig',
+    'apps.alliances.apps.AlliancesConfig',
 ]
 
 MIDDLEWARE = [
@@ -230,11 +231,20 @@ MELIPAYAMAK_DRY_RUN = os.getenv('MELIPAYAMAK_DRY_RUN', 'True').lower() in {
     'on',
 }
 
-GIF_PROVIDER = os.getenv('GIF_PROVIDER', 'tenor').strip().lower() or 'tenor'
-GIF_API_KEY = os.getenv('GIF_API_KEY', '')
-GIF_API_BASE_URL = os.getenv('GIF_API_BASE_URL', '').rstrip('/')
-GIF_RATING = os.getenv('GIF_RATING', 'g')
+REDIS_URL = os.getenv('REDIS_URL', '').strip()
 try:
-    GIF_DEFAULT_LIMIT = int(os.getenv('GIF_DEFAULT_LIMIT', '12') or 12)
+    ALLIANCE_CREATE_MIN_LEVEL = int(os.getenv('ALLIANCE_CREATE_MIN_LEVEL', '0') or 0)
 except (TypeError, ValueError):
-    GIF_DEFAULT_LIMIT = 12
+    ALLIANCE_CREATE_MIN_LEVEL = 0
+ALLIANCE_CREATE_MIN_LEVEL = max(0, min(6, ALLIANCE_CREATE_MIN_LEVEL))
+try:
+    ALLIANCE_MAX_MEMBERS = int(os.getenv('ALLIANCE_MAX_MEMBERS', '50') or 50)
+except (TypeError, ValueError):
+    ALLIANCE_MAX_MEMBERS = 50
+ALLIANCE_MAX_MEMBERS = max(2, min(ALLIANCE_MAX_MEMBERS, 200))
+try:
+    ALLIANCE_VOICE_MAX_PARTICIPANTS = int(os.getenv('ALLIANCE_VOICE_MAX_PARTICIPANTS', '50') or 50)
+except (TypeError, ValueError):
+    ALLIANCE_VOICE_MAX_PARTICIPANTS = 50
+ALLIANCE_VOICE_MAX_PARTICIPANTS = max(2, min(ALLIANCE_VOICE_MAX_PARTICIPANTS, 200))
+

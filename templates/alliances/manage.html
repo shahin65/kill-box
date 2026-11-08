@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}مدیریت {{ alliance.name }} · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-alliance{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+
+{% block body %}
+  <main class="landing-stage profile-stage kb-alliance">
+    {% csrf_token %}
+    <section class="profile-card">
+      <p class="auth-kicker">مدیریت اتحاد</p>
+      <h1 class="auth-title">{{ alliance.name }}</h1>
+      <p class="profile-copy">{{ member_count }} عضو فعال</p>
+      <a class="auth-alt" href="{% url 'alliances:hub' %}" data-kb-nav>خانه اتحاد</a>
+    </section>
+
+    {% if can_settings %}
+    <section class="feed-card">
+      <div class="feed-head"><h2>تنظیمات</h2></div>
+      <form class="kb-alliance-form" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label>{{ form.name.label }}{{ form.name }}</label>
+        <label>{{ form.description.label }}{{ form.description }}</label>
+        <label>{{ form.join_policy.label }}{{ form.join_policy }}</label>
+        <label>{{ form.min_rank.label }}{{ form.min_rank }}</label>
+        <label class="kb-alliance-form__check">{{ form.is_discoverable }} {{ form.is_discoverable.label }}</label>
+        <label class="kb-alliance-form__check">{{ form.is_private }} {{ form.is_private.label }}</label>
+        <label>{{ form.logo.label }}{{ form.logo }}</label>
+        <label>{{ form.banner.label }}{{ form.banner }}</label>
+        <button class="auth-btn" type="submit">ذخیره</button>
+      </form>
+    </section>
+    {% endif %}
+
+    <section class="feed-card">
+      <div class="feed-head"><h2>دعوت با آی‌دی</h2></div>
+      <form class="kb-alliance-form" method="post" action="{% url 'alliances:invite' alliance.slug %}" data-alliance-action>
+        {% csrf_token %}
+        <label>آی‌دی یکتا<input type="text" name="public_id" maxlength="12" dir="ltr" placeholder="KBXXXXXXXX"></label>
+        <button class="auth-btn" type="submit">ارسال دعوت</button>
+      </form>
+    </section>
+
+    {% if can_moderate %}
+    <section class="feed-card">
+      <div class="feed-head"><h2>درخواست‌ها</h2></div>
+      <ul class="kb-alliance-manage-list">
+        {% for row in join_requests %}
+        <li>
+          <strong>{{ row.user.member_profile.display_name|default:"سرباز کیل‌باکس" }}</strong>
+          <small>{{ row.message }}</small>
+          <div class="kb-alliance-actions">
+            <form method="post" action="{% url 'alliances:review_request' row.pk %}" data-alliance-action>{% csrf_token %}<input type="hidden" name="action" value="approve"><button class="auth-btn" type="submit">قبول</button></form>
+            <form method="post" action="{% url 'alliances:review_request' row.pk %}" data-alliance-action>{% csrf_token %}<input type="hidden" name="action" value="reject"><button class="auth-alt" type="submit">رد</button></form>
+          </div>
+        </li>
+        {% empty %}
+        <li class="profile-copy">درخواستی در صف نیست.</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <section class="feed-card">
+      <div class="feed-head"><h2>اعضا</h2></div>
+      <ul class="kb-alliance-manage-list">
+        {% for row in members %}
+        <li>
+          <strong>{{ row.user.member_profile.display_name|default:"سرباز کیل‌باکس" }}</strong>
+          <small>{{ row.get_role_display }}</small>
+          {% if can_moderate and row.user_id != request.user.id and row.role != 'owner' %}
+          <form method="post" action="{% url 'alliances:set_role' alliance.slug row.pk %}" data-alliance-action>
+            {% csrf_token %}
+            <select name="role">
+              <option value="member"{% if row.role == 'member' %} selected{% endif %}>عضو</option>
+              <option value="admin_lvl1"{% if row.role == 'admin_lvl1' %} selected{% endif %}>ادمین سطح ۱</option>
+              {% if membership.role == 'owner' %}
+              <option value="admin_lvl2"{% if row.role == 'admin_lvl2' %} selected{% endif %}>ادمین سطح ۲</option>
+              <option value="owner">انتقال مالکیت</option>
+              {% endif %}
+            </select>
+            <button class="auth-btn" type="submit">ثبت نقش</button>
+          </form>
+          <form method="post" action="{% url 'alliances:kick' alliance.slug row.pk %}" data-alliance-action>
+            {% csrf_token %}
+            <button class="auth-alt" type="submit">اخراج</button>
+          </form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    {% if can_moderate %}
+    <section class="feed-card">
+      <div class="feed-head"><h2>لیست سیاه</h2></div>
+      <form class="kb-alliance-form" method="post" action="{% url 'alliances:blacklist' alliance.slug %}" data-alliance-action>
+        {% csrf_token %}
+        <label>آی‌دی یکتا<input type="text" name="public_id" maxlength="12" dir="ltr"></label>
+        <label>دلیل<input type="text" name="reason" maxlength="140"></label>
+        <button class="auth-btn" type="submit">مسدود</button>
+      </form>
+      <ul class="kb-alliance-manage-list">
+        {% for row in banned %}
+        <li>
+          <strong>{{ row.user.member_profile.display_name|default:"سرباز کیل‌باکس" }}</strong>
+          <small>{{ row.reason }}</small>
+          <form method="post" action="{% url 'alliances:unblacklist' alliance.slug row.user_id %}" data-alliance-action>
+            {% csrf_token %}
+            <button class="auth-alt" type="submit">رفع مسدودیت</button>
+          </form>
+        </li>
+        {% empty %}
+        <li class="profile-copy">کسی در لیست سیاه نیست.</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <section class="feed-card">
+      <div class="feed-head"><h2>گزارش عملیات</h2></div>
+      <ul class="kb-alliance-manage-list">
+        {% for row in logs %}
+        <li>
+          <strong>{{ row.action }}</strong>
+          <small>{% if row.actor %}{{ row.actor.member_profile.display_name|default:"سرباز کیل‌باکس" }}{% else %}سیستم{% endif %}{% if row.target_user %} → {{ row.target_user.member_profile.display_name|default:"سرباز کیل‌باکس" }}{% endif %}</small>
+        </li>
+        {% empty %}
+        <li class="profile-copy">هنوز گزارشی نیست.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </main>
+{% endblock %}
+
+{% block chrome_dock %}
+  {% include "core/_dock.html" %}
+{% endblock %}

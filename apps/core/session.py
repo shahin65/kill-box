@@ -125,6 +125,8 @@ def hud_context(request) -> dict:
     bale_linked = False
     telegram_ctx = {'enabled': False, 'link_enabled': False, 'username': ''}
     bale_ctx = {'enabled': False, 'link_enabled': False, 'username': ''}
+    current_alliance = None
+    current_alliance_role = ''
     if member:
         from apps.core.identity import profile_display_name, touch_presence
 
@@ -161,6 +163,12 @@ def hud_context(request) -> dict:
             notices = notice_counts(request.user)
             telegram_ctx = telegram_public_context()
             bale_ctx = bale_public_context()
+        from apps.alliances.services import membership_of
+
+        row = membership_of(request.user)
+        if row:
+            current_alliance = row.alliance
+            current_alliance_role = row.role
     return {
         'is_guest': guest,
         'is_member': member,
@@ -187,6 +195,8 @@ def hud_context(request) -> dict:
         'bale_linked': bale_linked,
         'telegram': telegram_ctx,
         'bale': bale_ctx,
+        'current_alliance': current_alliance,
+        'current_alliance_role': current_alliance_role,
     }
 
 

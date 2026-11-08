@@ -54,7 +54,7 @@ from apps.core.identity import (
     capture_referral,
     referral_report,
 )
-from apps.core.arena import home_live_cards, home_tournaments, live_room
+from apps.core.arena import home_tournaments, live_room, live_rooms
 from apps.core.identity import profile_display_name
 from apps.core.models import LiveChat, SiteSettings
 from apps.core.siteconfig import get_signup_settings, signup_public_context
@@ -94,7 +94,6 @@ def home(request):
     context.update(consume_home_toasts(request))
     context.update(
         {
-            'home_lives': home_live_cards(),
             'home_tournaments': home_tournaments(),
         }
     )
@@ -107,7 +106,10 @@ def profile(request):
     if context.get('is_member'):
         from apps.social.services import profile_social_stats
 
-        context['social_stats'] = profile_social_stats(request.user)
+        context['social_stats'] = profile_social_stats(
+            request.user,
+            notices=context.get('notices'),
+        )
     return render(request, 'core/profile.html', context)
 
 
@@ -115,10 +117,6 @@ def site_settings(request):
     if not is_member(request):
         return member_required_response(request)
     return render(request, 'core/settings.html', hud_context(request))
-
-
-def team(request):
-    return render(request, 'core/team.html', hud_context(request))
 
 
 def shop(request):
@@ -145,6 +143,11 @@ def _live_messages(slug):
 
 
 def live_hub(request, slug=None):
+    rooms = live_rooms()
+    if not slug:
+        context = hud_context(request)
+        context.update({'live_rooms': rooms})
+        return render(request, 'core/live.html', context)
     room = live_room(slug)
     context = hud_context(request)
     context.update(
@@ -154,7 +157,7 @@ def live_hub(request, slug=None):
             'live_actor': _live_actor(request),
         }
     )
-    return render(request, 'core/live.html', context)
+    return render(request, 'core/live_room.html', context)
 
 
 def _live_json_error(message, status=400, **extra):

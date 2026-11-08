@@ -1,0 +1,13 @@
+{% load static %}
+<a class="kb-alliance-card feed-card" href="{% url 'alliances:detail' slug=card.slug %}" data-kb-nav>
+  <div class="kb-alliance-card__art"{% if card.banner_url %} style="background-image:url('{{ card.banner_url }}')"{% endif %}>
+    {% if card.logo_url %}
+    <img class="kb-alliance-card__logo" src="{{ card.logo_url }}" alt="" width="72" height="72">
+    {% endif %}
+  </div>
+  <div class="kb-alliance-card__body">
+    <strong>{{ card.name }}</strong>
+    <p>{{ card.description|default:"بدون توضیحات" }}</p>
+    <small>{{ card.member_count }} / {{ card.max_members }} عضو · {{ card.join_policy_label }}</small>
+  </div>
+</a>

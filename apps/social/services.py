@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone as dt_timezone
 
+from django.core.cache import cache
 from django.db import IntegrityError, transaction
 from django.db.models import Case, Count, DateTimeField, Exists, F, IntegerField, OuterRef, Prefetch, Q, Sum, Value, When
 from django.db.models.functions import TruncDate
@@ -62,10 +63,25 @@ def display_name(user) -> str:
 
 
 def follow_counts(user) -> dict:
-    return {
+    if not user or not getattr(user, 'pk', None):
+        return {'followers': 0, 'following': 0}
+    key = f'kb:follow:{user.pk}'
+    hit = cache.get(key)
+    if isinstance(hit, dict) and 'followers' in hit and 'following' in hit:
+        return hit
+    data = {
         'followers': Follow.objects.filter(following=user).count(),
         'following': Follow.objects.filter(follower=user).count(),
     }
+    cache.set(key, data, 45)
+    return data
+
+
+def invalidate_follow_counts(*users) -> None:
+    for user in users:
+        pk = getattr(user, 'pk', None)
+        if pk:
+            cache.delete(f'kb:follow:{pk}')
 
 
 def following_ids_for(user) -> set[int]:
@@ -659,7 +675,7 @@ def _bar_pct(value, peak):
     return max(8, min(100, pct))
 
 
-def profile_social_stats(user, *, days=7, unseen_limit=6) -> dict:
+def profile_social_stats(user, *, days=7, unseen_limit=6, notices=None) -> dict:
     empty = {
         'totals': {'views': 0, 'likes': 0, 'comments': 0},
         'totals_label': {'views': '۰', 'likes': '۰', 'comments': '۰'},
@@ -670,62 +686,76 @@ def profile_social_stats(user, *, days=7, unseen_limit=6) -> dict:
     }
     if not user or not getattr(user, 'is_authenticated', False):
         return empty
+    cache_key = f'kb:profile:stats:{user.pk}'
+    cached = cache.get(cache_key)
+    if not (isinstance(cached, dict) and cached.get('days')):
+        cached = None
 
-    today = timezone.localdate()
-    start = timezone.make_aware(
-        datetime.combine(today - timedelta(days=days - 1), datetime.min.time()),
-        timezone.get_current_timezone(),
-    )
-    post_views = Post.objects.filter(author=user).aggregate(n=Sum('views_count'))['n'] or 0
-    views = int(post_views) + StoryView.objects.filter(story__author=user).count()
-    likes = (
-        PostLike.objects.filter(post__author=user).count()
-        + StoryLike.objects.filter(story__author=user).count()
-    )
-    comments = (
-        PostComment.objects.filter(post__author=user).count()
-        + StoryComment.objects.filter(story__author=user).count()
-    )
-    view_days = _merge_day_counts(
-        _day_counts(PostView.objects.filter(post__author=user), start),
-        _day_counts(StoryView.objects.filter(story__author=user), start),
-    )
-    like_days = _merge_day_counts(
-        _day_counts(PostLike.objects.filter(post__author=user), start),
-        _day_counts(StoryLike.objects.filter(story__author=user), start),
-    )
-    comment_days = _merge_day_counts(
-        _day_counts(PostComment.objects.filter(post__author=user), start),
-        _day_counts(StoryComment.objects.filter(story__author=user), start),
-    )
+    views = likes = comments = 0
     chart = []
-    peak = 1
-    for offset in range(days - 1, -1, -1):
-        day = today - timedelta(days=offset)
-        row = {
-            'views': int(view_days.get(day, 0)),
-            'likes': int(like_days.get(day, 0)),
-            'comments': int(comment_days.get(day, 0)),
-        }
-        peak = max(peak, row['views'], row['likes'], row['comments'])
-        if offset == 0:
-            label = 'امروز'
-        elif offset == 1:
-            label = 'دیروز'
+    if cached is None:
+        today = timezone.localdate()
+        start = timezone.make_aware(
+            datetime.combine(today - timedelta(days=days - 1), datetime.min.time()),
+            timezone.get_current_timezone(),
+        )
+        post_views = Post.objects.filter(author=user).aggregate(n=Sum('views_count'))['n'] or 0
+        views = int(post_views) + StoryView.objects.filter(story__author=user).count()
+        likes = (
+            PostLike.objects.filter(post__author=user).count()
+            + StoryLike.objects.filter(story__author=user).count()
+        )
+        comments = (
+            PostComment.objects.filter(post__author=user).count()
+            + StoryComment.objects.filter(story__author=user).count()
+        )
+        if views or likes or comments:
+            view_days = _merge_day_counts(
+                _day_counts(PostView.objects.filter(post__author=user), start),
+                _day_counts(StoryView.objects.filter(story__author=user), start),
+            )
+            like_days = _merge_day_counts(
+                _day_counts(PostLike.objects.filter(post__author=user), start),
+                _day_counts(StoryLike.objects.filter(story__author=user), start),
+            )
+            comment_days = _merge_day_counts(
+                _day_counts(PostComment.objects.filter(post__author=user), start),
+                _day_counts(StoryComment.objects.filter(story__author=user), start),
+            )
         else:
-            label = _FA_WEEKDAYS[day.weekday()]
-        row['label'] = label
-        row['views_label'] = format_count(row['views'])
-        row['likes_label'] = format_count(row['likes'])
-        row['comments_label'] = format_count(row['comments'])
-        chart.append(row)
-    for row in chart:
-        row['views_pct'] = _bar_pct(row['views'], peak)
-        row['likes_pct'] = _bar_pct(row['likes'], peak)
-        row['comments_pct'] = _bar_pct(row['comments'], peak)
+            view_days = {}
+            like_days = {}
+            comment_days = {}
+        peak = 1
+        for offset in range(days - 1, -1, -1):
+            day = today - timedelta(days=offset)
+            row = {
+                'views': int(view_days.get(day, 0)),
+                'likes': int(like_days.get(day, 0)),
+                'comments': int(comment_days.get(day, 0)),
+            }
+            peak = max(peak, row['views'], row['likes'], row['comments'])
+            if offset == 0:
+                label = 'امروز'
+            elif offset == 1:
+                label = 'دیروز'
+            else:
+                label = _FA_WEEKDAYS[day.weekday()]
+            row['label'] = label
+            row['views_label'] = format_count(row['views'])
+            row['likes_label'] = format_count(row['likes'])
+            row['comments_label'] = format_count(row['comments'])
+            chart.append(row)
+        for row in chart:
+            row['views_pct'] = _bar_pct(row['views'], peak)
+            row['likes_pct'] = _bar_pct(row['likes'], peak)
+            row['comments_pct'] = _bar_pct(row['comments'], peak)
 
     unseen_qs = ActivityNotice.objects.filter(recipient=user, is_read=False)
-    unseen_count = unseen_qs.count()
+    if isinstance(notices, dict) and 'total' in notices:
+        unseen_count = int(notices.get('total') or 0)
+    else:
+        unseen_count = unseen_qs.count()
     unseen_rows = list(
         unseen_qs.select_related('actor', 'actor__member_profile').order_by('-created_at', '-pk')[:unseen_limit]
     )
@@ -741,18 +771,23 @@ def profile_social_stats(user, *, days=7, unseen_limit=6) -> dict:
         summary = f'{format_count(unseen_count)} تغییر جدید هنوز دیده نشده'
     else:
         summary = 'تغییر مشاهده‌نشده‌ای نیست.'
-    return {
-        'totals': {'views': views, 'likes': likes, 'comments': comments},
-        'totals_label': {
-            'views': format_count(views),
-            'likes': format_count(likes),
-            'comments': format_count(comments),
-        },
-        'days': chart,
-        'unseen': unseen,
-        'unseen_summary': summary,
-        'unseen_count': unseen_count,
-    }
+    if cached:
+        payload = dict(cached)
+    else:
+        payload = {
+            'totals': {'views': views, 'likes': likes, 'comments': comments},
+            'totals_label': {
+                'views': format_count(views),
+                'likes': format_count(likes),
+                'comments': format_count(comments),
+            },
+            'days': chart,
+        }
+        cache.set(cache_key, payload, 45)
+    payload['unseen'] = unseen
+    payload['unseen_summary'] = summary
+    payload['unseen_count'] = unseen_count
+    return payload
 
 
 def saved_posts_queryset(user):

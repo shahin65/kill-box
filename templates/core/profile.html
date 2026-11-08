@@ -12,7 +12,9 @@
 {% endblock %}
 
 {% block body %}
-  {% if is_member %}{% include "core/_rank_dialog.html" %}{% endif %}
+  {% if is_member %}
+  <template id="rank-dialog-tpl">{% include "core/_rank_dialog.html" %}</template>
+  {% endif %}
   <main class="landing-stage profile-stage">
     {% if not is_member %}
     <section class="profile-card">
@@ -52,8 +54,8 @@
             id="profile-avatar-img"
             src="{% if avatar_url %}{{ avatar_url }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}"
             alt=""
-            width="512"
-            height="512"
+            width="128"
+            height="128"
           >
           <label
             class="profile-avatar-edit"
@@ -137,13 +139,31 @@
       </div>
       {% if rank %}
       <button class="profile-rank" type="button" data-rank-open aria-haspopup="dialog" aria-controls="rank-dialog">
-        <img src="{% static rank.icon %}" alt="{{ rank.title }}" width="512" height="512">
+        <img src="{% static rank.icon %}" alt="{{ rank.title }}" width="64" height="64">
         <span>
           <strong>رنک {{ rank.level }}: {{ rank.title }}</strong>
           <em>{{ rank.en }}</em>
           <small>{{ rank.blurb }}</small>
         </span>
       </button>
+      {% endif %}
+      {% if current_alliance %}
+      <a class="profile-alliance" href="{% url 'alliances:hub' %}" data-kb-nav>
+        {% if current_alliance.logo %}
+        <img src="{{ current_alliance.logo.url }}" alt="" width="64" height="64">
+        {% endif %}
+        <span>
+          <strong>{{ current_alliance.name }}</strong>
+          <small>{% if current_alliance_role == 'owner' %}مالک اتحاد{% elif current_alliance_role == 'admin_lvl2' %}ادمین سطح ۲{% elif current_alliance_role == 'admin_lvl1' %}ادمین سطح ۱{% else %}عضو اتحاد{% endif %}</small>
+        </span>
+      </a>
+      {% else %}
+      <a class="profile-alliance is-empty" href="{% url 'alliances:hub' %}" data-kb-nav>
+        <span>
+          <strong>اتحاد</strong>
+          <small>هنوز عضو اتحادی نیستی · جست‌وجو یا ساخت</small>
+        </span>
+      </a>
       {% endif %}
       <div class="profile-balances">
         <div class="profile-balance">
@@ -164,7 +184,7 @@
       <div class="profile-codm" data-codm-url="{% url 'core:profile_codm' %}">
         <p class="profile-codm__title">اکانت بازیتو متصل کن :</p>
         <form class="profile-codm__row" id="codm-form">
-          <img src="{% static 'images/icons/CODM.png' %}" alt="" width="512" height="512">
+          <img src="{% static 'images/icons/CODM.png' %}" alt="" width="64" height="64">
           <input
             id="codm-uid"
             name="uid"

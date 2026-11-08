@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}ساخت اتحاد · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-alliance{% if is_guest %} is-guest{% endif %}{% endblock %}
+
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+
+{% block body %}
+  <main class="landing-stage profile-stage kb-alliance">
+    <section class="profile-card">
+      <p class="auth-kicker">ساخت اتحاد</p>
+      <h1 class="auth-title">پایگاه جدید</h1>
+      {% if create_min_level %}
+      <p class="profile-copy">رنک تو: {{ user_rank }} · {{ user_rank_label }}. حداقل رنک ساخت: {{ create_min_level }}.</p>
+      {% endif %}
+      {% if not allowed %}
+      <p class="auth-status is-error">{% if create_min_level %}برای ساخت اتحاد باید حداقل رنک {{ create_min_level }} داشته باشی و عضو اتحاد دیگری نباشی.{% else %}اول باید اتحاد فعلی را ترک کنی.{% endif %}</p>
+      {% endif %}
+      <form class="kb-alliance-form" method="post" enctype="multipart/form-data" {% if not allowed %}inert{% endif %}>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <label>{{ form.name.label }}{{ form.name }}{{ form.name.errors }}</label>
+        <label>{{ form.description.label }}{{ form.description }}{{ form.description.errors }}</label>
+        <label>{{ form.join_policy.label }}{{ form.join_policy }}</label>
+        <label>{{ form.min_rank.label }}{{ form.min_rank }}</label>
+        <label class="kb-alliance-form__check">{{ form.is_discoverable }} {{ form.is_discoverable.label }}</label>
+        <label class="kb-alliance-form__check">{{ form.is_private }} {{ form.is_private.label }}</label>
+        <label>{{ form.logo.label }}{{ form.logo }}</label>
+        <label>{{ form.banner.label }}{{ form.banner }}</label>
+        <button class="auth-btn" type="submit"{% if not allowed %} disabled{% endif %}>ثبت اتحاد</button>
+        <a class="auth-alt" href="{% url 'alliances:hub' %}" data-kb-nav>بازگشت</a>
+      </form>
+    </section>
+  </main>
+{% endblock %}
+
+{% block chrome_dock %}
+  {% include "core/_dock.html" %}
+{% endblock %}

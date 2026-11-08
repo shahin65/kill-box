@@ -1,10 +1,13 @@
 {% load static %}
-{% url 'core:profile' as profile_url %}
+{% url 'core:shop' as shop_url %}
 <header class="landing-topbar">
   {% include "core/_hud.html" %}
-  <a class="topbar-chip topbar-chip--wallet" href="{{ profile_url }}" data-kb-nav title="کیف پول">
+  <a class="topbar-chip topbar-chip--wallet" href="{{ shop_url }}" data-kb-nav title="کیف پول">
     <img src="{% static 'images/icons/wallet.webp' %}?v=2" alt="" width="128" height="128">
-    <span>{{ wallet }}</span>
+    <span class="topbar-chip__meta">
+      <small>موجودی کیف پول:</small>
+      <b dir="ltr">{{ wallet }}</b>
+    </span>
   </a>
   {% include "core/_hamburger.html" %}
 </header>

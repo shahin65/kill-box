@@ -1,7 +1,7 @@
 {% load static %}
 {% url 'core:home' as home_url %}
 {% url 'core:shop' as shop_url %}
-{% url 'core:team' as team_url %}
+{% url 'alliances:hub' as alliance_url %}
 {% url 'core:live' as live_url %}
 {% url 'social:explore' as explore_url %}
 <nav class="kb-dock" aria-label="ناوبری پایین">
@@ -78,8 +78,8 @@
     <span class="kb-dock__label">اکسپلور</span>
   </a>
   <a
-    class="kb-dock__item{% if request.path == team_url %} is-active{% endif %}"
-    href="{{ team_url }}"
+    class="kb-dock__item{% if request.path == alliance_url or '/alliance/' in request.path %} is-active{% endif %}"
+    href="{{ alliance_url }}"
     data-kb-nav
   >
     <span class="kb-dock__icon">

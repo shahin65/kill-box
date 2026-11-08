@@ -14,52 +14,7 @@
 {% block body %}
   <main class="landing-stage home-stage">
     {% csrf_token %}
-    <section class="feed-card home-feed home-feed--arena" data-kb-swipe>
-      <div class="feed-head">
-        <h2>پخش زنده</h2>
-        <a class="feed-more" href="{% url 'core:live' %}" data-kb-nav>ورود به لایو</a>
-      </div>
-      <div class="home-swipe is-pair">
-        <button class="home-swipe__nav is-prev" type="button" data-post-prev title="قبلی">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.8 5.2 8 12l6.8 6.8 1.4-1.4L10.8 12l5.4-5.4z"/></svg>
-        </button>
-        <div class="home-swipe__track">
-          {% for card in home_lives %}
-          <div class="home-swipe__slide">{% include "core/_event_card.html" %}</div>
-          {% endfor %}
-        </div>
-        <button class="home-swipe__nav is-next" type="button" data-post-next title="بعدی">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m9.2 5.2-1.4 1.4L13.2 12l-5.4 5.4 1.4 1.4L16 12z"/></svg>
-        </button>
-      </div>
-      <div class="home-swipe__pager">
-        <div class="home-swipe__dots" aria-hidden="true"></div>
-        <p class="home-swipe__count"><span data-post-pos>1</span> / {{ home_lives|length }}</p>
-      </div>
-    </section>
-    <section class="feed-card home-feed home-feed--arena" data-kb-swipe>
-      <div class="feed-head">
-        <h2>تورنومنت</h2>
-        <span class="feed-more is-demo">نمایشی</span>
-      </div>
-      <div class="home-swipe is-pair">
-        <button class="home-swipe__nav is-prev" type="button" data-post-prev title="قبلی">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14.8 5.2 8 12l6.8 6.8 1.4-1.4L10.8 12l5.4-5.4z"/></svg>
-        </button>
-        <div class="home-swipe__track">
-          {% for card in home_tournaments %}
-          <div class="home-swipe__slide">{% include "core/_event_card.html" %}</div>
-          {% endfor %}
-        </div>
-        <button class="home-swipe__nav is-next" type="button" data-post-next title="بعدی">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m9.2 5.2-1.4 1.4L13.2 12l-5.4 5.4 1.4 1.4L16 12z"/></svg>
-        </button>
-      </div>
-      <div class="home-swipe__pager">
-        <div class="home-swipe__dots" aria-hidden="true"></div>
-        <p class="home-swipe__count"><span data-post-pos>1</span> / {{ home_tournaments|length }}</p>
-      </div>
-    </section>
+    {% include "core/_arena_swipe.html" with title="تورنومنت" cards=home_tournaments more_text="نمایشی" %}
   </main>
   {% if xp_toast or rank_toast %}
   <div

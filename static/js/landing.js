@@ -17,12 +17,15 @@ function bindPage() {
   if (typeof window.__kbBindLive === 'function') {
     window.__kbBindLive();
   }
+  if (typeof window.__kbBindAlliance === 'function') {
+    window.__kbBindAlliance();
+  }
 }
 
 window.__kbBindPage = bindPage;
 
 var KB_AUTH_GUARD =
-  '[data-like-post], [data-save-post], [data-gif-open], [data-story-viewers], [data-comment-del], [data-comment-reply], #story-like, [data-follow], [data-comment-post], [data-kb-auth], #story-form, #post-form, #story-comment-form, #live-chat-form, #live-donate-form, [data-accept], [data-reject], [data-block], .event-fee-btn, .composer';
+  '[data-like-post], [data-save-post], [data-gif-open], [data-story-viewers], [data-comment-del], [data-comment-reply], #story-like, [data-follow], [data-comment-post], [data-kb-auth], #story-form, #post-form, #story-comment-form, #live-chat-form, #live-donate-form, [data-accept], [data-reject], [data-block], .event-fee-btn, .composer, [data-alliance-action], #alliance-chat-form';
 
 function kbIsMember() {
   return document.body.getAttribute('data-kb-member') === '1';
@@ -712,8 +715,21 @@ function bindRankDialog() {
     return document.getElementById('rank-dialog');
   }
 
-  function openDialog() {
+  function ensureDialog() {
     var dialog = getDialog();
+    if (dialog) {
+      return dialog;
+    }
+    var tpl = document.getElementById('rank-dialog-tpl');
+    if (!tpl || !tpl.content) {
+      return null;
+    }
+    document.body.appendChild(tpl.content.cloneNode(true));
+    return getDialog();
+  }
+
+  function openDialog() {
+    var dialog = ensureDialog();
     if (!dialog) {
       return;
     }
@@ -758,7 +774,8 @@ function bindRankDialog() {
         closeDialog();
         return;
       }
-      if (node === getDialog()) {
+      var dialog = getDialog();
+      if (dialog && node === dialog) {
         closeDialog();
         return;
       }

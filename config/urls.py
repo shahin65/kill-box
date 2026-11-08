@@ -9,6 +9,7 @@ urlpatterns = [
     path('admin/', killbox_admin.urls),
     path('', include('apps.core.urls')),
     path('social/', include('apps.social.urls')),
+    path('alliance/', include('apps.alliances.urls')),
 ]
 
 if settings.ENABLE_DEV_LAB:

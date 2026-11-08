@@ -1,6 +1,8 @@
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.text import get_valid_filename
 
 
 User = settings.AUTH_USER_MODEL
@@ -22,6 +24,13 @@ def story_thumb_upload_to(instance, filename):
 
 def post_thumb_upload_to(instance, filename):
     return f'posts/{instance.author_id}/{timezone.now():%Y%m%d}/{timezone.now().timestamp():.0f}-thumb.webp'
+
+
+def gif_upload_to(instance, filename):
+    name = str(filename or 'clip.gif').lower()
+    ext = '.webp' if name.endswith('.webp') else '.gif'
+    stem = get_valid_filename((name.rsplit('.', 1)[0] or 'gif')[:40]) or 'gif'
+    return f'gifs/{timezone.now():%Y%m}/{stem}-{timezone.now().timestamp():.0f}{ext}'
 
 
 def _ext(filename, kind):
@@ -306,3 +315,46 @@ class ActivityNotice(models.Model):
         indexes = [
             models.Index(fields=('recipient', 'kind', 'is_read')),
         ]
+
+
+class CustomGif(models.Model):
+    REACTION = 'reaction'
+    GAMING = 'gaming'
+    MEME = 'meme'
+    WIN = 'win'
+    OTHER = 'other'
+    CATEGORY_CHOICES = (
+        (REACTION, 'ری‌اکشن'),
+        (GAMING, 'گیمینگ'),
+        (MEME, 'میم'),
+        (WIN, 'برد'),
+        (OTHER, 'سایر'),
+    )
+
+    title = models.CharField('عنوان', max_length=100)
+    tags = models.CharField(
+        'تگ‌ها',
+        max_length=255,
+        blank=True,
+        help_text='کلمات کلیدی با ویرگول، مثلاً: خنده, win, gg',
+    )
+    file = models.FileField(
+        'فایل GIF',
+        upload_to=gif_upload_to,
+        validators=[FileExtensionValidator(('gif', 'webp'))],
+    )
+    category = models.CharField('دسته', max_length=16, choices=CATEGORY_CHOICES, default=REACTION, blank=True)
+    order = models.IntegerField('ترتیب', default=0)
+    is_active = models.BooleanField('فعال', default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-order', '-id')
+        verbose_name = 'گیف اختصاصی'
+        verbose_name_plural = 'گیف‌های اختصاصی'
+        indexes = [
+            models.Index(fields=('is_active', '-order', '-id')),
+        ]
+
+    def __str__(self) -> str:
+        return self.title

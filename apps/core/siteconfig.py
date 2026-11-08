@@ -16,6 +16,7 @@ def get_signup_settings():
             phone_signup=True,
             telegram_signup=True,
             bale_signup=True,
+            alliance_create_min_rank=0,
         )
 
 

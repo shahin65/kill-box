@@ -144,60 +144,79 @@
     }
   }
 
+  function previewParts(form) {
+    return {
+      box: form.querySelector('.kb-upload-preview'),
+      img: form.querySelector('.kb-upload-preview__img'),
+      vid: form.querySelector('.kb-upload-preview__vid'),
+      ph: form.querySelector('.kb-upload-preview__ph'),
+      clear: form.querySelector('[data-upload-clear]'),
+    };
+  }
+
   function showPreview(form, file) {
-    var box = form.querySelector('.kb-upload-preview');
-    var img = form.querySelector('.kb-upload-preview__img');
-    var vid = form.querySelector('.kb-upload-preview__vid');
-    if (!box) {
+    var parts = previewParts(form);
+    if (!parts.box) {
       return;
     }
     clearPreview(form);
-    box.hidden = !file;
     if (!file) {
       return;
     }
     var url = URL.createObjectURL(file);
     form._kbPreviewUrl = url;
-    if (isVideo(file) && vid) {
-      vid.hidden = false;
-      if (img) {
-        img.hidden = true;
+    parts.box.classList.add('has-file');
+    if (parts.ph) {
+      parts.ph.hidden = true;
+    }
+    if (parts.clear) {
+      parts.clear.hidden = false;
+    }
+    if (isVideo(file) && parts.vid) {
+      parts.vid.hidden = false;
+      if (parts.img) {
+        parts.img.hidden = true;
       }
-      vid.src = url;
-      vid.muted = true;
-      vid.playsInline = true;
+      parts.vid.src = url;
+      parts.vid.muted = true;
+      parts.vid.playsInline = true;
       return;
     }
-    if (img) {
-      img.hidden = false;
-      img.src = url;
+    if (parts.img) {
+      parts.img.hidden = false;
+      parts.img.src = url;
     }
-    if (vid) {
-      vid.hidden = true;
+    if (parts.vid) {
+      parts.vid.hidden = true;
     }
   }
 
   function clearPreview(form) {
-    var box = form.querySelector('.kb-upload-preview');
-    var img = form.querySelector('.kb-upload-preview__img');
-    var vid = form.querySelector('.kb-upload-preview__vid');
+    var parts = previewParts(form);
     if (form._kbPreviewUrl) {
       URL.revokeObjectURL(form._kbPreviewUrl);
       form._kbPreviewUrl = '';
     }
-    if (img) {
-      img.removeAttribute('src');
-      img.hidden = true;
+    if (parts.img) {
+      parts.img.removeAttribute('src');
+      parts.img.hidden = true;
     }
-    if (vid) {
-      vid.removeAttribute('src');
+    if (parts.vid) {
+      parts.vid.removeAttribute('src');
       try {
-        vid.load();
+        parts.vid.load();
       } catch (err) {}
-      vid.hidden = true;
+      parts.vid.hidden = true;
     }
-    if (box) {
-      box.hidden = true;
+    if (parts.ph) {
+      parts.ph.hidden = false;
+    }
+    if (parts.clear) {
+      parts.clear.hidden = true;
+    }
+    if (parts.box) {
+      parts.box.hidden = false;
+      parts.box.classList.remove('has-file');
     }
   }
 
