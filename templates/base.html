@@ -16,10 +16,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/base.css' %}?v=10">
   <link rel="stylesheet" href="{% static 'css/neon-bg.css' %}?v=3">
-  <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=78">
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=79">
   <link rel="stylesheet" href="{% static 'css/social.css' %}?v=40">
   <link rel="stylesheet" href="{% static 'css/arena.css' %}?v=14">
   <link rel="stylesheet" href="{% static 'css/alliance.css' %}?v=5">
+  <link rel="stylesheet" href="{% static 'css/shop.css' %}?v=2">
   {% block extra_css %}{% endblock %}
   {% endif %}
 </head>
@@ -35,11 +36,12 @@
 
     var busy = false;
     var pending = null;
+    var current = null;
     var inflight = null;
     var cacheMap = new Map();
     var gets = new Map();
     var CACHE_MS = 45000;
-    var CACHE_MAX = 10;
+    var CACHE_MAX = 12;
 
     function absUrl(href) {
       try {
@@ -153,7 +155,7 @@
         var itemUrl = absUrl(href);
         var itemPath = pathOf(itemUrl);
         var on = itemPath === path;
-        if (itemPath === '/live' && path.indexOf('/live') === 0) {
+        if (itemPath !== '/' && path.indexOf(itemPath + '/') === 0) {
           on = true;
         }
         items[i].classList.toggle('is-active', on);
@@ -223,11 +225,13 @@
       if (!pending) {
         busy = false;
         inflight = null;
+        current = null;
         doc.documentElement.classList.remove('is-kb-busy');
         return;
       }
       var job = pending;
       pending = null;
+      current = job;
       busy = true;
       doc.documentElement.classList.add('is-kb-busy');
       markDock(job.url);
@@ -260,8 +264,17 @@
     }
 
     function loadShell(url, push) {
+      var key = destKey(url);
+      if (current && destKey(current.url) === key && !pending) {
+        current.push = current.push || push;
+        return true;
+      }
+      if (pending && destKey(pending.url) === key) {
+        pending.push = pending.push || push;
+        return true;
+      }
       pending = { url: url, push: push };
-      if (inflight) {
+      if (inflight && current && destKey(current.url) !== key) {
         try {
           inflight.abort();
         } catch (err) {}
@@ -390,6 +403,18 @@
     doc.addEventListener('click', onActivate, true);
     doc.addEventListener('pointerenter', onHint, true);
     doc.addEventListener('touchstart', onHint, { capture: true, passive: true });
+
+    function warmDock() {
+      var items = doc.querySelectorAll('.kb-dock__item[href]');
+      for (var i = 0; i < items.length; i += 1) {
+        prefetch(items[i].getAttribute('href'));
+      }
+    }
+    if (typeof win.requestIdleCallback === 'function') {
+      win.requestIdleCallback(warmDock, { timeout: 1400 });
+    } else {
+      win.setTimeout(warmDock, 280);
+    }
   })(window, document);
   </script>
   {% include "core/_neon_bg.html" %}
@@ -405,16 +430,17 @@
   {% include "social/_gif_picker.html" %}
   {% block extra_js %}
   <script src="{% static 'js/upload.js' %}?v=2" defer></script>
-  <script src="{% static 'js/landing.js' %}?v=56" defer></script>
+  <script src="{% static 'js/landing.js' %}?v=57" defer></script>
   <script src="{% static 'js/overlay-history.js' %}?v=1" defer></script>
   <script src="{% static 'js/feed-media.js' %}?v=5" defer></script>
   <script src="{% static 'js/story-viewer.js' %}?v=6" defer></script>
   <script src="{% static 'js/reels-viewer.js' %}?v=5" defer></script>
   <script src="{% static 'js/post-views.js' %}?v=2" defer></script>
   <script src="{% static 'js/composer-extras.js' %}?v=4" defer></script>
-  <script src="{% static 'js/social.js' %}?v=20" defer></script>
-  <script src="{% static 'js/live.js' %}?v=4" defer></script>
+  <script src="{% static 'js/social.js' %}?v=21" defer></script>
+  <script src="{% static 'js/live.js' %}?v=5" defer></script>
   <script src="{% static 'js/alliance.js' %}?v=2" defer></script>
+  <script src="{% static 'js/shop.js' %}?v=1" defer></script>
   {% endblock %}
   <script src="{% static 'js/translate.js' %}?v=2" defer></script>
   {% endif %}

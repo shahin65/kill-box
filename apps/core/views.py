@@ -48,6 +48,7 @@ from apps.core.session import (
     set_auth_error,
     set_auth_flash,
 )
+from apps.shop.access import consume_auth_next, remember_auth_next
 from apps.core.identity import (
     BIO_MAX,
     DISPLAY_NAME_MAX,
@@ -73,8 +74,10 @@ def neon_bg_preview(request):
 
 def register(request):
     capture_referral(request)
+    remember_auth_next(request)
     if is_member(request):
-        return redirect('core:home')
+        nxt = consume_auth_next(request)
+        return redirect(nxt or 'core:home')
     context = hud_context(request)
     context.update(
         {
@@ -119,8 +122,6 @@ def site_settings(request):
     return render(request, 'core/settings.html', hud_context(request))
 
 
-def shop(request):
-    return render(request, 'core/shop.html', hud_context(request))
 
 
 def _live_actor(request):
@@ -509,7 +510,7 @@ def otp_verify(request):
     status = result.pop('http_status', 200)
     if result.get('success') and result.get('phone'):
         admit_member(request, result['phone'])
-        result['redirect'] = reverse('core:home')
+        result['redirect'] = consume_auth_next(request) or reverse('core:home')
     return JsonResponse(public_otp_payload(result), status=status)
 
 

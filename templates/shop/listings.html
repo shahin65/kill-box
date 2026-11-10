@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static shop_tags %}
+
+{% block title %}آگهی اکانت · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-shop{% if is_guest %} is-guest{% endif %}{% endblock %}
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+{% block body %}
+<main class="landing-stage profile-stage kb-shop">
+  {% csrf_token %}
+  <section class="profile-card">
+    <p class="auth-kicker">مارکت‌پلیس</p>
+    <h1 class="auth-title">خرید و فروش اکانت</h1>
+    <p class="profile-copy">کیل‌باکس واسط امن است. پول خریدار تا تحویل قطعی امانی می‌ماند.</p>
+    {% include "shop/_nav.html" %}
+    {% if is_member %}
+    <a class="auth-btn" href="{% url 'shop:listing_create' %}" data-kb-nav>ثبت آگهی فروش</a>
+    {% else %}
+    <a class="auth-btn" href="{% url 'shop:listing_create' %}" data-kb-auth data-shop-auth>ثبت آگهی فروش</a>
+    {% endif %}
+  </section>
+  <div class="kb-shop-grid">
+    {% for item in listings %}
+    <article class="kb-shop-card">
+      {% include "shop/_cover.html" with item=item kind="listing" %}
+      <h3>{{ item.game_name }}</h3>
+      <p>لول {{ item.level }} · CP {{ item.cp_amount }} · لجندری {{ item.legendary_guns }}</p>
+      <strong>{{ item.price|toman }} تومان</strong>
+      <a class="auth-btn" href="{% url 'shop:listing_detail' item.pk %}" data-kb-nav>جزئیات</a>
+    </article>
+    {% empty %}
+    <p class="profile-copy">آگهی منتشرشده‌ای نیست.</p>
+    {% endfor %}
+  </div>
+</main>
+{% endblock %}
+{% block chrome_dock %}{% include "core/_dock.html" %}{% endblock %}

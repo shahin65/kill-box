@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load static shop_tags %}
+
+{% block title %}لوازم گیمینگ · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-shop{% if is_guest %} is-guest{% endif %}{% endblock %}
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+{% block body %}
+<main class="landing-stage profile-stage kb-shop">
+  {% csrf_token %}
+  <section class="profile-card">
+    <p class="auth-kicker">فروشگاه فیزیکی</p>
+    <h1 class="auth-title">لوازم گیمینگ</h1>
+    {% include "shop/_nav.html" %}
+  </section>
+  <div class="kb-shop-grid">
+    {% for item in products %}
+    <article class="kb-shop-card">
+      {% include "shop/_cover.html" with item=item kind="physical" %}
+      <h3>{{ item.title }}</h3>
+      <p>{% if item.stock %}موجودی {{ item.stock }}{% else %}ناموجود{% endif %}</p>
+      <strong>{{ item.price|toman }} تومان</strong>
+      <a class="auth-btn" href="{% url 'shop:physical_detail' item.pk %}" data-kb-nav>جزئیات</a>
+    </article>
+    {% empty %}
+    <p class="profile-copy">فعلا محصولی نیست.</p>
+    {% endfor %}
+  </div>
+</main>
+{% endblock %}
+{% block chrome_dock %}{% include "core/_dock.html" %}{% endblock %}

@@ -2,6 +2,10 @@ function bindSocialPage() {
   if (typeof window.__kbDestroyPostViews === 'function') {
     window.__kbDestroyPostViews();
   }
+  var shell = document.getElementById('kb-shell');
+  if (!shell || !shell.querySelector('.social-card')) {
+    return;
+  }
   if (typeof window.__kbDestroyComposerExtras === 'function') {
     window.__kbDestroyComposerExtras();
   }

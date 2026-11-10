@@ -10,6 +10,7 @@ urlpatterns = [
     path('', include('apps.core.urls')),
     path('social/', include('apps.social.urls')),
     path('alliance/', include('apps.alliances.urls')),
+    path('shop/', include('apps.shop.urls')),
 ]
 
 if settings.ENABLE_DEV_LAB:

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static shop_tags %}
+
+{% block title %}ثبت آگهی · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-shop{% endblock %}
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+{% block body %}
+<main class="landing-stage profile-stage kb-shop">
+  <section class="profile-card">
+    <p class="auth-kicker">فروش اکانت</p>
+    <h1 class="auth-title">ثبت آگهی</h1>
+    <p class="profile-copy">تعرفه انتشار {{ shop_settings.listing_fee|toman }} تومان. اطلاعات تماس فقط برای پشتیبانی است و در ویترین دیده نمی‌شود.</p>
+    {% include "shop/_nav.html" %}
+    <form class="kb-shop-form" method="post" enctype="multipart/form-data" data-shop-buy>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <label class="auth-label">اسکرین‌شات (تا ۶ تصویر)</label>
+      <input type="file" name="images" accept="image/*" multiple>
+      <button class="auth-btn" type="submit">ذخیره پیش‌نویس</button>
+    </form>
+  </section>
+</main>
+{% endblock %}
+{% block chrome_dock %}{% include "core/_dock.html" %}{% endblock %}

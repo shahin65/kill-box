@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.sms.apps.SmsConfig',
     'apps.social.apps.SocialConfig',
     'apps.alliances.apps.AlliancesConfig',
+    'apps.shop.apps.ShopConfig',
 ]
 
 MIDDLEWARE = [
@@ -238,6 +239,8 @@ except (TypeError, ValueError):
     ALLIANCE_CREATE_MIN_LEVEL = 0
 ALLIANCE_CREATE_MIN_LEVEL = max(0, min(6, ALLIANCE_CREATE_MIN_LEVEL))
 FFMPEG_BIN = os.getenv('FFMPEG_BIN', '').strip()
+PAYMENT_GATEWAY = os.getenv('PAYMENT_GATEWAY', '').strip().lower()
+SHOP_FERNET_KEY = os.getenv('SHOP_FERNET_KEY', '').strip()
 try:
     ALLIANCE_MAX_MEMBERS = int(os.getenv('ALLIANCE_MAX_MEMBERS', '50') or 50)
 except (TypeError, ValueError):

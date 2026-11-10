@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load static shop_tags %}
+
+{% block title %}پیگیری سفارش · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-shop{% endblock %}
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+{% block body %}
+<main class="landing-stage profile-stage kb-shop">
+  <section class="profile-card">
+    <p class="auth-kicker">سفارش #{{ order.pk }}</p>
+    <h1 class="auth-title">{{ order.product.title }}</h1>
+    {% include "shop/_nav.html" %}
+    <ol class="kb-shop-steps">
+      {% for step in steps %}
+      <li class="{% if step.done %}is-done{% endif %}{% if step.current %} is-current{% endif %}">{{ step.label }}</li>
+      {% endfor %}
+    </ol>
+    <p class="profile-copy">آیدی بازی: {{ order.game_username }} · {{ order.get_login_method_display }}</p>
+    <ul class="kb-shop-log">
+      {% for row in logs %}
+      <li>{{ row.get_to_status_display|default:row.to_status }} · {{ row.reason }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+</main>
+{% endblock %}
+{% block chrome_dock %}{% include "core/_dock.html" %}{% endblock %}

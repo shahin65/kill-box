@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static shop_tags %}
+
+{% block title %}پرداخت تستی · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-shop{% endblock %}
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+{% block body %}
+<main class="landing-stage profile-stage kb-shop">
+  <section class="profile-card">
+    <p class="auth-kicker">درگاه تستی</p>
+    <h1 class="auth-title">پرداخت {{ attempt.amount|toman }} تومان</h1>
+    <p class="profile-copy">این درگاه ساختگی است. با تغییر فلگ درگاه در تنظیمات فروشگاه می‌توانی زرین‌پال، زیبال یا بله‌پی را جایگزین کنی.</p>
+    <form method="post">
+      {% csrf_token %}
+      <button class="auth-btn" type="submit" name="result" value="ok">پرداخت موفق</button>
+      <button class="auth-alt" type="submit" name="result" value="fail">انصراف</button>
+    </form>
+  </section>
+</main>
+{% endblock %}
+{% block chrome_dock %}{% include "core/_dock.html" %}{% endblock %}

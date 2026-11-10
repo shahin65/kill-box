@@ -13,6 +13,15 @@ class KillboxAdminSite(admin.AdminSite):
     site_header = 'KILLBOX Command'
     site_title = 'KILLBOX'
     index_title = 'پنل فرماندهی'
+    index_template = 'admin/shop_index.html'
+
+    def each_context(self, request):
+        ctx = super().each_context(request)
+        if getattr(request.user, 'is_staff', False):
+            from apps.shop.dashboard import dashboard_payload
+
+            ctx['shop_kpis'] = dashboard_payload()
+        return ctx
 
     def get_urls(self):
         urls = super().get_urls()

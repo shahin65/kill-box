@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static shop_tags %}
+
+{% block title %}فروشگاه · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-shop{% if is_guest %} is-guest{% endif %}{% endblock %}
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+
+{% block body %}
+<main class="landing-stage profile-stage kb-shop">
+  {% csrf_token %}
+  <section class="profile-card">
+    <p class="auth-kicker">فروشگاه</p>
+    <h1 class="auth-title">فروشگاه کیل‌باکس</h1>
+    <p class="profile-copy">جم، سی‌پی، اکانت بازی و لوازم گیمینگ — ویترین برای همه باز است؛ خرید فقط با حساب کاربری.</p>
+    {% include "shop/_nav.html" %}
+  </section>
+
+  <section class="feed-card">
+    <div class="feed-head"><h2>بسته‌های جم</h2><a href="{% url 'shop:gems' %}" data-kb-nav>همه</a></div>
+    <div class="kb-shop-grid">
+      {% for item in gem_packages %}
+      <article class="kb-shop-card">
+        {% include "shop/_cover.html" with item=item kind="gem" %}
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.gems }} جم</p>
+        <strong>{{ item.price|toman }} تومان</strong>
+        <a class="auth-btn" href="{% url 'shop:gems' %}" data-kb-nav>مشاهده</a>
+      </article>
+      {% empty %}
+      <p class="profile-copy">فعلا بسته‌ای برای جم نیست.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="feed-card">
+    <div class="feed-head"><h2>سی‌پی و بتل‌پس</h2><a href="{% url 'shop:digital' %}" data-kb-nav>همه</a></div>
+    <div class="kb-shop-grid">
+      {% for item in digital_products %}
+      <article class="kb-shop-card">
+        {% include "shop/_cover.html" with item=item kind="digital" %}
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.get_kind_display }} · {{ item.game_name }}</p>
+        <strong>{{ item.price|toman }} تومان</strong>
+        <a class="auth-btn" href="{% url 'shop:digital_detail' item.pk %}" data-kb-nav>جزئیات</a>
+      </article>
+      {% empty %}
+      <p class="profile-copy">فعلا آیتم درون‌بازی نیست.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="feed-card">
+    <div class="feed-head"><h2>آگهی فروش اکانت</h2><a href="{% url 'shop:listings' %}" data-kb-nav>همه</a></div>
+    <div class="kb-shop-grid">
+      {% for item in listings %}
+      <article class="kb-shop-card">
+        {% include "shop/_cover.html" with item=item kind="listing" %}
+        <h3>{{ item.game_name }}</h3>
+        <p>لول {{ item.level }} · CP {{ item.cp_amount }}</p>
+        <strong>{{ item.price|toman }} تومان</strong>
+        <a class="auth-btn" href="{% url 'shop:listing_detail' item.pk %}" data-kb-nav>مشاهده آگهی</a>
+      </article>
+      {% empty %}
+      <p class="profile-copy">آگهی منتشرشده‌ای نیست.</p>
+      {% endfor %}
+    </div>
+    {% if is_member %}
+    <a class="auth-alt" href="{% url 'shop:listing_create' %}" data-kb-nav>ثبت آگهی فروش</a>
+    {% else %}
+    <a class="auth-alt" href="{% url 'shop:listing_create' %}" data-kb-auth data-shop-auth>ثبت آگهی فروش</a>
+    {% endif %}
+  </section>
+
+  <section class="feed-card">
+    <div class="feed-head"><h2>لوازم گیمینگ</h2><a href="{% url 'shop:physical' %}" data-kb-nav>همه</a></div>
+    <div class="kb-shop-grid">
+      {% for item in physical_products %}
+      <article class="kb-shop-card">
+        {% include "shop/_cover.html" with item=item kind="physical" %}
+        <h3>{{ item.title }}</h3>
+        <p>موجودی {{ item.stock }}</p>
+        <strong>{{ item.price|toman }} تومان</strong>
+        <a class="auth-btn" href="{% url 'shop:physical_detail' item.pk %}" data-kb-nav>خرید</a>
+      </article>
+      {% empty %}
+      <p class="profile-copy">فعلا محصول فیزیکی نیست.</p>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}
+
+{% block chrome_dock %}
+  {% include "core/_dock.html" %}
+{% endblock %}

@@ -18,7 +18,6 @@ urlpatterns = [
     path('settings/', views.site_settings, name='settings'),
     path('invite/', views.invite, name='invite'),
     path('team/', RedirectView.as_view(pattern_name='alliances:hub', permanent=False), name='team'),
-    path('shop/', views.shop, name='shop'),
     path('live/', views.live_hub, name='live'),
     path('live/<slug:slug>/', views.live_hub, name='live_room'),
     path('live/<slug:slug>/chat/', views.live_chat, name='live_chat'),

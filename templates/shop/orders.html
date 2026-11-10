@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load static shop_tags %}
+
+{% block title %}سفارش‌های من · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-shop{% endblock %}
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+{% block body %}
+<main class="landing-stage profile-stage kb-shop">
+  <section class="profile-card">
+    <p class="auth-kicker">پیگیری</p>
+    <h1 class="auth-title">سفارش‌ها و آگهی‌های من</h1>
+    {% include "shop/_nav.html" %}
+  </section>
+  <section class="feed-card">
+    <div class="feed-head"><h2>سی‌پی / بتل‌پس</h2></div>
+    <ul class="kb-shop-log">
+      {% for row in digital_orders %}
+      <li>
+        <a href="{% url 'shop:digital_order' row.pk %}" data-kb-nav>{{ row.product.title }}</a>
+        <span>{{ row.get_status_display }}</span>
+        <small>{{ row.paid_amount|toman }} تومان</small>
+      </li>
+      {% empty %}
+      <li>سفارشی نیست.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  <section class="feed-card">
+    <div class="feed-head"><h2>معاملات اکانت</h2></div>
+    <ul class="kb-shop-log">
+      {% for row in deals %}
+      <li>
+        <strong>{{ row.listing.game_name }}</strong>
+        <span>{{ row.get_status_display }}</span>
+        <small>{{ row.amount_held|toman }} تومان</small>
+      </li>
+      {% empty %}
+      <li>معامله‌ای نیست.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  <section class="feed-card">
+    <div class="feed-head"><h2>آگهی‌های من</h2></div>
+    <ul class="kb-shop-log">
+      {% for row in my_listings %}
+      <li>
+        <a href="{% url 'shop:listing_detail' row.pk %}" data-kb-nav>{{ row.game_name }}</a>
+        <span>{{ row.get_status_display }}</span>
+      </li>
+      {% empty %}
+      <li>آگهی نداری.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  <section class="feed-card">
+    <div class="feed-head"><h2>سفارش فیزیکی</h2></div>
+    <ul class="kb-shop-log">
+      {% for row in physical_orders %}
+      <li>
+        <strong>#{{ row.pk }} {{ row.get_status_display }}</strong>
+        <span>{{ row.total|toman }} تومان</span>
+        {% if row.tracking_code %}<small>رهگیری {{ row.tracking_code }}</small>{% endif %}
+      </li>
+      {% empty %}
+      <li>سفارش فیزیکی نیست.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</main>
+{% endblock %}
+{% block chrome_dock %}{% include "core/_dock.html" %}{% endblock %}

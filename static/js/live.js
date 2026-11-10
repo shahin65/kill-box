@@ -1,4 +1,11 @@
 function bindLivePage() {
+  if (!document.querySelector('.event-card, [data-live-room], [data-event-start]')) {
+    if (window.__kbEventTick) {
+      window.clearInterval(window.__kbEventTick);
+      window.__kbEventTick = null;
+    }
+    return;
+  }
   bindEventCards();
   bindLiveRoom();
 }

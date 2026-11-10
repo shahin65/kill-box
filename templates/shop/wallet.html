@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static shop_tags %}
+
+{% block title %}کیف پول · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-shop{% if is_guest %} is-guest{% endif %}{% endblock %}
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+{% block body %}
+<main class="landing-stage profile-stage kb-shop">
+  {% csrf_token %}
+  <section class="profile-card">
+    <p class="auth-kicker">کیف پول</p>
+    <h1 class="auth-title">موجودی {{ wallet_balance|toman }} تومان</h1>
+    {% include "shop/_nav.html" %}
+    {% if is_member %}
+    <form class="kb-shop-form" method="post" action="{% url 'shop:wallet_topup' %}" data-shop-buy>
+      {% csrf_token %}
+      <label class="auth-label" for="id_amount">شارژ مستقیم (تومان)</label>
+      <input class="auth-input" id="id_amount" name="amount" type="number" min="10000" step="1000" required dir="ltr">
+      <button class="auth-btn" type="submit">پرداخت و شارژ</button>
+    </form>
+    {% else %}
+    <a class="auth-btn" href="{% url 'shop:wallet_topup' %}" data-kb-auth data-shop-auth data-next="{% url 'shop:wallet' %}">شارژ کیف پول</a>
+    {% endif %}
+  </section>
+  {% if is_member %}
+  <section class="feed-card">
+    <div class="feed-head"><h2>تاریخچه تراکنش</h2></div>
+    <ul class="kb-shop-log">
+      {% for row in transactions %}
+      <li>
+        <strong>{{ row.get_kind_display }}</strong>
+        <span dir="ltr">{{ row.amount|toman }}</span>
+        <small>مانده {{ row.balance_after|toman }}</small>
+      </li>
+      {% empty %}
+      <li>تراکنشی ثبت نشده.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}
+{% block chrome_dock %}{% include "core/_dock.html" %}{% endblock %}

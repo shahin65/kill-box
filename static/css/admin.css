@@ -4,3 +4,85 @@ body,
 .login {
   font-family: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
 }
+
+.kb-admin-shop {
+  margin: 0 0 1.5rem;
+}
+
+.kb-admin-shop h2 {
+  margin: 0 0 0.8rem;
+}
+
+.kb-admin-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.7rem;
+  margin: 0 0 1rem;
+}
+
+.kb-admin-kpis article {
+  border: 1px solid var(--hairline-color, #ddd);
+  border-radius: 6px;
+  padding: 0.75rem 0.85rem;
+  background: var(--body-bg, #fff);
+}
+
+.kb-admin-kpis strong {
+  display: block;
+  font-size: 1.25rem;
+}
+
+.kb-admin-kpis span {
+  color: var(--body-quiet-color, #666);
+  font-size: 0.85rem;
+}
+
+.kb-admin-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 13rem;
+  align-items: start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.kb-admin-chart {
+  min-width: 0;
+}
+
+.kb-admin-chart h3 {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+}
+
+.kb-admin-chart--line canvas {
+  display: block;
+  width: 100% !important;
+  max-height: 220px;
+  max-width: 100%;
+}
+
+.kb-admin-chart--donut {
+  justify-self: end;
+}
+
+.kb-admin-donut-wrap {
+  width: 9.25rem;
+  height: 9.25rem;
+  margin: 0 auto 0.4rem;
+}
+
+.kb-admin-donut-wrap canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 900px) {
+  .kb-admin-charts {
+    grid-template-columns: 1fr;
+  }
+
+  .kb-admin-chart--donut {
+    justify-self: center;
+  }
+}

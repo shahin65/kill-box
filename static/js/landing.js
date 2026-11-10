@@ -20,12 +20,15 @@ function bindPage() {
   if (typeof window.__kbBindAlliance === 'function') {
     window.__kbBindAlliance();
   }
+  if (typeof window.__kbBindShop === 'function') {
+    window.__kbBindShop();
+  }
 }
 
 window.__kbBindPage = bindPage;
 
 var KB_AUTH_GUARD =
-  '[data-like-post], [data-save-post], [data-gif-open], [data-story-viewers], [data-comment-del], [data-comment-reply], #story-like, [data-follow], [data-comment-post], [data-kb-auth], #story-form, #post-form, #story-comment-form, #live-chat-form, #live-donate-form, [data-accept], [data-reject], [data-block], .event-fee-btn, .composer, [data-alliance-action], #alliance-chat-form';
+  '[data-like-post], [data-save-post], [data-gif-open], [data-story-viewers], [data-comment-del], [data-comment-reply], #story-like, [data-follow], [data-comment-post], [data-kb-auth], [data-shop-auth], #story-form, #post-form, #story-comment-form, #live-chat-form, #live-donate-form, [data-accept], [data-reject], [data-block], .event-fee-btn, .composer, [data-alliance-action], #alliance-chat-form, form[data-shop-buy]';
 
 function kbIsMember() {
   return document.body.getAttribute('data-kb-member') === '1';
@@ -48,10 +51,15 @@ function closeAuthPrompt() {
   dialog.removeAttribute('open');
 }
 
-function promptAuth() {
+function promptAuth(nextUrl) {
   var dialog = document.getElementById('auth-prompt');
   if (!dialog) {
     return false;
+  }
+  var cta = dialog.querySelector('.auth-prompt__cta');
+  if (cta) {
+    var next = nextUrl || window.location.pathname + window.location.search;
+    cta.setAttribute('href', '/register/?next=' + encodeURIComponent(next));
   }
   try {
     if (typeof dialog.showModal === 'function' && !dialog.open) {
@@ -116,12 +124,14 @@ function bindGuestChrome() {
       if (kbIsMember()) {
         return;
       }
-      if (!node.closest(KB_AUTH_GUARD)) {
+      var gated = node.closest(KB_AUTH_GUARD);
+      if (!gated) {
         return;
       }
       event.preventDefault();
       event.stopPropagation();
-      promptAuth();
+      var nextNode = node.closest('[data-next]');
+      promptAuth((nextNode && nextNode.getAttribute('data-next')) || window.location.pathname + window.location.search);
     },
     true
   );
@@ -141,7 +151,8 @@ function bindGuestChrome() {
         form.id === 'live-chat-form' ||
         form.id === 'live-donate-form' ||
         form.id === 'story-comment-form' ||
-        (form.hasAttribute && form.hasAttribute('data-comment-post'));
+        (form.hasAttribute && form.hasAttribute('data-comment-post')) ||
+        (form.hasAttribute && form.hasAttribute('data-shop-buy'));
       if (!gated) {
         return;
       }

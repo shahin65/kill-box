@@ -1,6 +1,6 @@
 {% load static %}
 {% url 'core:home' as home_url %}
-{% url 'core:shop' as shop_url %}
+{% url 'shop:hub' as shop_url %}
 {% url 'alliances:hub' as alliance_url %}
 {% url 'core:live' as live_url %}
 {% url 'social:explore' as explore_url %}
@@ -38,7 +38,7 @@
   </svg>
 
   <a
-    class="kb-dock__item{% if request.path == shop_url %} is-active{% endif %}"
+    class="kb-dock__item{% if request.path == shop_url or '/shop/' in request.path %} is-active{% endif %}"
     href="{{ shop_url }}"
     data-kb-nav
   >
@@ -68,7 +68,7 @@
     <span class="kb-dock__label">تورنومنت</span>
   </a>
   <a
-    class="kb-dock__item{% if request.path == explore_url %} is-active{% endif %}"
+    class="kb-dock__item{% if request.path == explore_url or '/social/explore/' in request.path %} is-active{% endif %}"
     href="{{ explore_url }}"
     data-kb-nav
   >

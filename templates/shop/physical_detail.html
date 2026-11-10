@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load static shop_tags %}
+
+{% block title %}{{ product.title }} · KILLBOX{% endblock %}
+{% block body_class %}is-landing is-home is-profile is-docked is-shop{% if is_guest %} is-guest{% endif %}{% endblock %}
+{% block chrome_top %}
+  {% include "core/_topbar.html" %}
+  {% include "core/_brand.html" %}
+{% endblock %}
+{% block body %}
+<main class="landing-stage profile-stage kb-shop">
+  {% csrf_token %}
+  <section class="profile-card kb-shop-hero">
+    {% include "shop/_cover.html" with item=product kind="physical" %}
+    <p class="auth-kicker">لوازم گیمینگ</p>
+    <h1 class="auth-title">{{ product.title }}</h1>
+    <p class="profile-copy">{{ product.description }}</p>
+    <p class="profile-copy">قیمت {{ product.price|toman }} تومان · ارسال {{ shop_settings.shipping_fee|toman }} تومان</p>
+    {% include "shop/_nav.html" %}
+    {% if product.stock < 1 %}
+    <p class="profile-copy">ناموجود</p>
+    {% elif is_member %}
+    <form class="kb-shop-form" method="post" data-shop-buy>
+      {% csrf_token %}
+      <label class="auth-label">تعداد</label>
+      {{ form.quantity }}
+      <label class="auth-label">نام خریدار</label>
+      {{ form.full_name }}
+      <label class="auth-label">شماره تماس</label>
+      {{ form.phone }}
+      <label class="auth-label">استان</label>
+      {{ form.province }}
+      <label class="auth-label">شهر</label>
+      {{ form.city }}
+      <label class="auth-label">آدرس پستی دقیق</label>
+      {{ form.address }}
+      <label class="auth-label">کد پستی ۱۰ رقمی</label>
+      {{ form.postal_code }}
+      {% include "shop/_pay.html" %}
+      <button class="auth-btn" type="submit">پرداخت و ثبت سفارش</button>
+    </form>
+    {% else %}
+    <a class="auth-btn" href="{% url 'shop:physical_detail' product.pk %}" data-kb-auth data-shop-auth data-next="{{ request.path }}">ورود برای خرید</a>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}
+{% block chrome_dock %}{% include "core/_dock.html" %}{% endblock %}

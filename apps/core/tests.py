@@ -977,11 +977,12 @@ class DockAndLegalTests(TestCase):
         team = self.client.get(reverse('core:team'))
         self.assertRedirects(team, reverse('alliances:hub'))
         hub = self.client.get(reverse('alliances:hub'))
-        shop = self.client.get(reverse('core:shop'))
+        shop = self.client.get(reverse('shop:hub'))
         self.assertContains(hub, 'هنوز عضو اتحادی نیستی')
         self.assertContains(hub, 'kb-dock__item is-active')
         self.assertContains(hub, 'href="/alliance/"')
-        self.assertContains(shop, 'فعلا آیتمی برای خرید وجود ندارد')
+        self.assertContains(shop, 'فروشگاه کیل‌باکس')
+        self.assertContains(shop, 'بسته‌های جم')
 
     def test_profile_gift_and_medal_are_disabled(self):
         User = get_user_model()

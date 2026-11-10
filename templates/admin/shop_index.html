@@ -1,0 +1,33 @@
+{% extends "admin/index.html" %}
+{% load i18n static %}
+
+{% block content %}
+{% if shop_kpis %}
+<section class="kb-admin-shop" aria-label="داشبورد فروشگاه">
+  <h2>داشبورد فروشگاه کیل‌باکس</h2>
+  <div class="kb-admin-kpis">
+    <article><strong>{{ shop_kpis.today }}</strong><span>فروش امروز (تومان)</span></article>
+    <article><strong>{{ shop_kpis.week }}</strong><span>فروش ۷ روز (تومان)</span></article>
+    <article><strong>{{ shop_kpis.pending_digital }}</strong><span>سفارش سی‌پی معلق</span></article>
+    <article><strong>{{ shop_kpis.pending_listings }}</strong><span>آگهی در انتظار تایید</span></article>
+    <article><strong>{{ shop_kpis.ready_ship }}</strong><span>فیزیکی آماده ارسال</span></article>
+  </div>
+  <div class="kb-admin-charts">
+    <div class="kb-admin-chart kb-admin-chart--line">
+      <h3>روند درآمد</h3>
+      <canvas id="kb-shop-line" width="520" height="200" aria-label="روند درآمد"></canvas>
+    </div>
+    <div class="kb-admin-chart kb-admin-chart--donut">
+      <h3>سهم درآمد</h3>
+      <div class="kb-admin-donut-wrap">
+        <canvas id="kb-shop-donut" width="148" height="148" aria-label="سهم درآمد"></canvas>
+      </div>
+    </div>
+  </div>
+  {{ shop_kpis|json_script:"kb-shop-kpis" }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="{% static 'js/admin_shop.js' %}?v=2"></script>
+</section>
+{% endif %}
+{{ block.super }}
+{% endblock %}

@@ -1,0 +1,19 @@
+{% load shop_tags %}
+<nav class="kb-shop-nav" aria-label="فروشگاه">
+  <a href="{% url 'shop:hub' %}" data-kb-nav>ویترین</a>
+  <a href="{% url 'shop:gems' %}" data-kb-nav>جم</a>
+  <a href="{% url 'shop:digital' %}" data-kb-nav>سی‌پی / بتل‌پس</a>
+  <a href="{% url 'shop:listings' %}" data-kb-nav>اکانت</a>
+  <a href="{% url 'shop:physical' %}" data-kb-nav>لوازم</a>
+  <a href="{% url 'shop:wallet' %}" data-kb-nav>کیف پول</a>
+  {% if is_member %}
+  <a href="{% url 'shop:orders' %}" data-kb-nav>سفارش‌های من</a>
+  {% endif %}
+</nav>
+{% if messages %}
+<ul class="kb-shop-flash">
+  {% for message in messages %}
+  <li class="{{ message.tags }}">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
