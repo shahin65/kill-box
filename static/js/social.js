@@ -364,6 +364,9 @@ function bindSocialActions() {
         parentField.value = '';
       }
       form.classList.remove('has-gif', 'is-replying');
+      if (window.__kbClearGifChip) {
+        window.__kbClearGifChip(form);
+      }
       var reader = document.getElementById('post-reader');
       if (reader && reader.open && window.__kbPaintPostReader) {
         window.__kbUpdatePostComments(postId, payload.comments || []);

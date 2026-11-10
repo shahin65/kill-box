@@ -101,7 +101,13 @@ class StoryLike(models.Model):
 class StoryComment(models.Model):
     story = models.ForeignKey(Story, on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_story_comments')
-    text = models.CharField(max_length=280)
+    text = models.CharField(max_length=280, blank=True, default='')
+    gif_id = models.CharField(max_length=64, blank=True, default='')
+    gif_url = models.URLField(max_length=500, blank=True, default='')
+    gif_preview_url = models.URLField(max_length=500, blank=True, default='')
+    gif_width = models.PositiveSmallIntegerField(null=True, blank=True)
+    gif_height = models.PositiveSmallIntegerField(null=True, blank=True)
+    gif_alt = models.CharField(max_length=120, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

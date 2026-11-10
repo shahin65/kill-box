@@ -237,6 +237,7 @@ try:
 except (TypeError, ValueError):
     ALLIANCE_CREATE_MIN_LEVEL = 0
 ALLIANCE_CREATE_MIN_LEVEL = max(0, min(6, ALLIANCE_CREATE_MIN_LEVEL))
+FFMPEG_BIN = os.getenv('FFMPEG_BIN', '').strip()
 try:
     ALLIANCE_MAX_MEMBERS = int(os.getenv('ALLIANCE_MAX_MEMBERS', '50') or 50)
 except (TypeError, ValueError):

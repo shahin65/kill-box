@@ -1,6 +1,7 @@
 """Optimize social image/video uploads before they hit the host."""
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import tempfile
@@ -114,8 +115,25 @@ def poster_from_image_file(content: ContentFile, max_side: int = 720) -> Content
     return encode_still(BytesIO(data), max_side=max_side, name='thumb.webp')
 
 
+def _find_ffmpeg() -> str:
+    from django.conf import settings
+
+    candidates = [
+        str(getattr(settings, 'FFMPEG_BIN', '') or '').strip(),
+        shutil.which('ffmpeg') or '',
+        '/usr/bin/ffmpeg',
+        '/usr/local/bin/ffmpeg',
+        '/bin/ffmpeg',
+        '/usr/local/ffmpeg/bin/ffmpeg',
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return ''
+
+
 def poster_from_video_file(content: ContentFile, max_side: int = 720) -> ContentFile | None:
-    ffmpeg = shutil.which('ffmpeg')
+    ffmpeg = _find_ffmpeg()
     if not ffmpeg:
         return None
     content.seek(0)
@@ -172,7 +190,7 @@ def prepare_video(uploaded: UploadedFile, max_seconds: int, max_bytes: int) -> C
     duration = mp4_duration_seconds(uploaded)
     if duration is not None and duration > max_seconds + 0.4:
         raise MediaError(f'مدت ویدیو نباید بیشتر از {max_seconds} ثانیه باشد.')
-    ffmpeg = shutil.which('ffmpeg')
+    ffmpeg = _find_ffmpeg()
     if not ffmpeg:
         uploaded.seek(0)
         name = Path(getattr(uploaded, 'name', 'clip.mp4')).name
@@ -253,10 +271,7 @@ def story_segment_plan(duration: float | None, max_seconds: float = STORY_MAX_SE
 
 
 def _ffmpeg() -> str:
-    binary = shutil.which('ffmpeg')
-    if not binary:
-        raise MediaError('پردازش ویدیو روی سرور در دسترس نیست.')
-    return binary
+    return _find_ffmpeg()
 
 
 def _ffprobe() -> str:
@@ -283,7 +298,7 @@ def probe_video_duration(path: Path) -> float | None:
                 return value
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError, ValueError):
             pass
-    ffmpeg = shutil.which('ffmpeg')
+    ffmpeg = _find_ffmpeg()
     if not ffmpeg:
         return None
     try:
@@ -388,7 +403,7 @@ def _transcode_story_segment(
 
 
 def extract_story_poster(src: Path, at_seconds: float = 2.0) -> ContentFile | None:
-    ffmpeg = shutil.which('ffmpeg')
+    ffmpeg = _find_ffmpeg()
     if not ffmpeg:
         return None
     stamp = max(0.05, at_seconds)
@@ -418,12 +433,27 @@ def extract_story_poster(src: Path, at_seconds: float = 2.0) -> ContentFile | No
         return encode_still(BytesIO(dest.read_bytes()), max_side=720, name='thumb.webp')
 
 
+def _story_video_passthrough(
+    uploaded: UploadedFile,
+) -> list[tuple[ContentFile, ContentFile | None, float]]:
+    duration = mp4_duration_seconds(uploaded)
+    if duration is None:
+        duration = float(STORY_MAX_SECONDS)
+    uploaded.seek(0)
+    name = Path(getattr(uploaded, 'name', 'clip.mp4')).name or 'clip.mp4'
+    video = ContentFile(uploaded.read(), name=name)
+    play = min(max(duration, 1.0), float(STORY_MAX_SECONDS))
+    return [(video, None, round(play, 3))]
+
+
 def prepare_story_videos(uploaded: UploadedFile) -> list[tuple[ContentFile, ContentFile | None, float]]:
     """Transcode a story upload into 1080x1920 H.264/AAC 30fps 15s clips."""
     size = getattr(uploaded, 'size', 0) or 0
     if size > STORY_VIDEO_MAX_BYTES:
         raise MediaError('حجم ویدیو نباید بیشتر از ۵۰ مگابایت باشد.')
     ffmpeg = _ffmpeg()
+    if not ffmpeg:
+        return _story_video_passthrough(uploaded)
     suffix = Path(getattr(uploaded, 'name', 'clip.mp4')).suffix or '.mp4'
     with tempfile.TemporaryDirectory() as tmp:
         src = Path(tmp) / f'in{suffix}'

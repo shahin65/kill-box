@@ -334,11 +334,26 @@ def serialize_post(post, request) -> dict:
     }
 
 
+def serialize_story_comment(row) -> dict:
+    gif_url = row.gif_url if getattr(row, 'gif_url', '') else ''
+    return {
+        'name': display_name(row.user),
+        'text': row.text or '',
+        'gif_url': gif_url,
+        'gif_preview_url': getattr(row, 'gif_preview_url', '') or gif_url,
+        'gif_width': getattr(row, 'gif_width', 0) or 0,
+        'gif_height': getattr(row, 'gif_height', 0) or 0,
+        'alt': getattr(row, 'gif_alt', '') or 'GIF',
+        'avatar': member_avatar_url(row.user),
+    }
+
+
 def serialize_comment(row, viewer=None) -> dict:
     gif_url = row.gif_url if getattr(row, 'gif_url', '') else ''
     return {
         'id': row.pk,
         'name': display_name(row.user),
+        'avatar': member_avatar_url(row.user),
         'text': row.text or '',
         'parent_id': row.parent_id,
         'kind': row.content_type or PostComment.TEXT,
@@ -493,10 +508,7 @@ def serialize_story_groups(request, *, friend_first=False, story_limit=None, gro
                 'liked': bool(
                     viewer and any(like.user_id == viewer.pk for like in row.likes.all())
                 ),
-                'comments': [
-                    {'name': display_name(item.user), 'text': item.text}
-                    for item in row.comments.all()
-                ],
+                'comments': [serialize_story_comment(item) for item in row.comments.all()],
                 'views': int(getattr(row, 'view_n', 0) or 0),
                 'views_label': format_count(getattr(row, 'view_n', 0)),
                 'mine': bool(viewer and row.author_id == viewer.pk),

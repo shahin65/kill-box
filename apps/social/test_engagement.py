@@ -173,6 +173,10 @@ class SocialEngagementTests(TestCase):
         )
         self.assertTrue(payload.json()['success'])
         self.assertEqual(PostComment.objects.get().text, 'عالی 🔥')
+        comments = payload.json()['comments']
+        self.assertTrue(comments)
+        self.assertTrue(comments[0]['avatar'])
+        self.assertIn('name', comments[0])
 
     def test_comment_gif_only(self):
         gif = _catalog_gif()

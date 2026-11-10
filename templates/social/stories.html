@@ -7,6 +7,7 @@
 {% block panel %}
 <section class="profile-card social-card" data-story-create="{% url 'social:story_create' %}">
   {% csrf_token %}
+  <a class="composer-back" href="{% url 'social:explore' %}" data-kb-nav>بازگشت</a>
   <p class="auth-kicker">شبکه‌های اجتماعی</p>
   <h1 class="auth-title">استوری</h1>
   <p class="profile-copy">عکس یا فیلم تا ۵۰ مگابایت. ویدیو به ۹:۱۶، H.264 و حداکثر ۱۵ ثانیه فشرده می‌شود و اگر طولانی‌تر باشد به چند استوری پشت‌سرهم تبدیل می‌شود. هر کاربر تا ۱۵ استوری فعال در ۲۴ ساعت دارد.</p>

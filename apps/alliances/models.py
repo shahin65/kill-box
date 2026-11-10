@@ -34,6 +34,7 @@ class Alliance(models.Model):
         related_name='kb_alliances_created',
         null=True,
         blank=True,
+        verbose_name='سازنده',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -73,13 +74,19 @@ class AllianceMember(models.Model):
         (MEMBER, 'عضو'),
     )
 
-    alliance = models.ForeignKey(Alliance, on_delete=models.CASCADE, related_name='memberships')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_alliance_memberships')
-    role = models.CharField(max_length=12, choices=ROLE_CHOICES, default=MEMBER)
-    joined_at = models.DateTimeField(auto_now_add=True)
-    left_at = models.DateTimeField(null=True, blank=True)
+    alliance = models.ForeignKey(
+        Alliance, on_delete=models.CASCADE, related_name='memberships', verbose_name='اتحاد'
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='kb_alliance_memberships', verbose_name='کاربر'
+    )
+    role = models.CharField('نقش', max_length=12, choices=ROLE_CHOICES, default=MEMBER)
+    joined_at = models.DateTimeField('تاریخ عضویت', auto_now_add=True)
+    left_at = models.DateTimeField('تاریخ ترک', null=True, blank=True)
 
     class Meta:
+        verbose_name = 'عضو اتحاد'
+        verbose_name_plural = 'اعضای اتحاد'
         constraints = [
             models.UniqueConstraint(fields=('alliance', 'user'), name='alliance_member_unique'),
         ]
@@ -106,10 +113,14 @@ class AllianceJoinRequest(models.Model):
         (REJECTED, 'رد شده'),
     )
 
-    alliance = models.ForeignKey(Alliance, on_delete=models.CASCADE, related_name='join_requests')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_alliance_join_requests')
-    message = models.CharField(max_length=140, blank=True, default='')
-    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=PENDING)
+    alliance = models.ForeignKey(
+        Alliance, on_delete=models.CASCADE, related_name='join_requests', verbose_name='اتحاد'
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='kb_alliance_join_requests', verbose_name='کاربر'
+    )
+    message = models.CharField('پیام', max_length=140, blank=True, default='')
+    status = models.CharField('وضعیت', max_length=12, choices=STATUS_CHOICES, default=PENDING)
     reviewed_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -128,6 +139,8 @@ class AllianceJoinRequest(models.Model):
                 name='alliance_join_pending_unique',
             ),
         ]
+        verbose_name = 'درخواست عضویت'
+        verbose_name_plural = 'درخواست‌های عضویت'
         indexes = [
             models.Index(fields=('alliance', 'status')),
         ]
@@ -135,9 +148,13 @@ class AllianceJoinRequest(models.Model):
 
 
 class AllianceBlacklist(models.Model):
-    alliance = models.ForeignKey(Alliance, on_delete=models.CASCADE, related_name='blacklist')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_alliance_blocks')
-    reason = models.CharField(max_length=140, blank=True, default='')
+    alliance = models.ForeignKey(
+        Alliance, on_delete=models.CASCADE, related_name='blacklist', verbose_name='اتحاد'
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='kb_alliance_blocks', verbose_name='کاربر'
+    )
+    reason = models.CharField('دلیل', max_length=140, blank=True, default='')
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -148,6 +165,8 @@ class AllianceBlacklist(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = 'مسدود اتحاد'
+        verbose_name_plural = 'لیست سیاه اتحاد'
         constraints = [
             models.UniqueConstraint(fields=('alliance', 'user'), name='alliance_blacklist_unique'),
         ]
@@ -165,10 +184,16 @@ class AllianceInvite(models.Model):
         (EXPIRED, 'منقضی'),
     )
 
-    alliance = models.ForeignKey(Alliance, on_delete=models.CASCADE, related_name='invites')
-    inviter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_alliance_invites_sent')
-    invitee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_alliance_invites_received')
-    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=PENDING)
+    alliance = models.ForeignKey(
+        Alliance, on_delete=models.CASCADE, related_name='invites', verbose_name='اتحاد'
+    )
+    inviter = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='kb_alliance_invites_sent', verbose_name='دعوت‌کننده'
+    )
+    invitee = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='kb_alliance_invites_received', verbose_name='دعوت‌شده'
+    )
+    status = models.CharField('وضعیت', max_length=12, choices=STATUS_CHOICES, default=PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     responded_at = models.DateTimeField(null=True, blank=True)
@@ -181,6 +206,8 @@ class AllianceInvite(models.Model):
                 name='alliance_invite_pending_unique',
             ),
         ]
+        verbose_name = 'دعوت اتحاد'
+        verbose_name_plural = 'دعوت‌های اتحاد'
         indexes = [
             models.Index(fields=('invitee', 'status')),
         ]
@@ -188,13 +215,25 @@ class AllianceInvite(models.Model):
 
 
 class AllianceMessage(models.Model):
-    alliance = models.ForeignKey(Alliance, on_delete=models.CASCADE, related_name='messages')
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kb_alliance_messages')
-    text = models.CharField(max_length=500, blank=True, default='')
-    image = models.ImageField(upload_to=chat_image_upload_to, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    alliance = models.ForeignKey(
+        Alliance, on_delete=models.CASCADE, related_name='messages', verbose_name='اتحاد'
+    )
+    author = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='kb_alliance_messages', verbose_name='فرستنده'
+    )
+    text = models.CharField('متن', max_length=500, blank=True, default='')
+    image = models.ImageField('تصویر', upload_to=chat_image_upload_to, blank=True)
+    gif_id = models.CharField('شناسه GIF', max_length=64, blank=True, default='')
+    gif_url = models.URLField('آدرس GIF', max_length=500, blank=True, default='')
+    gif_preview_url = models.URLField('پیش‌نمایش GIF', max_length=500, blank=True, default='')
+    gif_width = models.PositiveSmallIntegerField('عرض GIF', null=True, blank=True)
+    gif_height = models.PositiveSmallIntegerField('ارتفاع GIF', null=True, blank=True)
+    gif_alt = models.CharField('متن جایگزین GIF', max_length=120, blank=True, default='')
+    created_at = models.DateTimeField('تاریخ ارسال', auto_now_add=True)
 
     class Meta:
+        verbose_name = 'پیام اتحاد'
+        verbose_name_plural = 'پیام‌های اتحاد'
         ordering = ('created_at',)
         indexes = [
             models.Index(fields=('alliance', 'created_at')),
@@ -222,6 +261,8 @@ class AllianceAuditLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        verbose_name = 'گزارش اتحاد'
+        verbose_name_plural = 'گزارش‌های اتحاد'
         ordering = ('-created_at',)
         indexes = [
             models.Index(fields=('alliance', '-created_at')),

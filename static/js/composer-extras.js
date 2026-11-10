@@ -20,22 +20,12 @@
   function commentMarkup(row) {
     var gif = '';
     if (row.gif_url) {
-      var w = Number(row.gif_width || 0) || 240;
-      var h = Number(row.gif_height || 0) || 180;
       gif =
-        '<span class="kb-gif" style="aspect-ratio:' +
-        w +
-        '/' +
-        h +
-        '"><img src="' +
+        '<span class="kb-gif"><img src="' +
         escapeHtml(row.gif_preview_url || row.gif_url) +
         '" alt="' +
         escapeHtml(row.alt || 'GIF') +
-        '" loading="lazy" decoding="async" width="' +
-        w +
-        '" height="' +
-        h +
-        '"></span>';
+        '" loading="lazy" decoding="async"></span>';
     }
     var replyBtn = row.parent_id
       ? ''
@@ -45,17 +35,20 @@
     var delBtn = row.mine
       ? '<button class="kb-comment-del" type="button" data-comment-del="' + row.id + '">حذف</button>'
       : '';
+    var avatar = escapeHtml(row.avatar || '/static/images/icons/profile2.webp');
     return (
-      '<li class="' +
-      (row.parent_id ? 'is-reply' : '') +
-      '"><strong>' +
+      '<li class="kb-comment' +
+      (row.parent_id ? ' is-reply' : '') +
+      '"><img class="kb-comment__avatar" src="' +
+      avatar +
+      '" alt="" width="32" height="32"><div class="kb-comment__body"><strong>' +
       escapeHtml(row.name) +
       '</strong> ' +
       escapeHtml(row.text) +
       gif +
       replyBtn +
       delBtn +
-      '</li>'
+      '</div></li>'
     );
   }
 
@@ -65,11 +58,92 @@
     return form.querySelector('textarea, input[type="text"], input:not([type])');
   }
 
+  function wantsGif(form) {
+    if (!form) {
+      return false;
+    }
+    if (form.id === 'story-form' || form.id === 'post-form') {
+      return false;
+    }
+    return true;
+  }
+
+  function composerOf(node) {
+    return node
+      ? node.closest(
+          '[data-comment-post], [data-kb-composer], #story-form, #post-form, #story-comment-form, #alliance-chat-form'
+        )
+      : null;
+  }
+
+  function gifChipLabel(form) {
+    return form && form.getAttribute('data-kb-composer') === 'chat'
+      ? 'GIF به پیام اضافه شد'
+      : 'GIF به کامنت اضافه شد';
+  }
+
+  function ensureGifChip(form) {
+    if (!form || form.querySelector('.kb-gif-chip')) {
+      return form.querySelector('.kb-gif-chip');
+    }
+    var chip = doc.createElement('div');
+    chip.className = 'kb-gif-chip';
+    chip.hidden = true;
+    chip.innerHTML =
+      '<img alt=""><span>' +
+      gifChipLabel(form) +
+      '</span><button type="button" data-gif-clear>حذف</button>';
+    var row = form.querySelector('.kb-composer-row');
+    if (row && row.parentNode) {
+      form.insertBefore(chip, row);
+    } else {
+      form.appendChild(chip);
+    }
+    return chip;
+  }
+
+  function clearGifChip(form) {
+    if (!form) {
+      return;
+    }
+    var hidden = form.querySelector('[name="gif_id"]');
+    if (hidden) {
+      hidden.value = '';
+    }
+    form.classList.remove('has-gif');
+    var chip = form.querySelector('.kb-gif-chip');
+    if (chip) {
+      chip.hidden = true;
+      var img = chip.querySelector('img');
+      if (img) {
+        img.removeAttribute('src');
+      }
+    }
+  }
+
+  function showGifChip(form, preview) {
+    var chip = ensureGifChip(form);
+    if (!chip) {
+      return;
+    }
+    var img = chip.querySelector('img');
+    if (img && preview) {
+      img.src = preview;
+    }
+    var label = chip.querySelector('span');
+    if (label) {
+      label.textContent = gifChipLabel(form);
+    }
+    chip.hidden = false;
+    form.classList.add('has-gif');
+  }
+
   function ensureExtras(form) {
     if (!form || form.getAttribute('data-kb-extras') === '1') {
       return;
     }
     form.setAttribute('data-kb-extras', '1');
+    form.setAttribute('data-kb-composer', form.getAttribute('data-kb-composer') || '1');
     if (!form.querySelector('.kb-emoji-bar')) {
       var bar = doc.createElement('div');
       bar.className = 'kb-emoji-bar';
@@ -88,7 +162,7 @@
       }).join('');
       form.insertBefore(bar, form.firstChild);
     }
-    if (!form.querySelector('[data-gif-open]')) {
+    if (wantsGif(form) && !form.querySelector('[data-gif-open]')) {
       var gifBtn = doc.createElement('button');
       gifBtn.className = 'kb-gif-btn';
       gifBtn.type = 'button';
@@ -102,7 +176,7 @@
         form.appendChild(gifBtn);
       }
     }
-    if (!form.querySelector('[name="gif_id"]')) {
+    if (wantsGif(form) && !form.querySelector('[name="gif_id"]')) {
       var hidden = doc.createElement('input');
       hidden.type = 'hidden';
       hidden.name = 'gif_id';
@@ -115,8 +189,39 @@
       form.appendChild(parent);
     }
     var field = fieldOf(form);
-    if (field) {
+    if (field && !field.getAttribute('maxlength')) {
       field.setAttribute('maxlength', String(MAX));
+    }
+    ensureComposerRow(form);
+    if (wantsGif(form)) {
+      ensureGifChip(form);
+    }
+  }
+
+  function ensureComposerRow(form) {
+    if (!form || form.querySelector('.kb-composer-row')) {
+      return;
+    }
+    if (form.id === 'story-form' || form.id === 'post-form' || form.hasAttribute('data-kb-media-form')) {
+      return;
+    }
+    var row = doc.createElement('div');
+    row.className = 'kb-composer-row';
+    var kids = Array.prototype.slice.call(form.children);
+    kids.forEach(function (node) {
+      if (node.classList && node.classList.contains('kb-emoji-bar')) {
+        return;
+      }
+      if (node.tagName === 'INPUT' && (node.type === 'hidden' || node.name === 'gif_id' || node.name === 'parent_id')) {
+        return;
+      }
+      row.appendChild(node);
+    });
+    var emoji = form.querySelector('.kb-emoji-bar');
+    if (emoji && emoji.nextSibling) {
+      form.insertBefore(row, emoji.nextSibling);
+    } else {
+      form.appendChild(row);
     }
   }
 
@@ -127,12 +232,13 @@
     }
     var start = field.selectionStart || field.value.length;
     var end = field.selectionEnd || field.value.length;
+    var cap = Number(field.getAttribute('maxlength') || MAX) || MAX;
     var next = field.value.slice(0, start) + emoji + field.value.slice(end);
-    if (next.length > MAX) {
-      next = next.slice(0, MAX);
+    if (next.length > cap) {
+      next = next.slice(0, cap);
     }
     field.value = next;
-    var caret = Math.min(start + emoji.length, MAX);
+    var caret = Math.min(start + emoji.length, cap);
     field.focus();
     if (field.setSelectionRange) {
       field.setSelectionRange(caret, caret);
@@ -162,6 +268,7 @@
         lastFocus.focus();
       }
     }
+    doc.dispatchEvent(new CustomEvent(on ? 'kb-gif-open' : 'kb-gif-close'));
   }
 
   function gifStatus(text, isError) {
@@ -279,15 +386,21 @@
     loadGifs(true);
   }
 
-  function pickGif(id) {
+  function pickGif(id, tile) {
     if (!activeForm) {
       return;
     }
+    ensureExtras(activeForm);
     var hidden = activeForm.querySelector('[name="gif_id"]');
     if (hidden) {
       hidden.value = id;
     }
-    activeForm.classList.add('has-gif');
+    var preview = '';
+    if (tile) {
+      var img = tile.querySelector('img');
+      preview = img ? img.getAttribute('src') || '' : '';
+    }
+    showGifChip(activeForm, preview);
     setGifOpen(false);
   }
 
@@ -304,7 +417,11 @@
   }
 
   function bindForms() {
-    doc.querySelectorAll('[data-comment-post]').forEach(ensureExtras);
+    doc
+      .querySelectorAll(
+        '[data-comment-post], [data-kb-composer], #story-form, #post-form, #story-comment-form, #alliance-chat-form'
+      )
+      .forEach(ensureExtras);
   }
 
   function bind() {
@@ -321,14 +438,20 @@
       var emoji = node.closest('[data-kb-emoji]');
       if (emoji) {
         event.preventDefault();
-        var form = emoji.closest('[data-comment-post]');
+        var form = composerOf(emoji);
         insertEmoji(form, emoji.getAttribute('data-kb-emoji') || '');
         return;
       }
       var gifOpen = node.closest('[data-gif-open]');
       if (gifOpen) {
         event.preventDefault();
-        openGif(gifOpen.closest('[data-comment-post]'));
+        openGif(composerOf(gifOpen));
+        return;
+      }
+      var gifClear = node.closest('[data-gif-clear]');
+      if (gifClear) {
+        event.preventDefault();
+        clearGifChip(composerOf(gifClear));
         return;
       }
       if (node.closest('[data-gif-close]') || node.closest('.kb-gif-sheet__backdrop')) {
@@ -339,7 +462,7 @@
       var pick = node.closest('[data-gif-pick]');
       if (pick) {
         event.preventDefault();
-        pickGif(pick.getAttribute('data-gif-pick') || '');
+        pickGif(pick.getAttribute('data-gif-pick') || '', pick);
         return;
       }
       if (node.closest('#kb-gif-more')) {
@@ -419,4 +542,5 @@
   win.__kbBindComposerExtras = bind;
   win.__kbDestroyComposerExtras = destroy;
   win.__kbEnsureCommentExtras = bindForms;
+  win.__kbClearGifChip = clearGifChip;
 })(window, document);

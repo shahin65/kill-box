@@ -8,13 +8,16 @@
     <article class="kb-alliance-chat__item" data-msg-id="{{ row.id }}">
       <strong>{{ row.name }}</strong>
       {% if row.text %}<p>{{ row.text }}</p>{% endif %}
+      {% if row.gif_url %}
+      <span class="kb-gif"><img src="{{ row.gif_preview_url|default:row.gif_url }}" alt="{{ row.alt|default:'GIF' }}" loading="lazy" decoding="async"></span>
+      {% endif %}
       {% if row.image_url %}<img src="{{ row.image_url }}" alt="">{% endif %}
     </article>
     {% empty %}
     <p class="profile-copy" data-alliance-empty>هنوز پیامی نیست.</p>
     {% endfor %}
   </div>
-  <form class="kb-alliance-chat__form" id="alliance-chat-form">
+  <form class="kb-alliance-chat__form" id="alliance-chat-form" data-kb-composer="chat">
     {% csrf_token %}
     <input type="text" name="text" maxlength="500" autocomplete="off" placeholder="پیام برای هم‌رزمان">
     <label class="kb-alliance-chat__file">

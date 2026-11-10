@@ -19,21 +19,25 @@
         </button>
       </div>
     </div>
-    <div class="story-viewer__stage" id="story-stage"></div>
-    <p class="story-viewer__overlay" id="story-overlay-text"></p>
-    <div class="story-viewer__actions">
-      <button class="story-viewer__icon is-like" type="button" id="story-like" title="لایک">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.4 10.6 19C5.4 14.4 2 11.4 2 7.9A4.8 4.8 0 0 1 6.9 3 5.4 5.4 0 0 1 12 5.7 5.4 5.4 0 0 1 17.1 3 4.8 4.8 0 0 1 22 7.9c0 3.5-3.4 6.5-8.6 11.1z"/></svg>
-        <span id="story-like-count">0</span>
-      </button>
-      <form class="story-viewer__comment" id="story-comment-form">
-        <input id="story-comment" type="text" maxlength="280" placeholder="کامنت…">
-        <button class="story-viewer__icon" type="submit" title="ارسال">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 20.5 21 12 3 3.5v6.6L15 12 3 13.9z"/></svg>
-        </button>
-      </form>
+    <div class="story-viewer__canvas">
+      <div class="story-viewer__stage" id="story-stage"></div>
+      <p class="story-viewer__overlay" id="story-overlay-text"></p>
     </div>
-    <div class="story-viewer__comments" id="story-comments"></div>
+    <div class="story-viewer__dock">
+      <div class="story-viewer__comments" id="story-comments" hidden></div>
+      <div class="story-viewer__actions">
+        <button class="story-viewer__icon is-like" type="button" id="story-like" title="لایک">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 20.4 10.6 19C5.4 14.4 2 11.4 2 7.9A4.8 4.8 0 0 1 6.9 3 5.4 5.4 0 0 1 12 5.7 5.4 5.4 0 0 1 17.1 3 4.8 4.8 0 0 1 22 7.9c0 3.5-3.4 6.5-8.6 11.1z"/></svg>
+          <span id="story-like-count">0</span>
+        </button>
+        <form class="story-viewer__comment" id="story-comment-form" data-kb-composer="comment">
+          <input id="story-comment" type="text" maxlength="280" placeholder="کامنت…">
+          <button class="story-viewer__icon" type="submit" title="ارسال">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 20.5 21 12 3 3.5v6.6L15 12 3 13.9z"/></svg>
+          </button>
+        </form>
+      </div>
+    </div>
     <div class="kb-viewers" id="story-viewers" hidden>
       <div class="kb-viewers__head">
         <strong>بینندگان</strong>

@@ -490,13 +490,25 @@ def update_alliance(actor, alliance, **fields):
     return alliance
 
 
-def post_message(user, alliance, *, text: str = '', image=None) -> AllianceMessage:
+def post_message(user, alliance, *, text: str = '', image=None, gif=None) -> AllianceMessage:
     membership = membership_of(user, alliance)
     require_member(membership)
     body = str(text or '').strip()[:500]
-    if not body and not image:
-        raise AllianceError('متن یا تصویر لازم است.')
-    row = AllianceMessage(alliance=alliance, author=user, text=body)
+    gif = gif or {}
+    gif_url = str(gif.get('url') or '')
+    if not body and not image and not gif_url:
+        raise AllianceError('متن، تصویر یا GIF لازم است.')
+    row = AllianceMessage(
+        alliance=alliance,
+        author=user,
+        text=body,
+        gif_id=str(gif.get('id') or '')[:64],
+        gif_url=gif_url[:500],
+        gif_preview_url=str(gif.get('preview_url') or gif_url)[:500],
+        gif_width=gif.get('width') or None,
+        gif_height=gif.get('height') or None,
+        gif_alt=str(gif.get('alt') or 'GIF')[:120],
+    )
     if image:
         row.image.save(image.name, image, save=False)
     row.save()
@@ -520,6 +532,11 @@ def serialize_message(row) -> dict:
         'name': profile_display_name(row.author),
         'text': row.text,
         'image_url': public_media_url(row.image),
+        'gif_url': row.gif_url or '',
+        'gif_preview_url': row.gif_preview_url or row.gif_url or '',
+        'gif_width': row.gif_width or 0,
+        'gif_height': row.gif_height or 0,
+        'alt': row.gif_alt or 'GIF',
         'created_at': row.created_at.isoformat(),
     }
 

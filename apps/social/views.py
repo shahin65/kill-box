@@ -65,6 +65,7 @@ from apps.social.services import (
     record_post_view,
     retract_notice,
     saved_posts_queryset,
+    serialize_story_comment,
     serialize_story_groups,
     stories_today,
     thread_for,
@@ -236,15 +237,29 @@ def story_comment(request, pk):
     if bounced:
         return bounced
     text = str(request.POST.get('text') or '').strip()[:280]
-    if not text:
+    gif_id = str(request.POST.get('gif_id') or '').strip()[:64]
+    gif = None
+    if gif_id:
+        try:
+            gif = lookup_gif(gif_id, request=request)
+        except GifError:
+            return _json_error('این GIF قابل استفاده نیست.')
+    if not text and not gif:
         return _json_error('متن کامنت خالی است.')
     story = get_object_or_404(Story, pk=pk, expires_at__gt=timezone.now())
-    StoryComment.objects.create(story=story, user=request.user, text=text)
+    StoryComment.objects.create(
+        story=story,
+        user=request.user,
+        text=text,
+        gif_id=(gif or {}).get('id') or '',
+        gif_url=(gif or {}).get('url') or '',
+        gif_preview_url=(gif or {}).get('preview_url') or '',
+        gif_width=(gif or {}).get('width'),
+        gif_height=(gif or {}).get('height'),
+        gif_alt=(gif or {}).get('alt') or '',
+    )
     push_notice(story.author, request.user, ActivityNotice.STORY_COMMENT, story.pk)
-    comments = [
-        {'name': display_name(row.user), 'text': row.text}
-        for row in story.comments.select_related('user')
-    ]
+    comments = [serialize_story_comment(row) for row in story.comments.select_related('user')]
     return _json_ok(comments=comments)
 
 

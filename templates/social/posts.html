@@ -7,6 +7,7 @@
 {% block panel %}
 <section class="profile-card social-card" data-post-create="{% url 'social:post_create' %}">
   {% csrf_token %}
+  <a class="composer-back" href="{% url 'social:explore' %}" data-kb-nav>بازگشت</a>
   <p class="auth-kicker">شبکه‌های اجتماعی</p>
   <h1 class="auth-title">پست</h1>
   <p class="profile-copy">عکس یا فیلم حداکثر یک دقیقه.</p>

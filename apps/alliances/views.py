@@ -50,6 +50,7 @@ from apps.alliances.uploads import prepare_alliance_image
 from apps.core.identity import profile_display_name
 from apps.core.ranks import get_rank
 from apps.core.session import hud_context, is_member, member_required_response
+from apps.social.gifs import GifError, lookup_gif
 from apps.social.limits import too_fast
 
 
@@ -549,7 +550,19 @@ def messages(request, slug):
             return _json_error('کمی صبر کن.', status=429)
         try:
             image = _prepared(request, 'image', 1080)
-            row = post_message(request.user, alliance, text=request.POST.get('text') or '', image=image)
+            gif = None
+            gif_id = str(request.POST.get('gif_id') or '').strip()
+            if gif_id:
+                gif = lookup_gif(gif_id, request=request)
+            row = post_message(
+                request.user,
+                alliance,
+                text=request.POST.get('text') or '',
+                image=image,
+                gif=gif,
+            )
+        except GifError as exc:
+            return _fail(request, exc)
         except (AllianceError, AllianceDenied, PermissionDenied) as exc:
             return _fail(request, exc)
         heartbeat(alliance.pk, request.user.pk)

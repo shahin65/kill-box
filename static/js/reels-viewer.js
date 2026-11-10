@@ -145,9 +145,9 @@
         var poster = item.poster || '';
         var muteHtml = typeof win.__kbMuteMarkup === 'function' ? win.__kbMuteMarkup({ sound: true }) : '';
         media =
-          '<div class="kb-media is-video post-reader__media" data-kb-media style="aspect-ratio:9/16;' +
-          (poster ? "--kb-poster:url('" + escapeHtml(poster) + "');" : '') +
-          '"><video class="kb-media__el" ' +
+          '<div class="kb-media is-video post-reader__media" data-kb-media' +
+          (poster ? ' style="--kb-poster:url(\'' + escapeHtml(poster) + '\');"' : '') +
+          '><video class="kb-media__el" ' +
           (Math.abs(idx - index) <= 1 ? 'src="' + escapeHtml(item.url) + '" ' : '') +
           (poster ? 'poster="' + escapeHtml(poster) + '" ' : '') +
           'playsinline webkit-playsinline preload="auto" data-kb-reel-video data-kb-video></video>' +
@@ -155,7 +155,7 @@
           '</div>';
       } else if (item.url) {
         media =
-          '<div class="kb-media post-reader__media" data-kb-media style="aspect-ratio:9/16">' +
+          '<div class="kb-media post-reader__media" data-kb-media>' +
           '<img class="kb-media__el" src="' +
           escapeHtml(item.url) +
           '" alt="" decoding="async" draggable="false"></div>';
@@ -164,7 +164,13 @@
         .map(function (row) {
           return typeof win.__kbCommentMarkup === 'function'
             ? win.__kbCommentMarkup(row)
-            : '<li><strong>' + escapeHtml(row.name) + '</strong> ' + escapeHtml(row.text) + '</li>';
+            : '<li class="kb-comment"><img class="kb-comment__avatar" src="' +
+              escapeHtml(row.avatar || '/static/images/icons/profile2.webp') +
+              '" alt="" width="32" height="32"><div class="kb-comment__body"><strong>' +
+              escapeHtml(row.name) +
+              '</strong> ' +
+              escapeHtml(row.text) +
+              '</div></li>';
         })
         .join('');
       return (
@@ -200,7 +206,7 @@
         item.id +
         '" aria-pressed="' +
         (item.saved ? 'true' : 'false') +
-        '"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h12v18l-6-3.4L6 21z"/></svg><span class="story-act__label">ذخیره</span></button></div>' +
+        '"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h12v18l-6-3.4L6 21z"/></svg><span class="story-act__count" aria-hidden="true">&nbsp;</span><span class="story-act__label">ذخیره</span></button></div>' +
         '<ul class="comment-list post-reader__comments">' +
         (comments || '<li>کامنتی نیست.</li>') +
         '</ul>' +
@@ -221,6 +227,9 @@
         video.muted = false;
         video.defaultMuted = false;
         video.removeAttribute('muted');
+        try {
+          video.volume = 1;
+        } catch (err) {}
         video.playsInline = true;
         video.setAttribute('webkit-playsinline', '');
         video.onended = function () {
@@ -350,6 +359,7 @@
         return;
       }
       pauseFeedVideos();
+      win.__kbSoundUnlocked = true;
       setOpen(true);
       if (win.__kbOverlayPush) {
         win.__kbOverlayPush('reels', function () {
@@ -357,6 +367,7 @@
         });
       }
       paint();
+      playCurrent();
       win.requestAnimationFrame(function () {
         scrollToIndex(index, false);
         playCurrent();
@@ -402,7 +413,13 @@
                 .map(function (item) {
                   return typeof win.__kbCommentMarkup === 'function'
                     ? win.__kbCommentMarkup(item)
-                    : '<li><strong>' + escapeHtml(item.name) + '</strong> ' + escapeHtml(item.text) + '</li>';
+                    : '<li class="kb-comment"><img class="kb-comment__avatar" src="' +
+                      escapeHtml(item.avatar || '/static/images/icons/profile2.webp') +
+                      '" alt="" width="32" height="32"><div class="kb-comment__body"><strong>' +
+                      escapeHtml(item.name) +
+                      '</strong> ' +
+                      escapeHtml(item.text) +
+                      '</div></li>';
                 })
                 .join('')
             : '<li>کامنتی نیست.</li>';

@@ -21,13 +21,16 @@
   </div>
   <ul class="comment-list">
     {% for row in item.comments %}
-    <li{% if row.parent_id %} class="is-reply"{% endif %}>
-      <strong>{{ row.name }}</strong> {{ row.text }}
-      {% if row.gif_url %}
-      <span class="kb-gif" style="aspect-ratio: {{ row.gif_width|default:240 }}/{{ row.gif_height|default:180 }}">
-        <img src="{{ row.gif_preview_url|default:row.gif_url }}" alt="{{ row.alt|default:'GIF' }}" loading="lazy" decoding="async" width="{{ row.gif_width|default:240 }}" height="{{ row.gif_height|default:180 }}">
-      </span>
-      {% endif %}
+    <li class="kb-comment{% if row.parent_id %} is-reply{% endif %}">
+      <img class="kb-comment__avatar" src="{% if row.avatar %}{{ row.avatar }}{% else %}{% static 'images/icons/profile2.webp' %}{% endif %}" alt="" width="32" height="32">
+      <div class="kb-comment__body">
+        <strong>{{ row.name }}</strong> {{ row.text }}
+        {% if row.gif_url %}
+        <span class="kb-gif">
+          <img src="{{ row.gif_preview_url|default:row.gif_url }}" alt="{{ row.alt|default:'GIF' }}" loading="lazy" decoding="async">
+        </span>
+        {% endif %}
+      </div>
     </li>
     {% empty %}
     <li>کامنتی نیست.</li>

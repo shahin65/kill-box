@@ -1,9 +1,20 @@
 .kb-alliance {
-  width: min(94vw, 46rem);
+  width: min(100%, 46rem);
+  max-width: 46rem;
+  margin-inline: auto;
+  align-self: center;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 1rem;
   padding-bottom: 6rem;
+  box-sizing: border-box;
+}
+
+.kb-alliance .profile-card,
+.kb-alliance .feed-card {
+  width: 100%;
+  max-width: 100%;
 }
 
 .kb-alliance-home__banner {
@@ -142,7 +153,8 @@
   overflow: auto;
   display: grid;
   gap: 0.55rem;
-  padding: 0.2rem 0 0.8rem;
+  padding: 0.2rem 0.15rem 0.8rem;
+  padding-inline-end: 0.45rem;
 }
 
 .kb-alliance-chat__item {
@@ -158,11 +170,38 @@
   margin-top: 0.4rem;
 }
 
+.kb-alliance-chat__item .kb-gif {
+  width: 7.2rem;
+  height: 7.2rem;
+  max-width: 7.2rem;
+}
+
+.kb-alliance-chat__item .kb-gif img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin-top: 0;
+  object-fit: cover;
+}
+
 .kb-alliance-chat__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.kb-alliance-chat__form .kb-composer-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 0.45rem;
   align-items: center;
+}
+
+.kb-alliance-chat__form .kb-gif {
+  width: 7.2rem;
+  height: 7.2rem;
 }
 
 .kb-alliance-chat__file {
@@ -211,11 +250,22 @@
 }
 
 @media (max-width: 720px) {
-  .kb-alliance-chat__form {
-    grid-template-columns: 1fr auto;
+  .kb-alliance {
+    width: 100%;
+  }
+
+  .kb-alliance-chat__form .kb-composer-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
   .kb-alliance-chat__form .auth-btn {
     grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1100px) {
+  .kb-alliance {
+    width: min(52rem, 92%);
+    max-width: 52rem;
   }
 }

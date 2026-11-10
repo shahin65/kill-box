@@ -182,6 +182,16 @@ class SocialFeatureTests(TestCase):
         self.assertEqual(groups[0]['stories'][0]['duration'], 15.0)
         self.assertEqual(groups[0]['stories'][1]['duration'], 12.4)
 
+    def test_story_video_saves_when_ffmpeg_is_missing(self):
+        self.client.force_login(self.alpha)
+        with patch('apps.social.media._find_ffmpeg', return_value=''):
+            created = self.client.post(
+                reverse('social:story_create'),
+                {'media': SimpleUploadedFile('run.mp4', b'fake-mp4', content_type='video/mp4')},
+            )
+        self.assertTrue(created.json()['success'])
+        self.assertEqual(Story.objects.filter(author=self.alpha, kind='video').count(), 1)
+
     def test_expired_story_is_purged_from_host(self):
         self.client.force_login(self.alpha)
         self.client.post(reverse('social:story_create'), {'media': _png()})
@@ -246,11 +256,18 @@ class SocialFeatureTests(TestCase):
         self.client.force_login(self.alpha)
         posts = self.client.get(reverse('social:posts'))
         stories = self.client.get(reverse('social:stories'))
+        self.assertContains(posts, 'composer-back')
+        self.assertContains(stories, 'composer-back')
         self.assertContains(posts, 'data-kb-media-form')
         self.assertContains(posts, 'kb-upload-bar')
         self.assertContains(posts, 'data-upload-retry')
         self.assertContains(posts, 'js/upload.js')
         self.assertContains(stories, 'data-kb-media-form')
+        self.assertContains(stories, 'story-viewer__dock')
+        self.assertLess(
+            stories.content.find(b'story-viewer__comments'),
+            stories.content.find(b'story-viewer__actions'),
+        )
         self.assertContains(stories, 'kb-upload-preview')
         self.assertContains(posts, 'kb-upload-preview__ph')
         self.assertContains(stories, 'kb-upload-preview__ph')

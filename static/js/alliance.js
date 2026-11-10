@@ -154,6 +154,13 @@
       escapeHtml(row.name) +
       '</strong>' +
       (row.text ? '<p>' + escapeHtml(row.text) + '</p>' : '') +
+      (row.gif_url
+        ? '<span class="kb-gif"><img src="' +
+          escapeHtml(row.gif_preview_url || row.gif_url) +
+          '" alt="' +
+          escapeHtml(row.alt || 'GIF') +
+          '" loading="lazy" decoding="async"></span>'
+        : '') +
       (row.image_url ? '<img src="' + escapeHtml(row.image_url) + '" alt="">' : '');
     log.appendChild(item);
     log.scrollTop = log.scrollHeight;
@@ -203,6 +210,9 @@
           }
           paintMessage(log, payload.item);
           form.reset();
+          if (window.__kbClearGifChip) {
+            window.__kbClearGifChip(form);
+          }
         });
       });
     }
@@ -227,6 +237,9 @@
     bindSearch();
     bindActions();
     bindChat();
+    if (window.__kbEnsureCommentExtras) {
+      window.__kbEnsureCommentExtras();
+    }
   }
 
   window.__kbBindAlliance = bindAlliancePage;

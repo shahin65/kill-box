@@ -55,6 +55,29 @@
     }
   }
 
+  function unlockSound() {
+    win.__kbSoundUnlocked = true;
+  }
+
+  function setMuteState(video, button, muted) {
+    video.muted = !!muted;
+    video.defaultMuted = !!muted;
+    if (muted) {
+      video.setAttribute('muted', '');
+    } else {
+      video.removeAttribute('muted');
+      try {
+        video.volume = 1;
+      } catch (err) {}
+    }
+    if (!button) {
+      return;
+    }
+    button.classList.toggle('is-muted', !!muted);
+    button.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    button.title = muted ? 'صدا' : 'بی‌صدا';
+  }
+
   function syncMuteButton(video) {
     var wrap = mediaWrap(video);
     var btn = wrap ? wrap.querySelector('[data-kb-mute]') : null;
@@ -64,20 +87,33 @@
     setMuteState(video, btn, !!video.muted);
   }
 
-  function playWithSound(video) {
+  function applyUnmuted(video) {
     if (!video) {
       return;
     }
     video.muted = false;
     video.defaultMuted = false;
     video.removeAttribute('muted');
+    try {
+      video.volume = 1;
+    } catch (err) {}
     syncMuteButton(video);
+  }
+
+  function playWithSound(video) {
+    if (!video) {
+      return;
+    }
+    unlockSound();
+    applyUnmuted(video);
     var play = video.play();
     if (play && play.catch) {
       play.catch(function () {
-        video.muted = true;
-        syncMuteButton(video);
-        tryPlay(video);
+        applyUnmuted(video);
+        var retry = video.play();
+        if (retry && retry.catch) {
+          retry.catch(function () {});
+        }
       });
     }
   }
@@ -122,7 +158,14 @@
     });
     videos.forEach(function (video) {
       if (video === best) {
-        tryPlay(video);
+        if (
+          win.__kbSoundUnlocked &&
+          (video.hasAttribute('data-kb-reel-video') || video.hasAttribute('data-kb-story-video'))
+        ) {
+          playWithSound(video);
+        } else {
+          tryPlay(video);
+        }
       } else if (!video.paused) {
         video.pause();
       }
@@ -147,12 +190,11 @@
       var overlayClip =
         video.hasAttribute('data-kb-reel-video') || video.hasAttribute('data-kb-story-video');
       if (overlayClip) {
-        video.muted = false;
-        video.defaultMuted = false;
-        video.removeAttribute('muted');
+        applyUnmuted(video);
       } else {
         video.muted = true;
         video.defaultMuted = true;
+        syncMuteButton(video);
       }
       video.playsInline = true;
       video.setAttribute('webkit-playsinline', '');
@@ -166,11 +208,16 @@
     syncFeedVideos();
   }
 
-  function setMuteState(video, button, muted) {
-    video.muted = muted;
-    button.classList.toggle('is-muted', muted);
-    button.setAttribute('aria-pressed', muted ? 'true' : 'false');
-    button.title = muted ? 'صدا' : 'بی‌صدا';
+  function bindSoundUnlock() {
+    if (win.__kbSoundUnlockBound) {
+      return;
+    }
+    win.__kbSoundUnlockBound = true;
+    var unlock = function () {
+      unlockSound();
+    };
+    doc.addEventListener('pointerdown', unlock, true);
+    doc.addEventListener('keydown', unlock, true);
   }
 
   function bindMute() {
@@ -178,6 +225,7 @@
       return;
     }
     win.__kbMuteBound = true;
+    bindSoundUnlock();
     doc.addEventListener(
       'click',
       function (event) {
@@ -192,9 +240,10 @@
         if (!video) {
           return;
         }
-        setMuteState(video, btn, !video.muted);
-        if (!video.muted) {
-          tryPlay(video);
+        if (video.muted) {
+          playWithSound(video);
+        } else {
+          setMuteState(video, btn, true);
         }
       },
       true
@@ -323,6 +372,7 @@
   }
 
   function bindFeedMedia() {
+    bindSoundUnlock();
     bindShimmer();
     bindVideos();
     bindMute();

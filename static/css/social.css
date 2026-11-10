@@ -1149,7 +1149,7 @@ dialog.post-reader:not([open]) {
 .post-reader__slide {
   position: relative;
   height: 100%;
-  min-height: 100%;
+  min-height: 0;
   scroll-snap-align: start;
   scroll-snap-stop: always;
   contain: layout paint;
@@ -1157,10 +1157,11 @@ dialog.post-reader:not([open]) {
 
 .post-reader__card {
   height: 100%;
+  max-height: 100%;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto minmax(0, auto) auto;
   align-content: stretch;
-  gap: 0.45rem;
+  gap: 0.4rem;
   min-height: 0;
   overflow: hidden;
   padding: calc(2.8rem + env(safe-area-inset-top, 0px)) 0.7rem calc(4.6rem + env(safe-area-inset-bottom, 0px));
@@ -1171,16 +1172,26 @@ dialog.post-reader:not([open]) {
 .post-reader__card .kb-media {
   width: 100%;
   height: 100%;
-  max-height: none;
+  max-height: 100%;
   min-height: 0;
+  min-width: 0;
   margin: 0;
+  overflow: hidden;
   border-radius: 0;
   background: #000;
+  aspect-ratio: auto !important;
+  align-self: stretch;
+  justify-self: stretch;
 }
 
 .post-reader__media .kb-media__el,
 .post-reader .kb-media__el {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
+  object-position: center;
 }
 
 .post-reader__user {
@@ -1285,24 +1296,36 @@ dialog.post-reader:not([open]) {
 }
 
 .post-reader__bar .story-act--stack {
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 1.15rem 0.85rem 0.95rem;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  align-items: center;
+  width: 100%;
   height: auto;
-  min-width: 3.55rem;
-  min-height: 3.15rem;
-  padding: 0.32rem 0.28rem 0.28rem;
-  gap: 0.08rem;
+  min-width: 0;
+  min-height: 3.35rem;
+  padding: 0.32rem 0.2rem 0.28rem;
+  gap: 0;
+}
+
+.post-reader__bar .story-act--stack svg {
+  width: 1.05rem;
+  height: 1.05rem;
 }
 
 .story-act__count {
+  min-height: 0.85rem;
   font-size: 0.68rem;
   font-weight: 800;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .story-act__label {
   font-size: 0.58rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1;
 }
 
 .story-act.is-on {
@@ -1317,18 +1340,36 @@ dialog.post-reader:not([open]) {
   margin-top: 0.35rem;
 }
 
-.post-reader__bar,
+.post-reader__bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
 .post-reader__comment {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.32rem;
+  min-width: 0;
+  margin-top: 0.1rem;
+}
+
+.post-reader__comment input[type='hidden'] {
+  display: none;
+}
+
+.post-reader__comment .kb-composer-row {
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
-.post-reader__comment {
-  margin-top: 0.2rem;
-}
-
-.post-reader__comment input {
+.post-reader__comment .kb-composer-row input,
+.post-reader__comment input[type='text'] {
   flex: 1;
   min-width: 0;
   padding: 0.4rem 0.55rem;
@@ -1339,15 +1380,23 @@ dialog.post-reader:not([open]) {
   font: inherit;
 }
 
+.post-reader__comment .kb-gif-btn,
+.post-reader__comment button[type='submit'] {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.post-reader__comment .kb-emoji {
+  min-width: 2.05rem;
+  height: 2.05rem;
+  font-size: 1.05rem;
+}
+
 .post-reader__comments {
   max-height: 6.2rem;
   overflow-y: auto;
   padding: 0;
-  scrollbar-width: none;
-}
-
-.post-reader__comments::-webkit-scrollbar {
-  display: none;
+  padding-inline-end: 0.35rem;
 }
 
 .kb-social-flash {
@@ -1505,38 +1554,43 @@ dialog.story-viewer:not([open]) {
 .story-viewer {
   position: fixed;
   inset: 0;
-  width: 100%;
-  max-width: 100%;
+  width: 100vw;
+  max-width: none;
   height: 100%;
   height: 100dvh;
-  max-height: 100dvh;
+  max-height: none;
   margin: 0;
   padding: 0;
   overflow: hidden;
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  background: transparent;
+  background: #000;
   color: #f3ead8;
-  z-index: 260;
+  z-index: 400;
 }
 
 .story-viewer[open],
 .story-viewer.is-open {
-  display: block;
+  display: grid;
+  place-items: stretch;
 }
 
 .story-viewer__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.88);
+  background: #000;
   animation: kb-overlay-in 0.22s ease both;
 }
 
 .story-viewer__frame {
   position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
+  min-height: 0;
   overflow: hidden;
   background: #05070a;
   transform: translateZ(0);
@@ -1545,7 +1599,7 @@ dialog.story-viewer:not([open]) {
 }
 
 .story-viewer::backdrop {
-  background: rgba(0, 0, 0, 0.88);
+  background: #000;
 }
 
 @keyframes kb-overlay-in {
@@ -1562,10 +1616,16 @@ dialog.story-viewer:not([open]) {
   top: 0;
   right: 0;
   left: 0;
-  z-index: 4;
+  z-index: 5;
   display: grid;
   gap: 0.45rem;
-  padding: calc(0.55rem + env(safe-area-inset-top, 0px)) 0.55rem 0;
+  padding: calc(0.55rem + env(safe-area-inset-top, 0px)) 0.7rem 2.4rem;
+  background: linear-gradient(rgba(0, 0, 0, 0.62), transparent);
+  pointer-events: none;
+}
+
+.story-viewer__chrome > * {
+  pointer-events: auto;
 }
 
 .story-viewer__top {
@@ -1632,6 +1692,12 @@ dialog.story-viewer:not([open]) {
   transform: scaleX(1);
 }
 
+.story-viewer__canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .story-viewer__stage {
   position: relative;
   width: 100%;
@@ -1640,6 +1706,28 @@ dialog.story-viewer:not([open]) {
   touch-action: none;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+.story-viewer__stage.is-loading::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  width: 2.4rem;
+  height: 2.4rem;
+  margin: -1.2rem 0 0 -1.2rem;
+  border: 0.22rem solid rgba(255, 255, 255, 0.18);
+  border-top-color: #b7ff8a;
+  border-radius: 50%;
+  animation: kb-spin 0.7s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes kb-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .story-viewer__stage .kb-media {
@@ -1655,8 +1743,10 @@ dialog.story-viewer:not([open]) {
 }
 
 .post-reader .kb-media {
-  max-height: none;
+  max-height: 100%;
+  min-height: 0;
   margin: 0;
+  aspect-ratio: auto !important;
 }
 
 .post-card .kb-media {
@@ -1676,7 +1766,7 @@ dialog.story-viewer:not([open]) {
   position: absolute;
   right: 1rem;
   left: 1rem;
-  bottom: calc(6.6rem + env(safe-area-inset-bottom, 0px));
+  bottom: 0.85rem;
   z-index: 3;
   margin: 0;
   text-align: center;
@@ -1684,6 +1774,10 @@ dialog.story-viewer:not([open]) {
   font-weight: 800;
   text-shadow: 0 2px 10px #000;
   pointer-events: none;
+}
+
+.story-viewer__overlay:empty {
+  display: none;
 }
 
 .story-viewer__icon {
@@ -1717,8 +1811,17 @@ dialog.story-viewer:not([open]) {
 
 .story-viewer__comment {
   display: flex;
+  flex-direction: column;
   flex: 1;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.story-viewer__comment .kb-composer-row {
+  display: flex;
+  align-items: center;
   gap: 0.3rem;
+  min-width: 0;
 }
 
 .story-viewer__comment input {
@@ -1737,23 +1840,48 @@ dialog.story-viewer:not([open]) {
   pointer-events: auto;
 }
 
+.story-viewer__dock {
+  position: relative;
+  z-index: 5;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.82) 28%);
+}
+
 .story-viewer__actions {
-  position: absolute;
-  right: 0;
-  left: 0;
-  bottom: calc(2.4rem + env(safe-area-inset-bottom, 0px));
-  z-index: 4;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+  position: static;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  padding: 0;
+  background: none;
 }
 
 .story-viewer .story-viewer__comments {
-  position: absolute;
-  right: 0;
-  left: 0;
-  bottom: env(safe-area-inset-bottom, 0px);
-  z-index: 4;
-  max-height: 4.4rem;
+  position: static;
+  max-height: min(28dvh, 9.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.15rem 0.1rem 0.2rem;
+  padding-inline-end: 0.45rem;
   pointer-events: auto;
+}
+
+.story-viewer .story-viewer__comments[hidden] {
+  display: none !important;
+}
+
+.story-viewer .story-viewer__comments .kb-gif {
+  width: 4.8rem;
+  height: 4.8rem;
+  max-width: 4.8rem;
+}
+
+.story-viewer .kb-comment {
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
 }
 
 .story-viewer__actions .story-viewer__icon {
@@ -1783,6 +1911,7 @@ dialog.story-viewer:not([open]) {
   max-height: 6rem;
   overflow: auto;
   padding: 0 0.7rem 0.7rem;
+  padding-inline-end: 0.55rem;
   font-size: 0.8rem;
 }
 
@@ -1878,11 +2007,28 @@ body {
 .kb-emoji-bar {
   display: flex;
   gap: 0.28rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
-  padding: 0.15rem 0 0.35rem;
+  padding: 0.15rem 0 0.25rem;
   scrollbar-width: none;
+}
+
+.kb-composer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.kb-composer-row input,
+.kb-composer-row textarea {
+  flex: 1;
+  min-width: 0;
 }
 
 .kb-emoji-bar::-webkit-scrollbar {
@@ -1914,7 +2060,10 @@ body {
 
 .kb-gif {
   display: block;
-  max-width: 12rem;
+  width: 7.2rem;
+  height: 7.2rem;
+  max-width: min(42%, 7.2rem);
+  aspect-ratio: 1;
   margin: 0.35rem 0;
   overflow: hidden;
   border-radius: 0.7rem;
@@ -1928,8 +2077,91 @@ body {
   object-fit: cover;
 }
 
-.comment-list li.is-reply {
-  margin-right: 1rem;
+.kb-gif-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.28rem 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--kb-neon, #c4a574) 40%, transparent);
+  border-radius: 0.75rem;
+  background: rgba(8, 12, 10, 0.72);
+}
+
+.kb-gif-chip[hidden] {
+  display: none !important;
+}
+
+.kb-gif-chip img {
+  width: 2.15rem;
+  height: 2.15rem;
+  object-fit: cover;
+  border-radius: 0.45rem;
+  background: #111;
+}
+
+.kb-gif-chip span {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.kb-gif-chip button {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.composer-back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.2rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.7rem;
+  background: rgba(8, 10, 8, 0.62);
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.comment-list {
+  list-style: none;
+}
+
+.kb-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.kb-comment__avatar {
+  display: block;
+  width: 1.45rem;
+  height: 1.45rem;
+  flex: 0 0 1.45rem;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.kb-comment__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.comment-list li.is-reply,
+.kb-comment.is-reply {
+  margin-right: 1.2rem;
   opacity: 0.92;
 }
 
@@ -1947,7 +2179,7 @@ body {
 .kb-gif-sheet {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 480;
   display: none;
 }
 
@@ -2048,9 +2280,10 @@ body {
   position: absolute;
   right: 0.6rem;
   left: 0.6rem;
-  bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px));
+  top: 4.4rem;
+  bottom: auto;
   z-index: 6;
-  max-height: 42%;
+  max-height: calc(100% - 8.5rem);
   overflow: auto;
   padding: 0.7rem;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -2110,14 +2343,15 @@ body {
   .story-viewer.is-open {
     display: grid;
     place-items: center;
-    background: rgba(0, 0, 0, 0.55);
+    background: #000;
   }
 
   .story-viewer__frame {
-    width: min(26.5rem, calc(100% - 1.5rem));
-    height: min(52rem, calc(100dvh - 1.5rem));
+    width: min(26.5rem, 100vw);
+    height: min(100dvh, 56rem);
+    max-height: 100dvh;
     overflow: hidden;
-    border-radius: 1.05rem;
+    border-radius: 0;
   }
 
   .post-reader {
@@ -2145,7 +2379,9 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .kb-gif-sheet__panel,
-  .story-act[data-save-post] {
+  .story-act[data-save-post],
+  .story-viewer__stage.is-loading::after {
+    animation: none;
     transition: none;
   }
 }
