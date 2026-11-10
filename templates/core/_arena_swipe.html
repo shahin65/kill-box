@@ -15,7 +15,7 @@
     <div class="home-swipe__track">
       {% for card in cards %}
       <div class="home-swipe__slide{% if current_slug and card.slug == current_slug %} is-current{% endif %}">
-        {% include "core/_event_card.html" %}
+        {% include "core/_event_card.html" with is_lcp=forloop.first %}
       </div>
       {% endfor %}
     </div>

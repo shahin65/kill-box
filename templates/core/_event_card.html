@@ -6,7 +6,12 @@
 {% endif %}
   <div class="event-card__stage">
     <div class="event-card__art">
-      <img class="event-card__frame" src="{% static card.frame_src %}?v=1" alt="" width="960" height="519" draggable="false">
+      <picture>
+        {% if card.frame_webp %}
+        <source type="image/webp" srcset="{% static card.frame_webp %}?v=1">
+        {% endif %}
+        <img class="event-card__frame" src="{% static card.frame_src %}?v=1" alt="" width="{{ card.frame_w|default:960 }}" height="{{ card.frame_h|default:519 }}" draggable="false"{% if is_lcp %} fetchpriority="high"{% else %} loading="lazy" decoding="async"{% endif %}>
+      </picture>
       <div class="event-card__meta">
         <p class="event-card__status">
           <span class="event-card__live-dot" aria-hidden="true"></span>
@@ -52,7 +57,12 @@
         <div class="event-card__char-breath">
           <span class="event-card__char-glow" aria-hidden="true"></span>
           <div class="event-card__char-figure">
-            <img class="event-card__char" src="{% static card.char_src %}?v=2" alt="" width="780" height="984" draggable="false">
+            <picture>
+              {% if card.char_webp %}
+              <source type="image/webp" srcset="{% static card.char_webp %}?v=2">
+              {% endif %}
+              <img class="event-card__char" src="{% static card.char_src %}?v=2" alt="" width="{{ card.char_w|default:780 }}" height="{{ card.char_h|default:984 }}" draggable="false"{% if is_lcp %}{% else %} loading="lazy" decoding="async"{% endif %}>
+            </picture>
           </div>
         </div>
       </div>

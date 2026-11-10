@@ -7,6 +7,7 @@ from django.contrib.auth import logout as django_logout
 from django.core.files.storage import default_storage
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.text import get_valid_filename
 from django.views.decorators.csrf import csrf_exempt
@@ -70,6 +71,17 @@ from apps.sms.otp import (
 
 def neon_bg_preview(request):
     return render(request, 'core/neon_bg_preview.html')
+
+
+@require_GET
+def robots_txt(request):
+    from apps.core.seo import public_origin
+
+    body = render_to_string(
+        'robots.txt',
+        {'sitemap_url': f'{public_origin(request)}/sitemap.xml'},
+    )
+    return HttpResponse(body, content_type='text/plain; charset=utf-8')
 
 
 def register(request):

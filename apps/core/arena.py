@@ -48,6 +48,37 @@ def gregorian_to_jalali(gy, gm, gd):
     return jy, jm, jd
 
 
+FRAME_SIZE = {
+    1: (960, 519),
+    2: (960, 540),
+    3: (960, 511),
+    4: (960, 513),
+}
+CHAR_SIZE = {
+    1: (720, 772),
+    2: (780, 843),
+    3: (780, 984),
+    4: (779, 1024),
+}
+
+
+def art_paths(frame, character):
+    frame_n = int(frame)
+    char_n = int(character)
+    frame_w, frame_h = FRAME_SIZE.get(frame_n, (960, 519))
+    char_w, char_h = CHAR_SIZE.get(char_n, (780, 984))
+    return {
+        'frame_src': f'images/frame{frame_n}.png',
+        'frame_webp': f'images/frame{frame_n}.webp',
+        'frame_w': frame_w,
+        'frame_h': frame_h,
+        'char_src': f'images/char{char_n}.png',
+        'char_webp': f'images/char{char_n}.webp',
+        'char_w': char_w,
+        'char_h': char_h,
+    }
+
+
 def _iso(moment):
     return moment.astimezone(timezone.get_current_timezone()).isoformat()
 
@@ -69,8 +100,7 @@ def serialize_live_room(row):
     return {
         'slug': row.slug,
         'name': row.name,
-        'frame_src': f'images/frame{int(row.frame)}.png',
-        'char_src': f'images/char{int(row.character)}.png',
+        **art_paths(row.frame, row.character),
         'date_label': _date_label(row.starts_at),
         'time_label': _time_label(row.starts_at),
         'start_iso': _iso(row.starts_at),
@@ -90,8 +120,7 @@ def _demo_rooms():
         {
             'slug': 'killbox-night',
             'name': 'پخش زنده کیل‌باکس',
-            'frame_src': 'images/frame3.png',
-            'char_src': 'images/char3.png',
+            **art_paths(3, 3),
             'date_label': '۱۵ آبان ۱۴۰۴',
             'time_label': '۱۸:۰۰',
             'start_iso': _iso(now - timedelta(hours=2)),
@@ -106,8 +135,7 @@ def _demo_rooms():
         {
             'slug': 'war-room',
             'name': 'اتاق جنگ شبانه',
-            'frame_src': 'images/frame4.png',
-            'char_src': 'images/char4.png',
+            **art_paths(4, 4),
             'date_label': '۱۶ آبان ۱۴۰۴',
             'time_label': '۲۱:۳۰',
             'start_iso': _iso(now + timedelta(hours=6)),
@@ -156,8 +184,7 @@ def home_tournaments():
         {
             'kind': 'tournament',
             'name': 'نبرد کیل‌باکس',
-            'frame_src': 'images/frame1.png',
-            'char_src': 'images/char1.png',
+            **art_paths(1, 1),
             'date_label': '۲۰ آبان ۱۴۰۴',
             'time_label': '۱۸:۰۰',
             'start_iso': _iso(now + timedelta(days=2, hours=4)),
@@ -173,8 +200,7 @@ def home_tournaments():
         {
             'kind': 'tournament',
             'name': 'تورنومنت قهرمانان',
-            'frame_src': 'images/frame2.png',
-            'char_src': 'images/char2.png',
+            **art_paths(2, 2),
             'date_label': '۲۵ آبان ۱۴۰۴',
             'time_label': '۲۰:۰۰',
             'start_iso': _iso(now + timedelta(days=5, hours=6)),

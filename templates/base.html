@@ -8,6 +8,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#070a07">
   <meta name="color-scheme" content="dark">
+  <meta name="description" content="{% block meta_description %}{{ kb_meta_description }}{% endblock %}">
+  <meta name="robots" content="{% block robots %}{{ kb_robots }}{% endblock %}">
+  <link rel="canonical" href="{% block canonical %}{{ kb_canonical }}{% endblock %}">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:site_name" content="KILLBOX">
+  <meta property="og:locale" content="fa_IR">
+  <meta property="og:title" content="{% block og_title %}{{ kb_og_title }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}{{ kb_meta_description }}{% endblock %}">
+  <meta property="og:url" content="{% block og_url %}{{ kb_canonical }}{% endblock %}">
+  <meta property="og:image" content="{% block og_image %}{{ kb_og_image }}{% endblock %}">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" href="{% static 'images/favicon.ico' %}?v=3" sizes="any">
   <link rel="icon" type="image/png" href="{% static 'images/favicon-32.png' %}?v=3" sizes="32x32">
   <link rel="apple-touch-icon" href="{% static 'images/apple-touch-icon.png' %}?v=3">
@@ -17,10 +28,9 @@
   <link rel="stylesheet" href="{% static 'css/base.css' %}?v=10">
   <link rel="stylesheet" href="{% static 'css/neon-bg.css' %}?v=3">
   <link rel="stylesheet" href="{% static 'css/landing.css' %}?v=79">
-  <link rel="stylesheet" href="{% static 'css/social.css' %}?v=40">
-  <link rel="stylesheet" href="{% static 'css/arena.css' %}?v=14">
-  <link rel="stylesheet" href="{% static 'css/alliance.css' %}?v=5">
-  <link rel="stylesheet" href="{% static 'css/shop.css' %}?v=2">
+  {% for href in kb_page_css %}
+  <link rel="stylesheet" href="{{ href }}">
+  {% endfor %}
   {% block extra_css %}{% endblock %}
   {% endif %}
 </head>
@@ -162,6 +172,62 @@
       }
     }
 
+    function assetList(root, name) {
+      var node = root.querySelector('#kb-page-assets');
+      if (!node) {
+        return [];
+      }
+      return String(node.getAttribute(name) || '').split(/\s+/).filter(Boolean);
+    }
+
+    function hasHref(nodes, href) {
+      for (var i = 0; i < nodes.length; i += 1) {
+        if (nodes[i].getAttribute('href') === href || nodes[i].getAttribute('src') === href) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function ensureStyles(hrefs) {
+      var links = doc.querySelectorAll('link[rel="stylesheet"]');
+      hrefs.forEach(function (href) {
+        if (hasHref(links, href)) {
+          return;
+        }
+        var link = doc.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        doc.head.appendChild(link);
+        links = doc.querySelectorAll('link[rel="stylesheet"]');
+      });
+    }
+
+    function ensureScripts(srcs, done) {
+      var scripts = doc.querySelectorAll('script[src]');
+      var missing = srcs.filter(function (src) {
+        return !hasHref(scripts, src);
+      });
+      if (!missing.length) {
+        done();
+        return;
+      }
+      var index = 0;
+      function next() {
+        if (index >= missing.length) {
+          done();
+          return;
+        }
+        var el = doc.createElement('script');
+        el.src = missing[index];
+        index += 1;
+        el.onload = next;
+        el.onerror = next;
+        doc.body.appendChild(el);
+      }
+      next();
+    }
+
     function applyShell(html, url, push) {
       var parsed = new DOMParser().parseFromString(html, 'text/html');
       var next = parsed.getElementById('kb-shell');
@@ -170,6 +236,8 @@
         hardGo(url);
         return;
       }
+      var css = assetList(next, 'data-css');
+      var js = assetList(next, 'data-js');
       syncSlot('kb-chrome-top', parsed, 'top');
       shell.replaceWith(next);
       syncSlot('kb-chrome-dock', parsed, 'dock');
@@ -184,9 +252,12 @@
         }
         win.history.pushState({ kbNav: 1 }, '', url.href);
       }
-      if (typeof win.__kbBindPage === 'function') {
-        win.__kbBindPage();
-      }
+      ensureStyles(css);
+      ensureScripts(js, function () {
+        if (typeof win.__kbBindPage === 'function') {
+          win.__kbBindPage();
+        }
+      });
     }
 
     function fetchShell(url, signal) {
@@ -403,18 +474,6 @@
     doc.addEventListener('click', onActivate, true);
     doc.addEventListener('pointerenter', onHint, true);
     doc.addEventListener('touchstart', onHint, { capture: true, passive: true });
-
-    function warmDock() {
-      var items = doc.querySelectorAll('.kb-dock__item[href]');
-      for (var i = 0; i < items.length; i += 1) {
-        prefetch(items[i].getAttribute('href'));
-      }
-    }
-    if (typeof win.requestIdleCallback === 'function') {
-      win.requestIdleCallback(warmDock, { timeout: 1400 });
-    } else {
-      win.setTimeout(warmDock, 280);
-    }
   })(window, document);
   </script>
   {% include "core/_neon_bg.html" %}
@@ -424,23 +483,16 @@
   {% endif %}
   {% endif %}
   <div id="kb-chrome-top">{% block chrome_top %}{% endblock %}</div>
-  <div id="kb-shell">{% block body %}{% endblock %}</div>
+  <div id="kb-shell">{% include "core/_page_assets.html" %}{% block body %}{% endblock %}</div>
   <div id="kb-chrome-dock">{% block chrome_dock %}{% endblock %}</div>
   {% if not kb_partial %}
   {% include "social/_gif_picker.html" %}
   {% block extra_js %}
-  <script src="{% static 'js/upload.js' %}?v=2" defer></script>
   <script src="{% static 'js/landing.js' %}?v=57" defer></script>
   <script src="{% static 'js/overlay-history.js' %}?v=1" defer></script>
-  <script src="{% static 'js/feed-media.js' %}?v=5" defer></script>
-  <script src="{% static 'js/story-viewer.js' %}?v=6" defer></script>
-  <script src="{% static 'js/reels-viewer.js' %}?v=5" defer></script>
-  <script src="{% static 'js/post-views.js' %}?v=2" defer></script>
-  <script src="{% static 'js/composer-extras.js' %}?v=4" defer></script>
-  <script src="{% static 'js/social.js' %}?v=21" defer></script>
-  <script src="{% static 'js/live.js' %}?v=5" defer></script>
-  <script src="{% static 'js/alliance.js' %}?v=2" defer></script>
-  <script src="{% static 'js/shop.js' %}?v=1" defer></script>
+  {% for src in kb_page_js %}
+  <script src="{{ src }}" defer></script>
+  {% endfor %}
   {% endblock %}
   <script src="{% static 'js/translate.js' %}?v=2" defer></script>
   {% endif %}

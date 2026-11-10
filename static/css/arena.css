@@ -49,6 +49,11 @@
   container-name: event-art;
 }
 
+.event-card__art > picture,
+.event-card__char-figure > picture {
+  display: contents;
+}
+
 .event-card__frame {
   display: block;
   width: 100%;

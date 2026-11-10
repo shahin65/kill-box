@@ -17,7 +17,17 @@ function bindEventCards() {
     var img = card.querySelector('.event-card__char');
     var stack = card.querySelector('.event-card__char-stack');
     if (img && stack) {
-      stack.style.setProperty('--event-char-mask', 'url("' + img.src + '")');
+      var applyMask = function () {
+        var src = img.currentSrc || img.src;
+        if (src) {
+          stack.style.setProperty('--event-char-mask', 'url("' + src + '")');
+        }
+      };
+      if (img.complete) {
+        applyMask();
+      } else {
+        img.addEventListener('load', applyMask, { once: true });
+      }
     }
   });
   tickEventCards();

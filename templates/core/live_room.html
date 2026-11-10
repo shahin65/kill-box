@@ -2,6 +2,9 @@
 {% load static %}
 
 {% block title %}{{ room.name }} · لایو · KILLBOX{% endblock %}
+{% block meta_description %}پخش زنده {{ room.name }} در کیل‌باکس.{% endblock %}
+{% block og_title %}{{ room.name }} · لایو · KILLBOX{% endblock %}
+{% block og_description %}پخش زنده {{ room.name }} در کیل‌باکس.{% endblock %}
 {% block body_class %}is-landing is-home is-docked is-live{% if is_guest %} is-guest{% endif %}{% endblock %}
 
 {% block chrome_top %}
